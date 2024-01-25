@@ -11,13 +11,13 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), building upon it i
 
 By default, it reports **average weighted** π and Dxy that are calculated like this:
 
-$$ π_w, Dxy_w = { \sum^n_1 {N_{diff} \over N_{comp} } \over n $$
+$$ π_w, Dxy_w = {{ \sum^n_1 {N_{diff} \over N_{comp} } \over n } $$
 
 Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy) and $n$ stands for the number of sites used for calculation. This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for π and Dxy calculation.
 
 With option `PIXY=1` `piawka` will calculate `pixy`-like π and Dxy:
 
-$$ π_{pixy}, Dxy_{pixy} = { \sum^n_1 N_{diff} \over \sum^n_1 N_{comp} } $$
+$$ π_{pixy}, Dxy_{pixy} = { \sum^n N_{diff} \over \sum^n N_{comp} } $$
 
 — this means that only one division per VCF file is performed once numerators and denominators from all sites are summarized. This metric gives lower weight to sites with fewer genotyped alleles (i.e. fewer possible comparisons) and should be more robust against missing data.
 
@@ -25,7 +25,7 @@ $$ π_{pixy}, Dxy_{pixy} = { \sum^n_1 N_{diff} \over \sum^n_1 N_{comp} } $$
 
 ### Installation
 
-Just clone the repo (or even simply download `piawka`) and you are good to go!
+Just clone the repo (or even simply download `piawka` if you don't need 80Mb example VCF file) and you are good to go!
 
 ```
 git clone https://github.com/novikovalab/piawka.git
