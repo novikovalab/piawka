@@ -52,7 +52,7 @@ echo "export PATH=/path/to/piawka/dir:$PATH" >> ~/.bashrc
 zcat file.vcf.gz | piawka [OPTIONS] groups_file - > piawka_pi-dxy.tsv
 ```
 
-One can use external software, e.g. `bcftools`, to query the VCF file for the region of interest (e.g. a gene or a genomic window). Take a look at the example of [parallel processing of many loci]() with `piawka` and GNU `parallel` tool.
+See [options](#options) and [examples](#example-data) for further details.
 
 ### Input files
 
