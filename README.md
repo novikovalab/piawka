@@ -11,7 +11,7 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), building upon it i
 
 By default, it reports **average weighted** π and Dxy that are calculated like this:
 
-$$ π_{w}, Dxy_{w} = {{ \sum^n N_{diff} \over N_{comp} \over n } $$
+$$ π_{w}, Dxy_{w} = { { \sum^n N_{diff} \over N_{comp} } \over n } $$
 
 Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy) and $n$ stands for the number of sites used for calculation. This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for π and Dxy calculation.
 
