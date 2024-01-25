@@ -1,7 +1,9 @@
-``piawka`` -- the powerful `awk` script to calculate π and Dxy (or πxy, or Nei's D) in VCF files <img src="logo/logo.png" align="right" width="20%">
+``piawka`` <img src="logo/logo.png" align="right" width="20%">
 ==========
 
-Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), building upon it in a few aspects:
+The powerful `awk` script to calculate π and Dxy (or πxy, or Nei's D) in VCF files.
+
+Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it in a few aspects:
 
  - **supports arbitrary ploidy level**, which can be different between samples and/or regions in the VCF
  - supports both average weighted π and `pixy`-like π calculation
@@ -41,7 +43,7 @@ mawk || sed -i '1s/mawk/awk/' ./piawka
 It might be useful to add `piawka` location to `PATH` environmental variable to run it from anywhere by either executing the following code or adding it to your `.bashrc` file:
 
 ```
-echo "export PATH=/path/to/piawka/dir:$PATH" >> ~/.bashrc
+echo 'export PATH="/path/to/piawka/dir:$PATH"' >> ~/.bashrc
 ```
 
 ### Usage
