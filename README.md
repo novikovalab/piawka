@@ -7,7 +7,7 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it 
 
  - **supports arbitrary ploidy level**, which can be different between samples and/or regions in the VCF
  - supports both average weighted π and `pixy`-like π calculation
- - can use multiallelic SNPs, in biallelic mode also uses multiallelic SNPs that have two alleles in the given groups
+ - can use multiallelic SNPs, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups
  - **lightweight and portable**, runs wherever vanilla AWK can run and requires no installation
  - **faster on a single core** (and can be parallelized to some extent with shell tools, e.g. GNU `parallel`)
 
@@ -79,6 +79,8 @@ Options are provided as KEY=value pairs before input files. Following options ex
  - **pop1** : analyzed group 1
  - **pop2** : "." for pi values or group 2 for Dxy values
  - **nUsed** : number of sites used for pi calculation (i.e. SNPs and invariant sites)
+ - **metric** : pi or dxy, average weighted or `pixy`-like
+ - **value** of the metric
 
 ## Example data
 
@@ -111,7 +113,7 @@ The script above runs a separate instance of `piawka` for every region in the BE
 
 ## Alternatives
 
-This script shows all strong and weak points of being written in a simple text-processing language of `awk`. While combining high speed with not too complicated code, it lacks good error handling. It means that with corrupted inputs the script will do its best to produce *some* result silently. If one needs a more fool-proof solution, consider some better-developed alternatives.
+This script shows all strong and weak points of being written in a simple text-processing language of `awk`. While combining high speed with not too complicated code, it lacks good error handling. It means that with corrupted inputs the script will do its best to produce *some* result silently. If you need a more fool-proof solution, consider some better-developed alternatives.
 
 For diploid VCFs, one can use [`pixy`](https://github.com/ksamuk/pixy). To make it work with polyploids, one would need to randomly sample two GT values from each cell with >2 genotypes (it should not affect diversity metrics much at the genomic scale).
 
