@@ -13,7 +13,7 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it 
 
 By default, it reports **average weighted** π and Dxy that are calculated like this:
 
-$$ π_{w}, Dxy_{w} = { { \sum^n N_{diff} \over N_{comp} } \over n } $$
+$$ π_{w}, Dxy_{w} = { { \sum^n { N_{diff} \over N_{comp} } } \over n } $$
 
 Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy) and $n$ stands for the number of sites used for calculation. This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for π and Dxy calculation.
 
@@ -43,7 +43,7 @@ mawk || sed -i '1s/mawk/awk/' ./piawka
 It might be useful to add `piawka` location to `PATH` environmental variable to run it from anywhere by either executing the following code or adding it to your `.bashrc` file:
 
 ```
-echo 'export PATH="/path/to/piawka/dir:$PATH"' >> ~/.bashrc
+echo 'export PATH="/path/to/piawka/scripts:$PATH"' >> ~/.bashrc
 ```
 
 ### Usage
@@ -53,8 +53,17 @@ echo 'export PATH="/path/to/piawka/dir:$PATH"' >> ~/.bashrc
 ```
 zcat file.vcf.gz | piawka [OPTIONS] groups_file - > piawka_pi-dxy.tsv
 ```
+If you want to parallelize the counting and have GNU parallel installed, try our wrapper scripts:
 
-See [options](#options) and [examples](#example-data) for further details.
+```
+# Parallelize VCF reading and count summary statistics for entire file
+piawka_par_blk.sh -g groups_file -p piawka_options -v vcf_gz
+
+# Split VCF by BED regions and count stats for each region in parallel
+piawka_par_reg.sh -b bed_file -g groups_file -p piawka_options -v vcf_gz
+```
+
+See [Options](#options) and [Examples](#example-data) for further details.
 
 ### Input files
 
@@ -70,6 +79,21 @@ Options are provided as KEY=value pairs before input files. Following options ex
  - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=1` will not make any difference in this case.
  - `LOCUS="locus_name"` : the name of the locus in the output. Meaningless with `PERSITE=1`. Default is "chr\_start\_end" (first chromosome encountered in the file is taken).
 
+Helper scripts (`piawka_par_*`) accept following options:
+
+- `-a parallel_options` : a string of space-separated options for GNU parallel (e.g. `-a "-j20"`)
+- `-b bed_file` : the BED file with regions to analyze in parallel jobs.
+              If it contains 4+ columns, the 4th is passed as the locus name (LOCUS) to piawka.
+ - `-g grp_file` : the groups file for piawka (see piawka docs).
+ - `-p piawka_options` : a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1"). *Note that with `piawka_par_reg.sh` the LOCUS value, if provided, will be overridden.*
+ - `-v vcf_file` : the VCF file for piawka (see piawka docs).
+
+Here is a subset of `parallel` options to be passed as `-a parallel_options`:
+
+ - `-j [num]` : number of parallel jobs (defaults to available CPUs)
+ - `--block 10M` : for `piawka_par_blk.sh`, the size of the VCF block for 1 `piawka` job. Bigger blocks => higher RAM usage.
+  - `--keep-order` : for `piawka_par_blk.sh`, make the order of lines in the output same as in non-parallel `piawka` run.
+
 ### Output
 
 `piawka` outputs a long-format table with no header and following columns:
@@ -84,7 +108,9 @@ Options are provided as KEY=value pairs before input files. Following options ex
 
 ## Example data
 
-You can try `piawka` with the (part of) genomic variant data we made for Siberian *Arabidopsis lyrata* populations. `alyrata_scaff_1_10000k-10500k.vcf.gz` contains data for diploids and polyploids with various amounts of missing data split into several admixture groups defined in `groups.tsv` file.
+You can try `piawka` with the (part of) genomic variant data we made for Siberian *Arabidopsis lyrata* populations. `alyrata_scaff_1_10000k-10500k.vcf.gz` contains data for diploids and polyploids with various amounts of missing data split into several admixture groups defined in `groups.tsv` file. There are ~0.5M sites and 4 groups.
+
+The following lazy time tests were run on a Lenovo laptop with a 12th gen Core i7.
 
 In the most simple case, one would calculate summary pi and Dxy for each group and combination of groups using site-weighted pi like this:
 
@@ -98,18 +124,63 @@ zcat $vcf | piawka $grp - > $out
 head $out
 ```
 
+The output is:
+
+```
+
+real    0m18.834s
+user    0m18.816s
+sys     0m0.887s
+
+scaffold_1_9999942_10500000     310091  UKScandinavia_2n        .       215090  pi_w    0.00988236
+scaffold_1_9999942_10500000     310091  PUWS_4n .       219820  pi_w    0.010075
+scaffold_1_9999942_10500000     310091  CESiberia_2n    .       215849  pi_w    0.00867701
+scaffold_1_9999942_10500000     310091  LE_2n   .       218437  pi_w    0.00870315
+scaffold_1_9999942_10500000     310091  PUWS_4n CESiberia_2n    210149  dxy_w   0.0108729
+scaffold_1_9999942_10500000     310091  UKScandinavia_2n        CESiberia_2n    202752  dxy_w    0.0149389
+scaffold_1_9999942_10500000     310091  UKScandinavia_2n        PUWS_4n 205623  dxy_w   0.014567
+scaffold_1_9999942_10500000     310091  LE_2n   CESiberia_2n    211095  dxy_w   0.0101943
+scaffold_1_9999942_10500000     310091  UKScandinavia_2n        LE_2n   205216  dxy_w   0.0147753
+scaffold_1_9999942_10500000     310091  PUWS_4n LE_2n   213396  dxy_w   0.0106753
+```
+
+Now, let's test the parallel VCF reading:
+
+```
+out2=piawka_blks.tsv
+time piawka_par_blk.sh -a "-j20 --block 10M" -g $grp -v $vcf > $out2
+
+#real    0m4.261s
+#user    0m30.856s
+#sys     0m3.198s
+```
+
+The output is identical to the first one except that the lines might be shuffled (you can change that by adding `--keep-order` `parallel` option.)
 A common usecase is running `piawka` for a set of genomic regions (genes or windows). Having a BED file with these regions (like example `genes.bed`) at hand and helper tools like `bcftools` GNU `parallel` installed, this can be parallelized like:
 
 ```
 bed=genes.bed
-out2=piawka_genes.tsv
+out3=piawka_genes.tsv
 
-awk '{print $1 ":" $2+1 "-" $3}' $bed | 
-parallel bcftools view -r {} $vcf \| piawka $grp - > $out2
-head $out2
+time piawka_par_reg.sh -a "-j20" -b $bed -g $grp -v $vcf > $out3
+
+head -5 $out3
 ```
 
-The script above runs a separate instance of `piawka` for every region in the BED file.
+
+```
+real    0m5.570s
+user    0m34.291s
+sys     0m6.471s
+
+y_num_ID=AL5G20950.v2.1_0       116     UKScandinavia_2n        .       85      pi_w    0.00630252
+y_num_ID=AL5G20950.v2.1_0       116     PUWS_4n .       103     pi_w    0.00341604
+y_num_ID=AL5G20950.v2.1_0       116     CESiberia_2n    .       102     pi_w    0.0103426
+y_num_ID=AL5G20950.v2.1_0       116     LE_2n   .       103     pi_w    0.0123319
+y_num_ID=AL5G20950.v2.1_0       116     PUWS_4n CESiberia_2n    102     dxy_w   0.00665266
+```
+
+-- and we have the stats for many genes after a single pass through the file!
 
 ## Alternatives
 
