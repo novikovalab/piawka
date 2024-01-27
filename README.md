@@ -8,7 +8,7 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it 
  - **supports arbitrary ploidy level**, which can be different between samples and/or regions in the VCF
  - supports both average weighted π and `pixy`-like π calculation
  - can use multiallelic SNPs, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups
- - **lightweight and portable**, runs wherever vanilla AWK can run and requires no installation
+ - **lightweight and portable**, runs wherever vanilla AWK can run (Windows, macOS, Linux...) and requires no installation
  - **faster on a single core** (and can be parallelized to some extent with shell tools, e.g. GNU `parallel`)
 
 By default, it reports **average weighted** π and Dxy that are calculated like this:
@@ -111,6 +111,8 @@ Here is a subset of `parallel` options to be passed as `-a parallel_options`:
 You can try `piawka` with the (part of) genomic variant data we made for Siberian *Arabidopsis lyrata* populations. `alyrata_scaff_1_10000k-10500k.vcf.gz` contains data for diploids and polyploids with various amounts of missing data split into several admixture groups defined in `groups.tsv` file. There are ~0.5M sites and 4 groups.
 
 The following lazy time tests were run on a Lenovo laptop with a 12th gen Core i7.
+
+Software versions: `bcftools==1.19`, `parallel==20230822`, `mawk==1.3.4` (but `piawka` should not be too version-dependent).
 
 In the most simple case, one would calculate summary pi and Dxy for each group and combination of groups using site-weighted pi like this:
 
