@@ -196,5 +196,5 @@ The `pixy` method of dealing with missing data for π calculation was introduced
 
 ## Citing `piawka`
 
-If you want to express your gratitude for `piawka`, please cite our [Siberian *Arabidopsis* paper]() where we have introduced and first used it.
+If you want to express your gratitude for `piawka`, please cite our [Siberian *Arabidopsis* paper]() (coming soon!) where we have introduced and first used it.
 
