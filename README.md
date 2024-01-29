@@ -27,7 +27,7 @@ $$ π_{pixy}, Dxy_{pixy} = { \sum^n N_{diff} \over \sum^n N_{comp} } $$
 
 ### Installation
 
-Just clone the repo (or even simply download `piawka` if you don't need 80Mb example VCF file) and you are good to go!
+Just clone the repo (or even simply download the `scripts` folder if you don't need 80Mb example VCF file) and you are good to go!
 
 ```
 git clone https://github.com/novikovalab/piawka.git

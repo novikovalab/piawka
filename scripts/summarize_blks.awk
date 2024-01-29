@@ -1,4 +1,4 @@
-#!/usr/bin/awk -f
+#!/usr/bin/mawk -f
 #
 # This script summarizes pi and dxy values calculated for VCF file blocks by `piawka_par_blk.sh`.
 
