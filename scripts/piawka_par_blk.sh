@@ -2,17 +2,18 @@
 
 # Run piawka on parallel for chunks of the VCF file and aggregate the result.
 
-# Usage: piawka_par_blk.sh -g groups_file -v vcf_file -p piawka_options
+# Usage: piawka_par_blk.sh -a parallel_options -g groups_file -v vcf_gz -p piawka_options
 
 # Options:
 #
-# -a parallel_options: a string of space-separated options for GNU parallel (e.g. -a "-j20 --block 10M")
+# -a parallel_options: a string of space-separated options for GNU parallel (e.g. -a "-j20 --block 100M")
+#                      default: "--block 10M" (parallel default 1M is too small for a genomic VCF)
 #
 # -g grp_file: the groups file for piawka (see piawka docs).
 #
 # -p piawka_options: a string of space-separated options for piawka (e.g. -p "PIXY=1 LOCUS=mylocus").
 #
-# -v vcf_file: the VCF file for piawka (see piawka docs).
+# -v vcf_gz: the compressed VCF file.
 
 # Parse arguments
 
@@ -35,7 +36,6 @@ done
 # default `-a` value
 if [ -z ${paropts+x} ]; then paropts="--block 10M"; fi
 
-# If gene names contain slashes, replace {//} with {= s@/.*@@ =} and {/} with {= s@^[^/]/+@@ =}
 zcat $vcf | grep -v '^##' |
   parallel $paropts --pipe --header : \
   piawka $piopts $grp - |

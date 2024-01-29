@@ -3,7 +3,7 @@
 # Subset a VCF by chunks of a BED file (genes/windows)
 # and calculate pi within and dxy between groups specified by groups file.
 
-# Usage: piawka_par_reg.sh -b bed_file -g groups_file -v vcf_file -p piawka_options
+# Usage: piawka_par_reg.sh -a parallel_options -b bed_file -g groups_file -v vcf_gz -p piawka_options
 
 # Options:
 #
@@ -17,7 +17,7 @@
 # -p piawka_options: a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1").
 #                    Note that LOCUS value, if provided, will be overridden.
 #
-# -v vcf_file: the VCF file for piawka (see piawka docs).
+# -v vcf_gz: the compressed VCF file.
 
 # Parse arguments
 while getopts ":a:b:g:p:v:" opt; do

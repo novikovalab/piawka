@@ -1,9 +1,9 @@
 #!/usr/bin/mawk -f
 
-# This script takes a grouping file (two columns: sample id and group) and a VCF as input.
+# This script takes a grouping file (two columns: sample id and group) and a decompressed VCF as input.
 # It outputs two kinds of diversity metrics: pi within each group and dxy between each pair of groups.
 
-# Usage: piawka.mawk [OPTIONS] groups.tsv <( zcat file.vcf.gz )
+# Usage: piawka [OPTIONS] groups.tsv <( zcat file.vcf.gz )
 
 # Options:
 #
