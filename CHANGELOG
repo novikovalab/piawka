@@ -1,0 +1,12 @@
+(2024-01-10) 0.2 : included multiallelics with 2 alleles in given group into comparisons with !MULT,
+                   added integer-based pi and dxy formulas,
+                   shortened PERSITE printing block,
+                   dropped regex match in #CHROM block
+
+(2024-01-24) 0.3 : curly braces, curly braces everywhere (bug fix)
+
+(2024-01-25) 0.4 : add PIXY option
+
+(2024-01-30) 0.5 : add DXY option,
+                   set PIXY=1 and DXY=1 by default
+

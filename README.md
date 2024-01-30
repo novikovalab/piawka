@@ -1,4 +1,4 @@
-``piawka`` <img src="logo/logo.svg" align="right" width="20%">
+``piawka`` <img src="logo/logo.svg" align="right" width="25%">
 ==========
 
 The powerful `awk` script to calculate π and Dxy (or πxy, or Nei's D) in VCF files.
@@ -11,17 +11,17 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it 
  - **lightweight and portable**, runs wherever vanilla AWK can run (Windows, macOS, Linux...) and requires no installation
  - **faster on a single core** (and can be parallelized with shell tools, e.g. GNU `parallel` -- see [Usage](#usage))
 
-By default, it reports **average weighted** π and Dxy that are calculated like this:
-
-$$ π_{w}, Dxy_{w} = { { \sum^n { N_{diff} \over N_{comp} } } \over n } $$
-
-Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy) and $n$ stands for the number of sites used for calculation. This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for weighted π and Dxy calculation.
-
-With option `PIXY=1` `piawka` will calculate `pixy`-like π and Dxy:
+By default, it reports `pixy`-like π and Dxy:
 
 $$ π_{pixy}, Dxy_{pixy} = { \sum^n N_{diff} \over \sum^n N_{comp} } $$
 
-— this means that only one division per VCF file is performed after numerators and denominators from all sites are summarized. This metric gives lower weight to sites with fewer genotyped alleles (i.e. fewer possible comparisons) and should be more robust against missing data.
+Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy) and $n$ stands for the number of sites used for calculation. This means that only one division per VCF file is performed after numerators and denominators from all sites are summarized. This metric gives lower weight to sites with fewer genotyped alleles (i.e. fewer possible comparisons) and should be more robust against missing data.
+
+With option `PIXY=0` `piawka` will calculate **average weighted** π and Dxy like this:
+
+$$ π_{w}, Dxy_{w} = { { \sum^n { N_{diff} \over N_{comp} } } \over n } $$
+
+This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for weighted π and Dxy calculation.
 
 ## Running `piawka`
 
@@ -68,16 +68,17 @@ See [Options](#options) and [Examples](#example-data) for further details.
 ### Input files
 
  - a **VCF file**: it is most sensible to include invariant sites for an unbiased estimation of π and Dxy. Consult the well-written [guide](https://pixy.readthedocs.io/en/latest/generating_invar/generating_invar.html) by `pixy` authors. `piawka` only looks at what looks like discrete genotype calls, so any cell can have any imaginable number of genotypes. Regardless of the calculation method, `piawka` does not make assumptions about missing genotype calls and does not include them in the calculation (see why this is good [here](https://pixy.readthedocs.io/en/latest/about.html)). `piawka` parses multiallelic sites but does not parse sites with indels.
- - a **groups file**: this is a 2-column TSV file with no header, first column being the sample IDs from the VCF and the second being the group ID. `piawka` can handle arbitrary number of groups, which means one can also use it to calculate missing data-aware heterozygosity if `groups_file` has two identical columns with unique sample names. If a VCF file is missing in the groups file, it will not be used for calculation. Groups file can contain non-existent sample IDs, they will not be considered.
+ - a **groups file**: this is a 2-column TSV file with no header, first column being the sample IDs from the VCF and the second being the group ID. `piawka` can handle arbitrary number of groups, which means one can also use it to calculate ploidy- and missing data-aware heterozygosity if all groups contain a single sample. If a sample from the VCF file is missing in the groups file, it will not be used for calculation. Groups file can also contain non-existent sample IDs, they will not be considered.
 
 ### Options
 
-Options are provided as KEY=value pairs (no spaces around the `=` sign!) before input files. Following options exist:
+Options are provided as KEY=value pairs (no spaces around the `=` sign!) before input files. Flags can be set to 1 (true) or 0 (false). Following options exist:
 
  - `MULT=1` : counts pi and Dxy including multiallelic sites. Default is biallelic sites only. Higher values, lower comparability with other tools, but maybe more honest?
- - `PIXY=1` : use the missingness-based site weighting as in [`pixy`](https://github.com/ksamuk/pixy). Might be better for groups with lots (>10%) of missing data according to [this paper](https://doi.org/10.1111/1755-0998.13707). `piawka` results might be slightly different (and more precise) because here we also make use of sites marked as multiallelic if they have two alleles in a given group. Thus, **`piawka` might be more suitable for multi-species VCF files** with higher share of multiallelic SNPs. Full convergence with `pixy` can be enforced by filtering out multiallelic sites before running `piawka` (e.g. `bcftools view -M2 file.vcf.gz`), or I can make it an option if there is demand for that.
+ - `PIXY=1` (default) : use the missingness-based site weighting as in [`pixy`](https://github.com/ksamuk/pixy). Might be better for groups with lots (>10%) of missing data according to [this paper](https://doi.org/10.1111/1755-0998.13707). `piawka` results might be slightly different (and more precise) because here we also make use of sites marked as multiallelic if they have two alleles in a given group. Thus, **`piawka` might be more suitable for multi-species VCF files** with higher share of multiallelic SNPs. Full convergence with `pixy` can be enforced by filtering out multiallelic sites before running `piawka` (e.g. `bcftools view -M2 file.vcf.gz`), or I can make it an option if there is demand for that.
  - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=1` will not make any difference in this case.
  - `LOCUS="locus_name"` : the name of the locus in the output. Meaningless with `PERSITE=1`. Default is "chr\_start\_end" (first chromosome encountered in the file is taken).
+ - `DXY=1` (default): output Dxy values along with pi values
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
@@ -127,7 +128,7 @@ vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out=piawka.tsv
 
-zcat $vcf | piawka $grp - > $out
+zcat $vcf | piawka PIXY=0 $grp - > $out
 head $out | column -t
 ```
 
@@ -159,7 +160,7 @@ Now, let's test the parallel VCF reading:
 vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out2=piawka_blks.tsv
-time piawka_par_blk.sh -a "-j20 --block 10M" -g $grp -v $vcf > $out2
+time piawka_par_blk.sh -a "-j20 --block 10M" -p "PIXY=0" -g $grp -v $vcf > $out2
 
 #real    0m4.261s
 #user    0m30.856s
@@ -176,7 +177,7 @@ grp=groups.tsv
 bed=genes.bed
 out3=piawka_genes.tsv
 
-time piawka_par_reg.sh -a "-j20" -b $bed -g $grp -v $vcf > $out3
+time piawka_par_reg.sh -a "-j20" -p "PIXY=0" -b $bed -g $grp -v $vcf > $out3
 
 head -5 $out3 | column -t
 ```

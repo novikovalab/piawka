@@ -15,11 +15,13 @@
 # LOCUS="locus_name" : the name of the locus in the output. Meaningless with PERSITE. 
 #         Default is "chr_start_end" (first chromosome encountered in the file is taken).
 #
-# PIXY=1 : use the missingness-based site weighting as in ksamuk/pixy.
+# PIXY=1 (default) : use the missingness-based site weighting as in ksamuk/pixy.
 #             Might be better for groups with lots (>10%) of missing data.
 #             Our result might be different (and more precise) 
 #             because here we also make use of sites marked as multiallelic
 #             if they have two alleles in a given group.
+#
+# DXY=1 (default) : output dxy values along with pi values
 
 # Example groups.tsv (any whitespace sep character recognizable as FS by awk should work):
 #
@@ -35,12 +37,7 @@
 # Output is the long-format table with seven columns (no header):
 # locus_name, nSites, pop1, pop2, nUsed (passed missingness & n_alleles filters), metric (pi/dxy), value
 
-# Version: 0.2 : included multiallelics with 2 alleles in given group into comparisons with !MULT,
-#                switched to float-based pi and dxy formulas,
-#                shortened PERSITE printing block,
-#                dropped regex match in #CHROM block
-#          0.3 : curly braces, curly braces everywhere
-#          0.4 : add PIXY option
+# Version: 0.5
 
 # Declare delimiters
 BEGIN{ OFS="\t" }
@@ -63,6 +60,9 @@ NR>FNR && /^#CHROM/ {
        }
      }
    }
+  # Set default variable values
+  if ( PIXY == "" ) { PIXY=1 }
+  if ( DXY == "" ) { DXY=1 }
 }
 
 # Second file: process sites
@@ -139,7 +139,7 @@ NR>FNR && /^[^#]/ {
 
 				# Calculate pi between this group and all other groups with <50% missing data
 				for ( g2 in groups ) {
-					if ( g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<3 ) ) {
+					if ( DXY && g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<3 ) ) {
           
 						# Increment number of sites used for dxy
 						Lal[g,g2]++
