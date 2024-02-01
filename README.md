@@ -231,7 +231,7 @@ parallel -j20 \
 
 Another possibility is treating each line of `zerofolds.bed` and `fourfolds.bed` as a region for `piawka_par_reg.sh` and then summarize the result by genes using `summarize_blks.awk` helper script, but this way the result will be unweighted and might be less precise.
 
-[^1] I was using [`liftoff`](https://github.com/agshumate/Liftoff) annotation that lacks phase info so I had to sanitize it first with `agat_sp_fix_cds_phase.pl` from [AGAT toolkit](https://github.com/NBISweden/AGAT). Details [here](https://github.com/harvardinformatics/degenotate/issues/32).
+[^1]: I was using [`liftoff`](https://github.com/agshumate/Liftoff) annotation that lacks phase info so I had to sanitize it first with `agat_sp_fix_cds_phase.pl` from [AGAT toolkit](https://github.com/NBISweden/AGAT). Details [here](https://github.com/harvardinformatics/degenotate/issues/32).
 
 ## Alternatives
 
