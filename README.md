@@ -48,6 +48,12 @@ echo 'export PATH="/path/to/piawka/scripts:$PATH"' >> ~/.bashrc
 
 ### Usage
 
+To get help, run `piawka` without any arguments:
+
+```
+piawka
+```
+
 `piawka` works with decompressed VCF files. The most convenient way to use it is streaming the VCF file via stdin:
 
 ```
@@ -195,6 +201,37 @@ AL5G20950  116  PUWS_4n           CESiberia_2n  102  dxy_w  0.00665266
 ```
 
 -- and we have the stats for many genes after a single pass through the file in 4 seconds!
+
+### Advanced usage example: genewise 4-fold and 0-fold sites' pi and Dxy
+
+One can limit calculations to synonymous/non-synonymous sites inferred using an external tool. Example below was made with [`degenotate`](https://github.com/harvardinformatics/degenotate). At preparation step, `degeneracy-all-sites.bed` is made using `degenotate` with annotation file and reference genome sequence[^1]. Then following steps are needed to extract 0-folds and 4-folds and calculate genewise pi and dxy from them:
+
+```
+cd examples/degenotate
+vcf=../alyrata_scaff_1_10000k-10500k.vcf.gz
+grp=../groups.tsv
+
+# Extract 0fold and 4fold BED lines
+awk -v OFS="\t" '$5==0 { print $0 }' degeneracy-all-sites.bed > zerofolds.bed
+awk -v OFS="\t" '$5==4 { print $0 }' degeneracy-all-sites.bed > fourfolds.bed
+
+# Need unique gene names, so strip position info from NAME field of BED
+zerogenes=( $( cut -f4 zerofolds.bed | sed 's/:[0-9]+//' | sort | uniq ) )
+fourgenes=( $( cut -f4 fourfolds.bed | sed 's/:[0-9]+//' | sort | uniq ) )
+
+# For each gene, extract part of VCF by BED and feed to piawka, name loci as genes
+parallel -j20 \
+  bcftools view -R \<( grep -w {} zerofolds.bed ) $vcf \| \
+  piawka LOCUS={} $grp - > piawka_zerofolds.tsv ::: ${zerogenes[@]}
+
+parallel -j20 \
+  bcftools view -R \<( grep -w {} fourfolds.bed ) $vcf \| \
+  piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]}
+```
+
+Another possibility is treating each line of `zerofolds.bed` and `fourfolds.bed` as a region for `piawka_par_reg.sh` and then summarize the result by genes using `summarize_blks.awk` helper script, but this way the result will be unweighted and might be less precise.
+
+[^1] I was using [`liftoff`](https://github.com/agshumate/Liftoff) annotation that lacks phase info so I had to sanitize it first with `agat_sp_fix_cds_phase.pl` from [AGAT toolkit](https://github.com/NBISweden/AGAT). Details [here](https://github.com/harvardinformatics/degenotate/issues/32).
 
 ## Alternatives
 

@@ -1,0 +1,52 @@
+# Welcome to degenotate -- Degeneracy annotation for coding transcripts.
+# Version 1.2.4 released on August 2023
+# degenotate was developed by Timothy Sackton, Gregg Thomas
+# Website:       https://github.com/harvardinformatics/degenotate
+#
+# The date and time at the start is:  02.01.2024 | 23:12:34
+# Using Python executable located at: /home/tprs/mambaforge/envs/degenotate/bin/python3.10
+# Using Python version:               3.10.13
+#
+# The program was called as:          /home/tprs/mambaforge/envs/degenotate/bin/degenotate.py -a genes_fix-phase.gff3 -g NT1_220222.fasta -o degenotate
+#
+# -----------------------------------------------------------------------------------------------------------------------------
+# INPUT/OUTPUT INFO:
+# Annotation file:                      /home/tprs/repos/piawka/examples/genes_fix-phase.gff3
+# Annotation file type:                 gff
+# Genome file:                          /home/tprs/repos/piawka/examples/NT1_220222.fasta
+# Output directory:                     degenotate
+# Per-site degeneracy output:           degenotate/degeneracy-all-sites.bed
+# Transcript count output:              degenotate/transcript-counts.tsv
+# Log file:                             degenotate.log
+# -----------------------------------------------------------------------------------------------------------------------------
+# OPTIONS INFO:
+# Option                                Current setting               Current action
+# -m                                    3                             Transcripts shorter than this length will be ignored by degnotate.
+# --quiet                               False                         Time, memory, and status info will be printed to the screen while degenotate is running.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
+# Date        Time      Current step                                      Status                                  Elapsed time (s)    Step time (s)   
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
+# 02.01.2024  23:12:34  Detecting compression of annotation file          Success: No compression detected        0.00346             5e-05           
+# 02.01.2024  23:12:34  Reading transcripts                               Success: 104 transcripts read           0.00545             0.00194         
+# 02.01.2024  23:12:34  Reading coding exons                              Success: 505 coding exons read          0.00778             0.00228         
+# 02.01.2024  23:12:34  Detecting compression of genome FASTA file        Success: No compression detected        0.00787             3e-05           
+# 02.01.2024  23:12:35  Reading genome FASTA file                         Success: 1011 seqs read                 0.7175              0.70959         
+# 02.01.2024  23:12:35  Checking headers                                  Success                                 0.71771             4e-05           
+# 02.01.2024  23:12:35  Extracting CDS                                    Success: 101 CDS read                   0.74255             0.02481         
+# WARNING: transcript AL1G12420.t1.v2.1 has no coding exons associated with it and will be REMOVED from subsequent analyses.
+# WARNING: transcript AL3G50790.t1.v2.1 has no coding exons associated with it and will be REMOVED from subsequent analyses.
+# WARNING: transcript AL1G37390.t1.v2.1 has no coding exons associated with it and will be REMOVED from subsequent analyses.
+# 02.01.2024  23:12:35  Removing genome sequence from memory              Success                                 0.7438              0.001           
+# 02.01.2024  23:12:35  Caclulating degeneracy per transcript             Processed 100 / 101 transcripts...      1.0118              0.2657          
+# 02.01.2024  23:12:35  Caclulating degeneracy per transcript             Success                                 1.01514             0.26904         
+# ===============================================================================================================================================================================
+#
+# Done!
+# The date and time at the end is: 02.01.2024 | 23:12:35
+# Total execution time:            1.016 seconds.
+# Output directory for this run:   degenotate
+# Log file for this run:           degenotate/degenotate.log
+
+# degenotate finished with 3 WARNINGS -- check log file for more info
+# ===============================================================================================================================================================================
+#

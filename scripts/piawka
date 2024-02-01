@@ -40,7 +40,20 @@
 # Version: 0.5
 
 # Declare delimiters
-BEGIN{ OFS="\t" }
+BEGIN{ 
+OFS="\t" 
+help="\
+\tUsage: \n \
+\tzcat file.vcf.gz | piawka [OPTIONS] groups_file - \n \
+\t\n \
+\tOptions: \n \
+\tPIXY=1       calculate pixy-like pi instead of average weighted pi (default)\n \
+\tDXY=1        count between-group diversity Dxy in addition to within-group pi (default)\n \
+\tMULT=1       use multiallelic sites\n \
+\tPERSITE=1    output values for each site instead of summary values\n \
+\tLOCUS='text' custom name of region to be shown in first column"
+if ( !ARGV[1] ) { print help; exit }
+}
 
 # First file: store lists of group members in `groups` array
 NR==FNR {groups[$2]++; groupmem[$2,$1]++}
@@ -138,40 +151,42 @@ NR>FNR && /^[^#]/ {
         if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "pi", pi[g] }
 
 				# Calculate pi between this group and all other groups with <50% missing data
-				for ( g2 in groups ) {
-					if ( DXY && g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<3 ) ) {
-          
-						# Increment number of sites used for dxy
-						Lal[g,g2]++
+        if ( DXY ) {
+			  	for ( g2 in groups ) {
+			  		if ( g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<3 ) ) {
+            
+			  			# Increment number of sites used for dxy
+			  			Lal[g,g2]++
 
-          # Extract alleles of the group
-          delete thosealleles
-          for (ij in alleles) {
-           if ( ij ~ "^" g2 SUBSEP ) {
-             thosealleles[ij] = alleles[ij]
-           }
-          }
-						# Add to dxy: probability that two alleles picked from two groups differ
-            # new formula ( three expressions with thisdxy[g,g2] )
-            # inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/ (also not really speeding things up)
-            #thisdxy[g,g2]=nalleles[g]*nalleles[g2]
-						for ( x in thesealleles ) {
-              split(x, xx, SUBSEP)
-              #thisdxy[g,g2]-=thesealleles[x]*thosealleles[g2,xx[2]]
-							for ( y in thosealleles ) {
-                split(y, yy, SUBSEP)
-								if (xx[2] != yy[2]) { 
-                  if ( PIXY ) { numerator[g,g2]+=thesealleles[x]*thosealleles[y] 
-                  } else { dxy[g,g2]+=thesealleles[x]*thosealleles[y] / (nalleles[g]*nalleles[g2]) 
-                  }
-							  }
-						  }
-            #dxy[g,g2]+=thisdxy[g,g2]/(nalleles[g]*nalleles[g2])
+            # Extract alleles of the group
+            delete thosealleles
+            for (ij in alleles) {
+             if ( ij ~ "^" g2 SUBSEP ) {
+               thosealleles[ij] = alleles[ij]
+             }
             }
-            denominator[g,g2]+=(nalleles[g]*nalleles[g2])
-            if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, "dxy", dxy[g,g2] }
-					}
-				}
+			  			# Add to dxy: probability that two alleles picked from two groups differ
+              # new formula ( three expressions with thisdxy[g,g2] )
+              # inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/ (also not really speeding things up)
+              #thisdxy[g,g2]=nalleles[g]*nalleles[g2]
+			  			for ( x in thesealleles ) {
+                split(x, xx, SUBSEP)
+                #thisdxy[g,g2]-=thesealleles[x]*thosealleles[g2,xx[2]]
+			  				for ( y in thosealleles ) {
+                  split(y, yy, SUBSEP)
+			  					if (xx[2] != yy[2]) { 
+                    if ( PIXY ) { numerator[g,g2]+=thesealleles[x]*thosealleles[y] 
+                    } else { dxy[g,g2]+=thesealleles[x]*thosealleles[y] / (nalleles[g]*nalleles[g2]) 
+                    }
+			  				  }
+			  			  }
+              #dxy[g,g2]+=thisdxy[g,g2]/(nalleles[g]*nalleles[g2])
+              }
+              denominator[g,g2]+=(nalleles[g]*nalleles[g2])
+              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, "dxy", dxy[g,g2] }
+			  		}
+			  	}
+        }
 			}
 		}
 	}

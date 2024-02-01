@@ -1,16 +1,16 @@
 #!/usr/bin/mawk -f
 #
-# This script summarizes pi and dxy values calculated for VCF file blocks by `piawka_par_blk.sh`.
+# This script summarizes piawka results counted over several blocks.
+# It takes mean value weighted by nUsed across all lines with same locus, pop1 and pop2.
 
 BEGIN{ OFS="\t" }
 
 { 
-  if (!FLAG) {locus=$1; FLAG=1}
-  nSites[$3,$4]+=$2
-  nUsed[$3,$4]=$5" "nUsed[$3,$4]
-  allnUsed[$3,$4]+=$5
-  metric[$3,$4]=$6
-  value[$3,$4]=$7" "value[$3,$4]
+  nSites[$1,$3,$4]+=$2
+  nUsed[$1,$3,$4]=$5" "nUsed[$3,$4]
+  allnUsed[$1,$3,$4]+=$5
+  metric[$1,$3,$4]=$6
+  value[$1,$3,$4]=$7" "value[$3,$4]
 }
 
 END{
@@ -19,7 +19,7 @@ END{
     split(nUsed[i], weights, " ")
     split(value[i], values, " ")
     for (j in weights) { finvalue[i] += ( values[j] * weights[j] ) / allnUsed[i] }
-    print locus, nSites[i], pops[1], pops[2], allnUsed[i], metric[i], finvalue[i]
+    print pops[1], nSites[i], pops[2], pops[3], allnUsed[i], metric[i], finvalue[i]
     }
 }
 
