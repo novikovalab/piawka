@@ -39,5 +39,5 @@ if [ -z ${paropts+x} ]; then paropts="--block 10M"; fi
 zcat $vcf | grep -v '^##' |
   parallel $paropts --pipe --header : \
   piawka $piopts $grp - |
-  summarize_blks.awk
+  { if [[ $piopts == *PERSITE=1* ]]; then cat -; else summarize_blks.awk -; fi; }
 
