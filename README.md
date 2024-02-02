@@ -202,7 +202,7 @@ AL5G20950  116  PUWS_4n           CESiberia_2n  102  dxy_w  0.00665266
 
 -- and we have the stats for many genes after a single pass through the file in 4 seconds!
 
-### Advanced usage example: genewise 4-fold and 0-fold sites' pi and Dxy
+### Advanced example: genewise 4-fold and 0-fold sites' pi and Dxy
 
 One can limit calculations to synonymous/non-synonymous sites inferred using an external tool. Example below was made with [`degenotate`](https://github.com/harvardinformatics/degenotate). At preparation step, `degeneracy-all-sites.bed` is made using `degenotate` with annotation file and reference genome sequence[^1]. Then following steps are needed to extract 0-folds and 4-folds and calculate genewise pi and dxy from them:
 
@@ -216,16 +216,17 @@ awk -v OFS="\t" '$5==0 { print $0 }' degeneracy-all-sites.bed > zerofolds.bed
 awk -v OFS="\t" '$5==4 { print $0 }' degeneracy-all-sites.bed > fourfolds.bed
 
 # Need unique gene names, so strip position info from NAME field of BED
-zerogenes=( $( cut -f4 zerofolds.bed | sed 's/:[0-9]+//' | sort | uniq ) )
-fourgenes=( $( cut -f4 fourfolds.bed | sed 's/:[0-9]+//' | sort | uniq ) )
+zerogenes=( $( cut -f4 zerofolds.bed | sed 's/:[0-9]\+//' | sort | uniq ) )
+fourgenes=( $( cut -f4 fourfolds.bed | sed 's/:[0-9]\+//' | sort | uniq ) )
 
 # For each gene, extract part of VCF by BED and feed to piawka, name loci as genes
+# Make sure `grep -w gene_name` does always filter out one gene in your case too
 parallel -j20 \
-  bcftools view -R \<( grep -w {} zerofolds.bed ) $vcf \| \
+  bcftools view -R \<\( grep -w {} zerofolds.bed \) $vcf \| \
   piawka LOCUS={} $grp - > piawka_zerofolds.tsv ::: ${zerogenes[@]}
 
 parallel -j20 \
-  bcftools view -R \<( grep -w {} fourfolds.bed ) $vcf \| \
+  bcftools view -R \<\( grep -w {} fourfolds.bed \) $vcf \| \
   piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]}
 ```
 
