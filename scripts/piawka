@@ -1,57 +1,39 @@
 #!/usr/bin/mawk -f
 
-# This script takes a grouping file (two columns: sample id and group) and a decompressed VCF as input.
-# It outputs two kinds of diversity metrics: pi within each group and dxy between each pair of groups.
-
-# Usage: piawka [OPTIONS] groups.tsv <( zcat file.vcf.gz )
-
-# Options:
-#
-# MULT=1 : counts pi and dxy including multiallelic sites. Default is biallelic sites only. 
-#       Higher values, lower comparability with other tools, but more honest and insightful.
-#
-# PERSITE=1 : returns per-site estimates instead of default VCF-wide average. Incompatible with PIXY.
-#
-# LOCUS="locus_name" : the name of the locus in the output. Meaningless with PERSITE. 
-#         Default is "chr_start_end" (first chromosome encountered in the file is taken).
-#
-# PIXY=1 (default) : use the missingness-based site weighting as in ksamuk/pixy.
-#             Might be better for groups with lots (>10%) of missing data.
-#             Our result might be different (and more precise) 
-#             because here we also make use of sites marked as multiallelic
-#             if they have two alleles in a given group.
-#
-# DXY=1 (default) : output dxy values along with pi values
-
-# Example groups.tsv (any whitespace sep character recognizable as FS by awk should work):
-#
-# sample1 grp1
-# sample2 grp1
-# sample3 grp2
-# sample4 grp3
-# . . .
-#
-# It will silently skip samples missing from the VCF or groups file.
-# If one sample is assigned to two groups, the last will be used.
-
-# Output is the long-format table with seven columns (no header):
-# locus_name, nSites, pop1, pop2, nUsed (passed missingness & n_alleles filters), metric (pi/dxy), value
-
-# Version: 0.5
-
-# Declare delimiters
 BEGIN{ 
 OFS="\t" 
 help="\
-\tUsage: \n \
-\tzcat file.vcf.gz | piawka [OPTIONS] groups_file - \n \
-\t\n \
-\tOptions: \n \
-\tPIXY=1       calculate pixy-like pi instead of average weighted pi (default)\n \
-\tDXY=1        count between-group diversity Dxy in addition to within-group pi (default)\n \
-\tMULT=1       use multiallelic sites\n \
-\tPERSITE=1    output values for each site instead of summary values\n \
-\tLOCUS='text' custom name of region to be shown in first column"
+     This script takes a grouping file and a decompressed VCF as input.\n \
+    It outputs pi within each group and dxy between each pair of groups.\n \
+    \n \
+    Usage: \n \
+    zcat file.vcf.gz | piawka [OPTIONS] groups_file - \n \
+    \n \
+    Options: \n \
+    PIXY=1       calculate pixy-like pi instead of average weighted pi (default)\n \
+    DXY=1        count between-group Dxy in addition to within-group pi (default)\n \
+    MULT=1       use multiallelic sites\n \
+    PERSITE=1    output values for each site instead of summary values\n \
+    LOCUS='text' custom name of region to be shown in first column\n \
+    \n \
+    Example groups.tsv:\n \
+    \n \
+    sample1 grp1\n \
+    sample2 grp1\n \
+    sample3 grp2\n \
+    sample4 grp3\n \
+    \n \
+    Samples missing from the VCF or groups file will be silently skipped.\n \
+    If one sample is assigned to two groups, only one will be used.\n \
+    \n \
+    Output is the long-format table with seven columns (no header):\n \
+    \n \
+    locus_name, nSites, pop1, pop2, nUsed, metric, value\n \
+    \n \
+    where nSites = SNPs + invariant sites,\n \
+          nUsed = nSites - sites with too many alleles or too much missing data\n \
+    \n \
+    Version: 0.5"
 if ( !ARGV[1] ) { print help; exit }
 }
 
