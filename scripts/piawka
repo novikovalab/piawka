@@ -33,31 +33,35 @@ help="\
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.5"
+    Version: 0.5.1"
 if ( !ARGV[1] ) { print help; exit }
 }
 
 # First file: store lists of group members in `groups` array
-NR==FNR {groups[$2]++; groupmem[$2,$1]++}
+NR==FNR { groupmem[$1]=$2 }
 
-# Second file: assign sample positions to groups
+# Second file (VCF), header line
 NR>FNR && /^#CHROM/ {
-       for (i=10; i<=NF; i++) {
-	       for (g in groups) {
-		       if ( groupmem[g,$i] ) { groupindex[i]=g }
-	       }
-       }
+
+  # Set default variable values
+  if ( PIXY == "" ) { PIXY=1 }
+  if ( DXY == "" ) { DXY=1 }
+
+  # Assign sample positions to groups
+  for (i=10; i<=NF; i++) {
+    if ( groupmem[$i] ) { 
+       groupindex[i]=groupmem[$i]
+       groups[groupmem[$i]]++
+     }
+  }
   # Store group combinations
-  if ( !PERSITE ) {
+  if ( DXY && !PERSITE ) {
    for (g in groups) {
      for (g2 in groups) {
        if (g2 < g) { combs[g,g2]++ }
        }
      }
    }
-  # Set default variable values
-  if ( PIXY == "" ) { PIXY=1 }
-  if ( DXY == "" ) { DXY=1 }
 }
 
 # Second file: process sites
