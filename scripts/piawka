@@ -78,7 +78,7 @@ NR>FNR && /^#CHROM/ {
     dxymetric="dxy_w"
   }
   if ( HET ) {
-    pimetric= "het" substr(pimetric, match(pimetric, '_') )
+    pimetric= "het" substr(pimetric, match(pimetric, "_") )
   }
 }
 
