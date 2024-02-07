@@ -13,3 +13,5 @@
 (2024-02-06) 0.5.1 : optimize group assignment (drop unused groups)
 
 (2024-02-07) 0.5.2 : optimize GT extraction, speed improvements
+
+(2024-02-07) 0.6   : add HET option, improve PERSITE handling

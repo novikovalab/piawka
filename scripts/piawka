@@ -15,6 +15,7 @@ help=" \
     MULT=1       use multiallelic sites\n \
     PERSITE=1    output values for each site instead of summary values\n \
     LOCUS='text' custom name of region to be shown in first column\n \
+    HET=1        output heterozygosity, i.e. within-sample pi (unsets default DXY=1)\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -33,19 +34,25 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.5.2"
+    Version: 0.6"
 if ( !ARGV[1] ) { print help; exit }
 }
 
 # First file: store lists of group members in `groups` array
-NR==FNR { groupmem[$1]=$2 }
+NR==FNR { 
+  if ( !HET ) {
+    groupmem[$1]=$2
+  } else {
+    groupmem[$1]=$1
+  }
+}
 
 # Second file (VCF), header line
 NR>FNR && /^#CHROM/ {
 
   # Set default variable values
   if ( PIXY == "" ) { PIXY=1 }
-  if ( DXY == "" ) { DXY=1 }
+  if ( !HET && DXY == "" ) { DXY=1 }
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
@@ -62,6 +69,17 @@ NR>FNR && /^#CHROM/ {
        }
      }
    }
+   # Prepare "metric" field for output
+  if ( PIXY ) { 
+    pimetric="pi_pixy"
+    dxymetric="dxy_pixy"
+  } else { 
+    pimetric="pi_w"
+    dxymetric="dxy_w"
+  }
+  if ( HET ) {
+    pimetric= "het" substr(pimetric, match(pimetric, '_') )
+  }
 }
 
 # Second file: process sites
@@ -88,26 +106,41 @@ NR>FNR && /^[^#]/ {
 
 		# Pool GT values for groups, count each state and missing data
 		for (i=10; i<=NF; i++) {
+      grp=groupindex[i]
 			for (c=1; c<match( $i, ":" ); c+=2) {
         al=substr($i,c,1)
 				if ( al == "." ) {
-					if ( !PIXY ) { miss[groupindex[i]]+=match( $i, ":" )/2 }
+					if ( !PIXY ) { miss[grp]+=match( $i, ":" )/2 }
           break
         } else {
-					alleles[groupindex[i],al]++
-					nalleles[groupindex[i]]++
-          if ( !seen[groupindex[i],al] ) {
-            seen[groupindex[i],al]++
-            nseen[groupindex[i]]++
+          if ( HET ) { thisal[al]++ }
+					alleles[grp,al]++
+					nalleles[grp]++
+          if ( !seen[grp,al] ) {
+            seen[grp,al]++
+            nseen[grp]++
           }
         }
 			}
+      if ( HET && nalleles[grp] ) {
+        Lal[grp]++
+        if ( MULT || nseen[grp]<3 ) {
+          if ( !PERSITE && PIXY ) { 
+            for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
+            denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
+          } else {
+              for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
+          }
+        }
+        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, pimetric, pi[g] }
+        delete thisal
+      }
 		}
 
 		# Calculate pi for groups with <50% missing data 
     # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
 		for ( g in groups ) {
-			if ( miss[g] < nalleles[g] && ( MULT || nseen[g]<3 ) ) {
+			if ( !HET && miss[g] < nalleles[g] && ( MULT || nseen[g]<3 ) ) {
 
 				# Increment number of sites used for calculation
 				Lal[g]++
@@ -121,9 +154,9 @@ NR>FNR && /^[^#]/ {
         }
 
 				# Add to pi: probability that two randomly picked alleles differ
-				if ( PIXY ) {
+				if ( !PERSITE && PIXY ) {
           for ( x in thesealleles ) { numerator[g]+=thesealleles[x]*(nalleles[g]-thesealleles[x]) }
-          denominator[g]+=(nalleles[g]*(nalleles[g]-1))
+          denominator[g]+=nalleles[g]*(nalleles[g]-1)
         } else {
           for ( x in thesealleles ) { pi[g]+=(thesealleles[x]*(nalleles[g]-thesealleles[x])) / (nalleles[g]*(nalleles[g]-1)) }
         # New formula for non-PIXY approach below from https://pubmed.ncbi.nlm.nih.gov/36031871/ (not much of a speed-up though)
@@ -132,7 +165,7 @@ NR>FNR && /^[^#]/ {
         #pi[g]+=thispi[g]/(nalleles[g]*(nalleles[g]-1))
         }
         
-        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "pi", pi[g] }
+        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, pimetric, pi[g] }
 
 				# Calculate pi between this group and all other groups with <50% missing data
         if ( DXY ) {
@@ -159,7 +192,7 @@ NR>FNR && /^[^#]/ {
 			  				for ( y in thosealleles ) {
                   split(y, yy, SUBSEP)
 			  					if (xx[2] != yy[2]) { 
-                    if ( PIXY ) { numerator[g,g2]+=thesealleles[x]*thosealleles[y] 
+                    if ( !PERSITE && PIXY ) { numerator[g,g2]+=thesealleles[x]*thosealleles[y] 
                     } else { dxy[g,g2]+=thesealleles[x]*thosealleles[y] / (nalleles[g]*nalleles[g2]) 
                     }
 			  				  }
@@ -167,7 +200,7 @@ NR>FNR && /^[^#]/ {
               #dxy[g,g2]+=thisdxy[g,g2]/(nalleles[g]*nalleles[g2])
               }
               denominator[g,g2]+=(nalleles[g]*nalleles[g2])
-              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, "dxy", dxy[g,g2] }
+              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, dxymetric, dxy[g,g2] }
 			  		}
 			  	}
         }
@@ -180,14 +213,6 @@ END {
   if ( !PERSITE ) {
     
     if ( !LOCUS ) { LOCUS=chrom"_"minpos"_"maxpos }
-
-    if ( PIXY ) { 
-      pimetric="pi_pixy"
-      dxymetric="dxy_pixy"
-    } else { 
-      pimetric="pi_w"
-      dxymetric="dxy_w"
-    }
 
   	for (g in groups) {
       if ( Lal[g] ) {
