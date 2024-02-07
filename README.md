@@ -7,7 +7,7 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it 
 
  - **supports arbitrary ploidy level**, which can be different between samples and/or regions in the VCF
  - supports both average weighted π and `pixy`-like π calculation
- - can use multiallelic SNPs, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups
+ - can use multiallelic SNPs, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups. Thus, `piawka` might be more suitable for multi-species VCF files with higher share of multiallelic SNPs. 
  - **lightweight and portable**, runs wherever vanilla AWK can run (Windows, macOS, Linux...) and requires no installation
  - **faster on a single core** (and can be parallelized with shell tools, e.g. GNU `parallel` -- see [Usage](#usage))
 
@@ -74,26 +74,27 @@ See [Options](#options) and [Examples](#example-data) for further details.
 ### Input files
 
  - a **VCF file**: it is most sensible to include invariant sites for an unbiased estimation of π and Dxy. Consult the well-written [guide](https://pixy.readthedocs.io/en/latest/generating_invar/generating_invar.html) by `pixy` authors. `piawka` only looks at what looks like discrete genotype calls, so any cell can have any imaginable number of genotypes. Regardless of the calculation method, `piawka` does not make assumptions about missing genotype calls and does not include them in the calculation (see why this is good [here](https://pixy.readthedocs.io/en/latest/about.html)). `piawka` parses multiallelic sites but does not parse sites with indels.
- - a **groups file**: this is a 2-column TSV file with no header, first column being the sample IDs from the VCF and the second being the group ID. `piawka` can handle arbitrary number of groups, which means one can also use it to calculate ploidy- and missing data-aware heterozygosity if all groups contain a single sample. If a sample from the VCF file is missing in the groups file, it will not be used for calculation. Groups file can also contain non-existent sample IDs, they will not be considered.
+ - a **groups file**: this is a 2-column TSV file with no header, first column being the sample IDs from the VCF and the second being the group ID. `piawka` can handle arbitrary number of groups. If a sample from the VCF file is missing in the groups file, it will not be used for calculation. Groups file can also contain non-existent sample IDs, they will not be considered.
 
 ### Options
 
 Options are provided as KEY=value pairs (no spaces around the `=` sign!) before input files. Flags can be set to 1 (true) or 0 (false). Following options exist:
 
+ - `DXY=1` (default): output Dxy values along with pi values.
+ - `PIXY=1` (default) : use the missingness-based site weighting as in [`pixy`](https://github.com/ksamuk/pixy). Might be better for groups with lots (>10%) of missing data according to [this paper](https://doi.org/10.1111/1755-0998.13707). `piawka` results might be slightly different (and more precise) because here we also make use of sites marked as multiallelic if they have two alleles in a given group. Full convergence with `pixy` can be enforced by filtering out multiallelic sites before running `piawka` (e.g. `bcftools view -M2 file.vcf.gz`), or I can make it an option if there is demand for that.
  - `MULT=1` : counts pi and Dxy including multiallelic sites. Default is biallelic sites only. Higher values, lower comparability with other tools, but maybe more honest?
- - `PIXY=1` (default) : use the missingness-based site weighting as in [`pixy`](https://github.com/ksamuk/pixy). Might be better for groups with lots (>10%) of missing data according to [this paper](https://doi.org/10.1111/1755-0998.13707). `piawka` results might be slightly different (and more precise) because here we also make use of sites marked as multiallelic if they have two alleles in a given group. Thus, **`piawka` might be more suitable for multi-species VCF files** with higher share of multiallelic SNPs. Full convergence with `pixy` can be enforced by filtering out multiallelic sites before running `piawka` (e.g. `bcftools view -M2 file.vcf.gz`), or I can make it an option if there is demand for that.
  - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=1` will not make any difference in this case.
  - `LOCUS="locus_name"` : the name of the locus in the output. Meaningless with `PERSITE=1`. Default is "chr\_start\_end" (first chromosome encountered in the file is taken).
- - `DXY=1` (default): output Dxy values along with pi values
+ - `HET=1` : output heterozygosity, i.e. within-sample pi values. All samples present in the first column of `groups_file` are used, the second column is ignored. Same is running `piawka DXY=0` with single-sample groups but much more efficient. Ignores `DXY=1`.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
 - `-a parallel_options` : a string of space-separated options for GNU parallel (e.g. `-a "-j20"`)
 - `-b bed_file` : the BED file with regions to analyze in parallel jobs.
               If it contains 4+ columns, the 4th is passed as the locus name (LOCUS) to piawka.
- - `-g grp_file` : the groups file for piawka (see piawka docs).
+ - `-g grp_file` : the groups file for `piawka`.
  - `-p piawka_options` : a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1"). *Note that with `piawka_par_reg.sh` the LOCUS value, if provided, will be overridden.*
- - `-v vcf_gz` : the compressed VCF file for piawka (see piawka docs).
+ - `-v vcf_gz` : the *compressed* VCF file for `piawka`.
 
 Here are examples of useful `parallel` options to be passed as `-a parallel_options`:
 
@@ -113,7 +114,7 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
  - **pop1** : analyzed group 1
  - **pop2** : "." for pi values or group 2 for Dxy values
  - **nUsed** : number of sites used for pi calculation (i.e. SNPs and invariant sites; for weighted pi or dxy these should also pass the 50% genotyping rate threshold)
- - **metric** : pi or dxy, average weighted or `pixy`-like
+ - **metric** : pi or dxy (or "het" for heterozygosity), average weighted or `pixy`-like
  - **value** of the metric
 
 ## Example data

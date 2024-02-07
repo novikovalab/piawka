@@ -63,22 +63,11 @@ NR>FNR && /^#CHROM/ {
   }
   # Store group combinations
   if ( DXY && !PERSITE ) {
-   for (g in groups) {
-     for (g2 in groups) {
-       if (g2 < g) { combs[g,g2]++ }
-       }
-     }
-   }
-   # Prepare "metric" field for output
-  if ( PIXY ) { 
-    pimetric="pi_pixy"
-    dxymetric="dxy_pixy"
-  } else { 
-    pimetric="pi_w"
-    dxymetric="dxy_w"
-  }
-  if ( HET ) {
-    pimetric= "het" substr(pimetric, match(pimetric, "_") )
+    for (g in groups) {
+      for (g2 in groups) {
+        if (g2 < g) { combs[g,g2]++ }
+      }
+    }
   }
 }
 
@@ -132,7 +121,7 @@ NR>FNR && /^[^#]/ {
               for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
           }
         }
-        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, pimetric, pi[g] }
+        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", pi[g] }
         delete thisal
       }
 		}
@@ -165,7 +154,7 @@ NR>FNR && /^[^#]/ {
         #pi[g]+=thispi[g]/(nalleles[g]*(nalleles[g]-1))
         }
         
-        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, pimetric, pi[g] }
+        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "pi", pi[g] }
 
 				# Calculate pi between this group and all other groups with <50% missing data
         if ( DXY ) {
@@ -200,7 +189,7 @@ NR>FNR && /^[^#]/ {
               #dxy[g,g2]+=thisdxy[g,g2]/(nalleles[g]*nalleles[g2])
               }
               denominator[g,g2]+=(nalleles[g]*nalleles[g2])
-              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, dxymetric, dxy[g,g2] }
+              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, "dxy", dxy[g,g2] }
 			  		}
 			  	}
         }
@@ -212,6 +201,18 @@ NR>FNR && /^[^#]/ {
 END {
   if ( !PERSITE ) {
     
+    # Prepare "metric" field for output
+    if ( PIXY ) { 
+      pimetric="pi_pixy"
+      dxymetric="dxy_pixy"
+    } else { 
+      pimetric="pi_w"
+      dxymetric="dxy_w"
+    }
+    if ( HET ) {
+      pimetric= "het" substr(pimetric, match(pimetric, "_") )
+    }
+
     if ( !LOCUS ) { LOCUS=chrom"_"minpos"_"maxpos }
 
   	for (g in groups) {
