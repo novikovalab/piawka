@@ -2,8 +2,8 @@
 
 BEGIN{ 
 OFS="\t" 
-help="\
-     This script takes a grouping file and a decompressed VCF as input.\n \
+help=" \
+    This script takes a grouping file and a decompressed VCF as input.\n \
     It outputs pi within each group and dxy between each pair of groups.\n \
     \n \
     Usage: \n \
@@ -33,7 +33,7 @@ help="\
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.5.1"
+    Version: 0.5.2"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -81,17 +81,14 @@ NR>FNR && /^[^#]/ {
     # Increment gene length for estimation of % missing
     L++
 
-		# Extract GT fields from samples data
-		gsub(/:[^\t]*/, "", $0)
-
 		# Reset site-specific parameters
 		for (g in groups) { miss[g]=0; nalleles[g]=0; nseen[g]=0 }
 		delete alleles
     delete seen
 
-		# Pool alleles for groups, count each allele and missing data
+		# Pool GT values for groups, count each state and missing data
 		for (i=10; i<=NF; i++) {
-			split($i, chars, /\||\//)
+			split( substr( $i, 0, match( $i, ":" ) ), chars, /\||\//)
 			for (al in chars) {
 				if ( chars[al] == "." ) {
 					if ( !PIXY ) { miss[groupindex[i]]++ }
