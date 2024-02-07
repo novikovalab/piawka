@@ -91,7 +91,8 @@ NR>FNR && /^[^#]/ {
 			for (c=1; c<match( $i, ":" ); c+=2) {
         al=substr($i,c,1)
 				if ( al == "." ) {
-					if ( !PIXY ) { miss[groupindex[i]]++ }
+					if ( !PIXY ) { miss[groupindex[i]]+=match( $i, ":" )/2 }
+          break
         } else {
 					alleles[groupindex[i],al]++
 					nalleles[groupindex[i]]++
