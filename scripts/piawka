@@ -88,15 +88,15 @@ NR>FNR && /^[^#]/ {
 
 		# Pool GT values for groups, count each state and missing data
 		for (i=10; i<=NF; i++) {
-			split( substr( $i, 0, match( $i, ":" ) ), chars, /\||\//)
-			for (al in chars) {
-				if ( chars[al] == "." ) {
+			for (c=1; c<match( $i, ":" ); c+=2) {
+        al=substr($i,c,1)
+				if ( al == "." ) {
 					if ( !PIXY ) { miss[groupindex[i]]++ }
         } else {
-					alleles[groupindex[i],chars[al]]++
+					alleles[groupindex[i],al]++
 					nalleles[groupindex[i]]++
-          if ( !seen[groupindex[i],chars[al]] ) {
-            seen[groupindex[i],chars[al]]++
+          if ( !seen[groupindex[i],al] ) {
+            seen[groupindex[i],al]++
             nseen[groupindex[i]]++
           }
         }
