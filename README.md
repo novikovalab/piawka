@@ -34,7 +34,7 @@ git clone https://github.com/novikovalab/piawka.git
 cd piawka
 ```
 
-We recommend the `mawk` AWK interpreter for `piawka` (it's much faster!). If you don't have it, just change the shebangs to `awk` like
+We recommend the `mawk` AWK interpreter for `piawka` (it's much faster!) If you don't have it, just change the shebangs to `awk` like
 
 ```
 mawk || sed -i '1s/mawk/awk/' ./scripts/piawka ./scripts/summarize_blks.awk
@@ -93,7 +93,7 @@ Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept f
 - `-b bed_file` : the BED file with regions to analyze in parallel jobs.
               If it contains 4+ columns, the 4th is passed as the locus name (LOCUS) to piawka.
  - `-g grp_file` : the groups file for `piawka`.
- - `-p piawka_options` : a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1"). *Note that with `piawka_par_reg.sh` the LOCUS value, if provided, will be overridden.*
+ - `-p piawka_options` : a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1"). *Note that with `piawka_par_reg.sh` the LOCUS value, if provided, will be overridden.* With `piawka_par_blk.sh`, by default `LOCUS` is set to the basename of the VCF file.
  - `-v vcf_gz` : the *compressed* VCF file for `piawka`.
 
 Here are examples of useful `parallel` options to be passed as `-a parallel_options`:

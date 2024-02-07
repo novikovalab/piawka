@@ -12,6 +12,7 @@
 # -g grp_file: the groups file for piawka (see piawka docs).
 #
 # -p piawka_options: a string of space-separated options for piawka (e.g. -p "PIXY=1 LOCUS=mylocus").
+#                    default: "LOCUS=[vcf basename]"
 #
 # -v vcf_gz: the compressed VCF file.
 
@@ -33,8 +34,9 @@ while getopts ":a:b:g:p:v:" opt; do
   esac
 done
 
-# default `-a` value
+# default parameter values
 if [ -z ${paropts+x} ]; then paropts="--block 10M"; fi
+if [[ $piopts != *LOCUS=* ]]; then piopts="LOCUS=$( basename $vcf .vcf.gz ) "$piopts; fi
 
 zcat $vcf | grep -v '^##' |
   parallel $paropts --pipe --header : \
