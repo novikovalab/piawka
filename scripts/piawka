@@ -146,18 +146,17 @@ NR>FNR && /^[^#]/ {
         }
 
 				# Add to pi: probability that two randomly picked alleles differ
-				if ( !PERSITE && PIXY ) {
-          for ( x in thesealleles ) { numerator[g]+=thesealleles[x]*(nalleles[g]-thesealleles[x]) }
-          denominator[g]+=nalleles[g]*(nalleles[g]-1)
+        # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
+        thisnum[g]=nalleles[g]^2
+        thisden[g]=nalleles[g]*(nalleles[g]-1)
+        for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
+        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "pi", thisnum[g]/thisden[g] 
         } else {
-          for ( x in thesealleles ) { pi[g]+=(thesealleles[x]*(nalleles[g]-thesealleles[x])) / (nalleles[g]*(nalleles[g]-1)) }
-        # New formula for non-PIXY approach below from https://pubmed.ncbi.nlm.nih.gov/36031871/ (not much of a speed-up though)
-        #thispi[g]=nalleles[g]^2
-        #for ( x in thesealleles ) { thispi[g]-=thesealleles[x]^2 }
-        #pi[g]+=thispi[g]/(nalleles[g]*(nalleles[g]-1))
-        }
-        
-        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "pi", pi[g] }
+            if ( PIXY ) { numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
+            } else {
+                pi[g]+=thisnum[g]/thisden[g]
+              }
+          }
 
 				# Calculate pi between this group and all other groups with <50% missing data
         if ( DXY ) {

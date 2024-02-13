@@ -5,8 +5,8 @@ The powerful `awk` script to calculate π and Dxy (or πxy, or Nei's D) in VCF f
 
 Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it in a few aspects:
 
- - **supports arbitrary ploidy level**, which can be different between samples and/or regions in the VCF
- - supports both average weighted π and `pixy`-like π calculation
+ - **supports arbitrary ploidy level**, including mixed-ploidy groups
+ - supports `pixy`-weighted and unweighted π calculation
  - can use multiallelic SNPs, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups. Thus, `piawka` might be more suitable for multi-species VCF files with higher share of multiallelic SNPs. 
  - **lightweight and portable**, runs wherever vanilla AWK can run (Windows, macOS, Linux...) and requires no installation
  - **faster on a single core** (and can be parallelized with shell tools, e.g. GNU `parallel` -- see [Usage](#usage))
@@ -17,11 +17,11 @@ $$ π_{pixy}, Dxy_{pixy} = { \sum^n N_{diff} \over \sum^n N_{comp} } $$
 
 Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy) and $n$ stands for the number of sites used for calculation. This means that only one division per VCF file is performed after numerators and denominators from all sites are summarized. This metric gives lower weight to sites with fewer genotyped alleles (i.e. fewer possible comparisons) and should be more robust against missing data.
 
-With option `PIXY=0` `piawka` will calculate **average weighted** π and Dxy like this:
+With option `PIXY=0` `piawka` will calculate **unweighted** (also confusingly called "average weighted") π and Dxy like this:
 
 $$ π_{w}, Dxy_{w} = { { \sum^n { N_{diff} \over N_{comp} } } \over n } $$
 
-This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for weighted π and Dxy calculation.
+This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for unweighted π and Dxy calculation.
 
 ## Running `piawka`
 
@@ -237,9 +237,13 @@ Another possibility is treating each line of `zerofolds.bed` and `fourfolds.bed`
 
 ## Alternatives
 
-This script shows all strong and weak points of being written in a simple text-processing language of `awk`. While combining high speed with not too complicated code, it lacks good error handling. It means that with corrupted inputs the script will do its best to produce *some* result silently. If you need a more fool-proof solution, consider some better-developed alternatives.
+This script shows all strong and weak points of being written in a simple text-processing language of `awk`. While combining high speed with not too complicated code, it lacks good error handling. It means that with corrupted inputs the script will do its best to produce *some* result silently. If you would like a more verbose solution, consider some better-developed alternatives.
 
 For diploid VCFs, one can use [`pixy`](https://github.com/ksamuk/pixy). To make it work with polyploids, one would need to randomly sample two GT values from each cell with >2 genotypes (it should not affect diversity metrics much at the genomic scale).
+
+For 2-, 4-, 6- and 8-ploids (however, without mixed-ploidy populations) there is a set of C scripts called [`polySV`](https://github.com/thamala/polySV) that does its job good and quick. However, it employs hard-filtering of missing data based on % of genotyped samples, which results in less data being used.
+
+For arbitrary ploidy levels that might be arbitrarily mixed there is an R package called [`StAMPP`](https://cran.r-project.org/web/packages/stampp/index.html). Its heavy-lifting functions are written in C, but that's still an R package.
 
 ## References
 
