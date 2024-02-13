@@ -136,9 +136,11 @@ NR>FNR && /^[^#]/ {
 
         # Extract allele counts of the group
         delete thesealleles
+        delete bothalleles
         for (ij in alleles) {
           if ( ij ~ "^" g SUBSEP ) {
             split(ij, xx, SUBSEP)
+            bothalleles[xx[2]]++
             thesealleles[xx[2]] = alleles[ij]
           }
         }
@@ -168,28 +170,24 @@ NR>FNR && /^[^#]/ {
             # Extract alleles of the group
             delete thosealleles
             for (ij in alleles) {
-             if ( ij ~ "^" g2 SUBSEP ) {
-               split(ij, yy, SUBSEP)
-               thosealleles[yy[2]] = alleles[ij]
-             }
+              if ( ij ~ "^" g2 SUBSEP ) {
+                split(ij, yy, SUBSEP)
+                bothalleles[yy[2]]++
+                thosealleles[yy[2]] = alleles[ij]
+              }
             }
 			  			# Add to dxy: probability that two alleles picked from two groups differ
-              # new formula ( three expressions with thisdxy[g,g2] )
-              # inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/ (also not really speeding things up)
-              #thisdxy[g,g2]=nalleles[g]*nalleles[g2]
-			  			for ( x in thesealleles ) {
-                #thisdxy[g,g2]-=thesealleles[x]*thosealleles[g2,xx[2]]
-			  				for ( y in thosealleles ) {
-			  					if ( x != y ) { 
-                    if ( !PERSITE && PIXY ) { numerator[g,g2]+=thesealleles[x]*thosealleles[y] 
-                    } else { dxy[g,g2]+=thesealleles[x]*thosealleles[y] / (nalleles[g]*nalleles[g2]) 
+              # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
+              thisnum[g,g2]=nalleles[g]*nalleles[g2]
+              thisden[g,g2]=thisnum[g,g2]
+              for ( x in bothalleles ) { thisnum[g,g2]-=thesealleles[x]*thosealleles[x] } 
+              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2] 
+              } else {
+                  if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
+                  } else {
+                      dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2]
                     }
-			  				  }
-			  			  }
-              #dxy[g,g2]+=thisdxy[g,g2]/(nalleles[g]*nalleles[g2])
-              }
-              denominator[g,g2]+=(nalleles[g]*nalleles[g2])
-              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, "dxy", dxy[g,g2] }
+                }
 			  		}
 			  	}
         }
