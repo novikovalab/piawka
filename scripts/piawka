@@ -34,7 +34,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.6"
+    Version: 0.6.1"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -138,7 +138,8 @@ NR>FNR && /^[^#]/ {
         delete thesealleles
         for (ij in alleles) {
           if ( ij ~ "^" g SUBSEP ) {
-            thesealleles[ij] = alleles[ij]
+            split(ij, xx, SUBSEP)
+            thesealleles[xx[2]] = alleles[ij]
           }
         }
 
@@ -168,7 +169,8 @@ NR>FNR && /^[^#]/ {
             delete thosealleles
             for (ij in alleles) {
              if ( ij ~ "^" g2 SUBSEP ) {
-               thosealleles[ij] = alleles[ij]
+               split(ij, yy, SUBSEP)
+               thosealleles[yy[2]] = alleles[ij]
              }
             }
 			  			# Add to dxy: probability that two alleles picked from two groups differ
@@ -176,11 +178,9 @@ NR>FNR && /^[^#]/ {
               # inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/ (also not really speeding things up)
               #thisdxy[g,g2]=nalleles[g]*nalleles[g2]
 			  			for ( x in thesealleles ) {
-                split(x, xx, SUBSEP)
                 #thisdxy[g,g2]-=thesealleles[x]*thosealleles[g2,xx[2]]
 			  				for ( y in thosealleles ) {
-                  split(y, yy, SUBSEP)
-			  					if (xx[2] != yy[2]) { 
+			  					if ( x != y ) { 
                     if ( !PERSITE && PIXY ) { numerator[g,g2]+=thesealleles[x]*thosealleles[y] 
                     } else { dxy[g,g2]+=thesealleles[x]*thosealleles[y] / (nalleles[g]*nalleles[g2]) 
                     }
