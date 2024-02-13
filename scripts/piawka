@@ -16,6 +16,8 @@ help=" \
     PERSITE=1    output values for each site instead of summary values\n \
     LOCUS='text' custom name of region to be shown in first column\n \
     HET=1        output heterozygosity, i.e. within-sample pi (unsets default DXY=1)\n \
+    FST=XXX or 1 output Fst using one of the following estimators (sets DXY=1):\n \
+                 HUD (default) : Hudson (1992) after Bhatia et al. (2013, eq. 10)\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -34,7 +36,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.6.1"
+    Version: 0.7"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -53,6 +55,7 @@ NR>FNR && /^#CHROM/ {
   # Set default variable values
   if ( PIXY == "" ) { PIXY=1 }
   if ( !HET && DXY == "" ) { DXY=1 }
+  if ( FST ) { DXY=1 }
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
@@ -179,13 +182,33 @@ NR>FNR && /^[^#]/ {
               # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
               thisnum[g,g2]=nalleles[g]*nalleles[g2]
               thisden[g,g2]=thisnum[g,g2]
-              for ( x in bothalleles ) { thisnum[g,g2]-=thesealleles[x]*thosealleles[x] } 
-              if ( PERSITE ) { print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2] 
+              for ( x in bothalleles ) { 
+                thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+                if ( FST=="HUD" ) {
+                  h_hat1 = (thesealleles[x]*(nalleles[g]-thesealleles[x])) /  (nalleles[g] *(nalleles[g] -1)) # maybe optimize later
+                  h_hat2 = (thosealleles[x]*(nalleles[g2]-thosealleles[x])) / (nalleles[g2]*(nalleles[g2]-1)) # maybe optimize later
+                  fnum=(thesealleles[x]/nalleles[g] - thosealleles[x]/nalleles[g2])^2 - h_hat1/nalleles[g] - h_hat2/nalleles[g2]
+                  thisfstnum[g,g2]=fnum
+                  thisfstden[g,g2]=fnum + h_hat1 + h_hat2
+                }
+                #if ( FST=="NEI" ) { # output does not look sensible so far
+                #  pi1 = 1 - (thesealleles[x]*(thesealleles[x]-1)) / (nalleles[g]* (nalleles[g]-1))
+                #  pi2 = 1 - (thosealleles[x]*(thosealleles[x]-1)) / (nalleles[g2]* (nalleles[g2]-1))
+                #  hw = ( pi1 + pi2 ) / 2
+                #  hb = 1 - (thesealleles[x]*thosealleles[x]) / (nalleles[g]*nalleles[g2])
+                #  thisfstnum[g,g2]=hb-hw
+                #  thisfstden[g,g2]=hb
+                #}
+              }
+              if ( PERSITE ) { 
+                print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2] 
+                if ( FST ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum[g,g2]/thisfstden[g,g2] }
               } else {
                   if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
                   } else {
                       dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2]
                     }
+                  if ( FST ) { fst_numerator[g,g2]+=thisfstnum[g,g2]; fst_denominator[g,g2]+=thisfstden[g,g2] }
                 }
 			  		}
 			  	}
@@ -225,6 +248,9 @@ END {
         } else { dxyresult[i] = dxy[i]/Lal[i] }
         split(i, ii, SUBSEP)
         print LOCUS, L, ii[1], ii[2], Lal[i], dxymetric, dxyresult[i]
+        if ( fst_denominator[i] ) { 
+          print LOCUS, L, ii[1], ii[2], Lal[i], "Fst_"FST, fst_numerator[i]/fst_denominator[i] 
+        }
       }
     }
   }

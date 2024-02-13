@@ -86,6 +86,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=1` will not make any difference in this case.
  - `LOCUS="locus_name"` : the name of the locus in the output. Meaningless with `PERSITE=1`. Default is "chr\_start\_end" (first chromosome encountered in the file is taken).
  - `HET=1` : output heterozygosity, i.e. within-sample pi values. All samples present in the first column of `groups_file` are used, the second column is ignored. Same is running `piawka DXY=0` with single-sample groups but much more efficient. Ignores `DXY=1`.
+ - `FST=XXX` or `FST=1` : output Fst values for population pairs. Sets `DXY=1`. Following alternatives exist: `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013).
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
