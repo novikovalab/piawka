@@ -110,14 +110,14 @@ NR>FNR && /^[^#]/ {
 					nalleles[grp]++
           if ( !seen[grp,al] ) {
             seen[grp,al]++
-            seen[grp]=al SUBSEP seen[grp]
+            seen[grp]=al seen[grp]
             nseen[grp]++
           }
         }
 			}
       if ( HET && nalleles[grp] ) {
         Lal[grp]++
-        if ( MULT || nseen[grp]<3 ) {
+        if ( MULT || nseen[grp]<=2 ) {
           if ( !PERSITE && PIXY ) { 
             for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
             denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
@@ -142,7 +142,7 @@ NR>FNR && /^[^#]/ {
           # Extract allele counts of the group
           delete thesealleles
           delete bothalleles
-          split(seen[g], xx, SUBSEP)
+          split(seen[g], xx, "")
           for (al in xx) {
             bothalleles[xx[al]]++
             thesealleles[xx[al]] = alleles[g,xx[al]]
@@ -164,24 +164,24 @@ NR>FNR && /^[^#]/ {
   			  	for ( g2 in groups ) {
   			  		if ( g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<=2 ) ) {
               
-                # First, assume the allele pool of g2 is nested within g1
-                mutually_biallelic = 1
+                # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
+                poolsize=nseen[g]
 
                 # Extract alleles of the group
                 delete thosealleles
-                split(seen[g2], yy, SUBSEP)
+                split(seen[g2], yy, "")
                 for (al in yy) {
                   bothalleles[yy[al]]++
                   thosealleles[yy[al]] = alleles[g2,yy[al]]
-                  if ( !thesealleles[yy[al]] && nseen[g]==2 ) { mutually_biallelic = 0 }
+                  if ( !thesealleles[yy[al]] ) { poolsize++ }
                 }
 
-                # If not MULT, proceed only if common allele pool has two alleles
-                if ( MULT || mutually_biallelic ) {
+                # If not MULT, proceed only if common allele pool has <=2 alleles
+                if ( MULT || poolsize <= 2 ) {
 
   			  	    	# Increment number of sites used for dxy
   			  	    	Lal[g,g2]++
-  
+                  
   			  	    	# Add to dxy: probability that two alleles picked from two groups differ
                   # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
                   thisnum[g,g2]=nalleles[g]*nalleles[g2]
@@ -207,7 +207,7 @@ NR>FNR && /^[^#]/ {
                     }
                   }
                   if ( PERSITE ) { 
-                    print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2] 
+                    print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2]
                     if ( FST ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum[g,g2]/thisfstden[g,g2] }
                   } else {
                       if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
