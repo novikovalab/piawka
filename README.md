@@ -21,7 +21,7 @@ With option `PIXY=0` `piawka` will calculate **unweighted** (also confusingly ca
 
 $$ π_{w}, Dxy_{w} = { { \sum^n { N_{diff} \over N_{comp} } } \over n } $$
 
-This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for unweighted π and Dxy calculation.
+This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for unweighted π and Dxy calculation (the threshold can be changed via the `MIS` option).
 
 ## Running `piawka`
 
@@ -82,11 +82,12 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
 
  - `DXY=1` (default): output Dxy values along with pi values.
  - `PIXY=1` (default) : use the missingness-based site weighting as in [`pixy`](https://github.com/ksamuk/pixy). Might be better for groups with lots (>10%) of missing data according to [this paper](https://doi.org/10.1111/1755-0998.13707). `piawka` results might be slightly different (and more precise) because here we also make use of sites marked as multiallelic if they have two alleles in a given group. Full convergence with `pixy` can be enforced by filtering out multiallelic sites before running `piawka` (e.g. `bcftools view -M2 file.vcf.gz`), or I can make it an option if there is demand for that.
- - `MULT=1` : counts pi and Dxy including multiallelic sites. Default is biallelic sites only. Higher values, lower comparability with other tools, but maybe more honest?
+ - `MULT=1` : counts pi and Dxy including multiallelic sites. Default is biallelic sites only. **Note that behavior of multiallelic sites diversity is less well-described, use at own risk!**
  - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=1` will not make any difference in this case.
  - `LOCUS="locus_name"` : the name of the locus in the output. Meaningless with `PERSITE=1`. Default is "chr\_start\_end" (first chromosome encountered in the file is taken).
  - `HET=1` : output heterozygosity, i.e. within-sample pi values. All samples present in the first column of `groups_file` are used, the second column is ignored. Same is running `piawka DXY=0` with single-sample groups but much more efficient. Ignores `DXY=1`.
- - `FST=XXX` or `FST=1` : output Fst values for population pairs. Sets `DXY=1`. Following alternatives exist: `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013).
+ - `FST=XXX` or `FST=1` : output Fst values for population pairs. Sets `DXY=1`. Following alternatives exist: `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013). **Note that Fst behavior is less well-described in presence of missing data!** Therefore, consider comparing results with `PIXY=0` and `PIXY=1`.
+ - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Default 0.5.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 

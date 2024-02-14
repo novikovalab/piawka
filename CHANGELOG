@@ -16,10 +16,12 @@
 
 (2024-02-07) 0.6   : add HET option, improve PERSITE handling
 
-(2024-02-07) 0.6.1 : code & math simplifications
+(2024-02-13) 0.6.1 : code & math simplifications
 
-(2024-02-07) 0.7   : add FST=HUD option, output matches pixy on diploid VCFs
+(2024-02-13) 0.7   : add FST=HUD option, output matches pixy on diploid VCFs
 
-(2024-02-07) 0.7.1 : bug fix for MULT=0 (exclude comparisons where two groups do not have nested allele pools)
+(2024-02-14) 0.7.1 : bug fix for MULT=0 (exclude comparisons where two groups do not have nested allele pools)
 
-(2024-02-07) 0.7.2 : fix ALT regex not filtering out indels in mawk but not in gawk
+(2024-02-14) 0.7.2 : fix ALT regex not filtering out indels in mawk but not in gawk
+
+(2024-02-14) 0.7.3 : add MIS option

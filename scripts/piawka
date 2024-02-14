@@ -18,6 +18,7 @@ help=" \
     HET=1        output heterozygosity, i.e. within-sample pi (unsets default DXY=1)\n \
     FST=XXX or 1 output Fst using one of the following estimators (sets DXY=1):\n \
                  HUD (default) : Hudson (1992) after Bhatia et al. (2013, eq. 10)\n \
+    MIS=0.5      maximum amount of missing genotypes in groups at site with PIXY=0 (default 0.5)\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -36,7 +37,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.2"
+    Version: 0.7.3"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -56,6 +57,7 @@ NR>FNR && /^#CHROM/ {
   if ( PIXY == "" ) { PIXY=1 }
   if ( !HET && DXY == "" ) { DXY=1 }
   if ( FST ) { DXY=1 }
+  if ( MIS == "" ) { MIS=0.5 }
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
@@ -134,7 +136,7 @@ NR>FNR && /^[^#]/ {
     # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
     if ( !HET ) {
   		for ( g in groups ) {
-  			if ( miss[g] < nalleles[g] && ( MULT || nseen[g]<=2 ) ) {
+  			if ( miss[g]/nalleles[g] <= MIS && ( MULT || nseen[g]<=2 ) ) {
   
   				# Increment number of sites used for calculation
   				Lal[g]++
@@ -162,7 +164,7 @@ NR>FNR && /^[^#]/ {
   				# Calculate pi between this group and all other groups with <50% missing data
           if ( DXY ) {
   			  	for ( g2 in groups ) {
-  			  		if ( g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<=2 ) ) {
+  			  		if ( g2 < g && miss[g2]/nalleles[g2] <= MIS && ( MULT || nseen[g2]<=2 ) ) {
               
                 # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
                 poolsize=nseen[g]
