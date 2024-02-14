@@ -19,3 +19,5 @@
 (2024-02-07) 0.6.1 : code & math simplifications
 
 (2024-02-07) 0.7   : add FST=HUD option, output matches pixy on diploid VCFs
+
+(2024-02-07) 0.7.1 : bug fix for MULT=0 (exclude comparisons where two groups do not have nested allele pools)

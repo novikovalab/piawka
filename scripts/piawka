@@ -36,7 +36,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7"
+    Version: 0.7.1"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -134,7 +134,7 @@ NR>FNR && /^[^#]/ {
     # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
     if ( !HET ) {
   		for ( g in groups ) {
-  			if ( miss[g] < nalleles[g] && ( MULT || nseen[g]<3 ) ) {
+  			if ( miss[g] < nalleles[g] && ( MULT || nseen[g]<=2 ) ) {
   
   				# Increment number of sites used for calculation
   				Lal[g]++
@@ -156,61 +156,66 @@ NR>FNR && /^[^#]/ {
           if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "pi", thisnum[g]/thisden[g] 
           } else {
               if ( PIXY ) { numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
-              } else {
-                  pi[g]+=thisnum[g]/thisden[g]
-                }
+              } else { pi[g]+=thisnum[g]/thisden[g] }
             }
   
   				# Calculate pi between this group and all other groups with <50% missing data
           if ( DXY ) {
   			  	for ( g2 in groups ) {
-  			  		if ( g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<3 ) ) {
+  			  		if ( g2 < g && miss[g2] < nalleles[g2] && ( MULT || nseen[g2]<=2 ) ) {
               
-  			  		# Increment number of sites used for dxy
-  			  		Lal[g,g2]++
+                # First, assume the allele pool of g2 is nested within g1
+                mutually_biallelic = 1
+
+                # Extract alleles of the group
+                delete thosealleles
+                split(seen[g2], yy, SUBSEP)
+                for (al in yy) {
+                  bothalleles[yy[al]]++
+                  thosealleles[yy[al]] = alleles[g2,yy[al]]
+                  if ( !thesealleles[yy[al]] && nseen[g]==2 ) { mutually_biallelic = 0 }
+                }
+
+                # If not MULT, proceed only if common allele pool has two alleles
+                if ( MULT || mutually_biallelic ) {
+
+  			  	    	# Increment number of sites used for dxy
+  			  	    	Lal[g,g2]++
   
-              # Extract alleles of the group
-              delete thosealleles
-              split(seen[g2], yy, SUBSEP)
-              for (al in yy) {
-                bothalleles[yy[al]]++
-                thosealleles[yy[al]] = alleles[g2,yy[al]]
-              }
-  			  		# Add to dxy: probability that two alleles picked from two groups differ
-              # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
-              thisnum[g,g2]=nalleles[g]*nalleles[g2]
-              thisden[g,g2]=thisnum[g,g2]
-              for ( x in bothalleles ) { 
-                if ( thesealleles[x] || thosealleles[x] ) {
-                  thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
-                  if ( FST=="HUD" ) {
-                    h_hat1 = (thesealleles[x]*(nalleles[g]-thesealleles[x])) /  (nalleles[g] *(nalleles[g] -1)) # maybe optimize later
-                    h_hat2 = (thosealleles[x]*(nalleles[g2]-thosealleles[x])) / (nalleles[g2]*(nalleles[g2]-1)) # maybe optimize later
-                    fnum=(thesealleles[x]/nalleles[g] - thosealleles[x]/nalleles[g2])^2 - h_hat1/nalleles[g] - h_hat2/nalleles[g2]
-                    thisfstnum[g,g2]=fnum
-                    thisfstden[g,g2]=fnum + h_hat1 + h_hat2
-                  }
-                  #if ( FST=="NEI" ) { # output does not look sensible so far
-                  #  pi1 = 1 - (thesealleles[x]*(thesealleles[x]-1)) / (nalleles[g]* (nalleles[g]-1))
-                  #  pi2 = 1 - (thosealleles[x]*(thosealleles[x]-1)) / (nalleles[g2]* (nalleles[g2]-1))
-                  #  hw = ( pi1 + pi2 ) / 2
-                  #  hb = 1 - (thesealleles[x]*thosealleles[x]) / (nalleles[g]*nalleles[g2])
-                  #  thisfstnum[g,g2]=hb-hw
-                  #  thisfstden[g,g2]=hb
-                  #}
-                }
-              }
-              if ( PERSITE ) { 
-                print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2] 
-                if ( FST ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum[g,g2]/thisfstden[g,g2] }
-              } else {
-                  if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
-                  } else {
-                      dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2]
+  			  	    	# Add to dxy: probability that two alleles picked from two groups differ
+                  # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
+                  thisnum[g,g2]=nalleles[g]*nalleles[g2]
+                  thisden[g,g2]=thisnum[g,g2]
+                  for ( x in bothalleles ) { 
+                    if ( thesealleles[x] || thosealleles[x] ) {
+                      thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+                      if ( FST=="HUD" ) {
+                        h_hat1 = (thesealleles[x]*(nalleles[g]-thesealleles[x])) /  (nalleles[g] *(nalleles[g] -1)) # maybe optimize later
+                        h_hat2 = (thosealleles[x]*(nalleles[g2]-thosealleles[x])) / (nalleles[g2]*(nalleles[g2]-1)) # maybe optimize later
+                        fnum=(thesealleles[x]/nalleles[g] - thosealleles[x]/nalleles[g2])^2 - h_hat1/nalleles[g] - h_hat2/nalleles[g2]
+                        thisfstnum[g,g2]=fnum
+                        thisfstden[g,g2]=fnum + h_hat1 + h_hat2
+                      }
+                      #if ( FST=="NEI" ) { # output does not look sensible so far
+                      #  pi1 = 1 - (thesealleles[x]*(thesealleles[x]-1)) / (nalleles[g]* (nalleles[g]-1))
+                      #  pi2 = 1 - (thosealleles[x]*(thosealleles[x]-1)) / (nalleles[g2]* (nalleles[g2]-1))
+                      #  hw = ( pi1 + pi2 ) / 2
+                      #  hb = 1 - (thesealleles[x]*thosealleles[x]) / (nalleles[g]*nalleles[g2])
+                      #  thisfstnum[g,g2]=hb-hw
+                      #  thisfstden[g,g2]=hb
+                      #}
                     }
-                  if ( FST ) { fst_numerator[g,g2]+=thisfstnum[g,g2]; fst_denominator[g,g2]+=thisfstden[g,g2] }
-                }
-  			  		}
+                  }
+                  if ( PERSITE ) { 
+                    print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2] 
+                    if ( FST ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum[g,g2]/thisfstden[g,g2] }
+                  } else {
+                      if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
+                      } else { dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2] }
+                      if ( FST ) { fst_numerator[g,g2]+=thisfstnum[g,g2]; fst_denominator[g,g2]+=thisfstden[g,g2] }
+                    }
+  			  	   	}
+              }
   			  	}
           }
   			}
