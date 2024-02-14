@@ -36,7 +36,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.1"
+    Version: 0.7.2"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -84,9 +84,9 @@ NR>FNR && /^[^#]/ {
   }
 
 	# Process only SNPs (possibly monomorphic or multiallelic)
-  # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT]{2}/
+  # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
   # To process SNPs that only have one ALT allele
-	if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT]{2}/ ) {
+	if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
   
     # Increment gene length for estimation of % missing
     L++
