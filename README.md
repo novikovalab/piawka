@@ -1,7 +1,7 @@
 ``piawka`` <img src="logo/logo.svg" align="right" width="25%">
 ==========
 
-The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in VCF files.
+The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in VCF files. Developed to analyze mixed-ploidy groups with substantial amounts of missing data.
 
 Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it in a few aspects:
 
@@ -15,7 +15,7 @@ By default, it reports `pixy`-like π and Dxy:
 
 $$ π_{pixy}, Dxy_{pixy} = { \sum^n N_{diff} \over \sum^n N_{comp} } $$
 
-Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy) and $n$ stands for the number of sites used for calculation. This means that only one division per VCF file is performed after numerators and denominators from all sites are summarized. This metric gives lower weight to sites with fewer genotyped alleles (i.e. fewer possible comparisons) and should be more robust against missing data.
+Where $N_{diff}$ and $N_{comp}$ denote numbers of differences versus comparisons (within-group for π, between groups for Dxy, missing haplotypes excluded) and $n$ stands for the number of sites used for calculation. This means that only one division per VCF file is performed after numerators and denominators from all sites are summarized. This metric gives lower weight to sites with fewer genotyped alleles (i.e. fewer possible comparisons) and should be more robust against missing data.
 
 With option `PIXY=0` `piawka` will calculate **unweighted** (also confusingly called "average weighted") π and Dxy like this:
 
@@ -148,7 +148,6 @@ real    0m9.768s
 user    0m11.263s
 sys     0m0.617s
 
-scaffold_1_9999942_10500000  310091  UKScandinavia_2n  .             215090  pi_w   0.00988236
 scaffold_1_9999942_10500000  289790  UKScandinavia_2n  .             289710  pi_pixy   0.00844215
 scaffold_1_9999942_10500000  289790  PUWS_4n           .             289614  pi_pixy   0.00893565
 scaffold_1_9999942_10500000  289790  CESiberia_2n      .             289676  pi_pixy   0.00749526
