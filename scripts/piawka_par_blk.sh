@@ -40,6 +40,6 @@ if [[ $piopts != *LOCUS=* ]]; then piopts="LOCUS=$( basename $vcf .vcf.gz ) "$pi
 
 zcat $vcf | grep -v '^##' |
   parallel $paropts --pipe --header : \
-  piawka $piopts $grp - |
+  piawka VERBOSE=1 $piopts $grp - |
   { if [[ $piopts == *PERSITE=1* ]]; then cat -; else summarize_blks.awk -; fi; }
 

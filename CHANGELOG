@@ -1,3 +1,5 @@
+(2024-02-15) 0.7.5 : add VERBOSE=1 option
+
 (2024-02-14) 0.7.4 : add FST=WC option, set FST=HUD as default
 
 (2024-02-14) 0.7.3 : add MIS option

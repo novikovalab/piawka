@@ -3,9 +3,6 @@
 
 The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in VCF files. Developed to analyze mixed-ploidy groups with substantial amounts of missing data.
 
-Table of Contents
-=================
-
    * [Running piawka](#running-piawka)
       * [Installation](#installation)
       * [Usage](#usage)
@@ -106,6 +103,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `HET=1` : output heterozygosity, i.e. within-sample pi values. All samples present in the first column of `groups_file` are used, the second column is ignored. Same is running `piawka DXY=0` with single-sample groups but much more efficient. Ignores `DXY=1`.
  - `FST=XXX` or `FST=1` (experimental) : output Fst values for population pairs. Sets `DXY=1`. Following alternatives exist: `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013). **Note that Fst behavior is less well-described in presence of missing data!** Therefore, consider comparing results with `PIXY=0` and `PIXY=1`.
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Default 0.5.
+ - `VERBOSE=1` : appends numerator and denominator to output as 8th and 9th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
@@ -142,7 +140,7 @@ You can try `piawka` with the (part of) genomic variant data we made for Siberia
 
 The following lazy time tests were run on a Lenovo laptop with a 12th gen Core i7 and an SSD (it matters because `piawka` performance is often IO-bound).
 
-Software versions used for testing: `bcftools==1.19`, `parallel==20230822`, `mawk==1.3.4`, `piawka==0.7.3`.
+Software versions used for testing: `bcftools==1.19`, `parallel==20230822`, `mawk==1.3.4`, `piawka==0.7.5`.
 
 ### Single-threaded execution (pure AWK)
 
@@ -186,28 +184,16 @@ vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out2=piawka_blks.tsv
 
-time piawka_par_blk.sh -a "-j20 --block 10M --keep-order" -g $grp -v $vcf > $out2
-column -t $out2
+time piawka_par_blk.sh -a "-j20 --block 10M" -g $grp -v $vcf > $out2
+
+#real    0m3.552s
+#user    0m17.537s
+#sys     0m4.275s
 ```
 
-The output is not in order and a bit less precise because `nUsed`-weighted mean of per-block statistics is taken. In addition, by default first column is set to the name of the analyzed file:
+The speed up is bigger with real-world huge files but is obvious here as well.
 
-```
-real    0m3.206s
-user    0m17.146s
-sys     0m4.102s
-
-alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  LE_2n         289495  dxy_pixy  0.0127575
-alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  PUWS_4n       289448  dxy_pixy  0.0126721
-alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  CESiberia_2n  289507  dxy_pixy  0.0131888
-alyrata_scaff_1_10000k-10500k  289790  LE_2n             .             289658  pi_pixy   0.00772492
-alyrata_scaff_1_10000k-10500k  289790  PUWS_4n           LE_2n         289464  dxy_pixy  0.00943501
-alyrata_scaff_1_10000k-10500k  289790  LE_2n             CESiberia_2n  289518  dxy_pixy  0.00919411
-alyrata_scaff_1_10000k-10500k  289790  CESiberia_2n      .             289676  pi_pixy   0.00783204
-alyrata_scaff_1_10000k-10500k  289790  PUWS_4n           CESiberia_2n  289475  dxy_pixy  0.00982684
-alyrata_scaff_1_10000k-10500k  289790  PUWS_4n           .             289614  pi_pixy   0.00897606
-alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  .             289710  pi_pixy   0.00858058
-```
+The output is the same, though lines may be shuffled. With `PIXY=0` averaging gets imprecise because `nUsed`-weighted mean of per-block statistics is taken. By default, first column is set to the name of the analyzed file.
 
 A common usecase is running `piawka` for a set of genomic regions (genes or windows). Having a BED file with these regions (like example `genes.bed`) at hand and helper tools like `bcftools` GNU `parallel` installed, this can be parallelized like:
 
@@ -249,40 +235,26 @@ vcf=../alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=../groups.tsv
 
 # Extract 0fold and 4fold BED lines, remove position info attached to gene name by degenotate
-awk -v OFS="\t" '$5==0 { sub(/:[0-9]+/, "", $1); print $0 }' degeneracy-all-sites.bed > zerofolds.bed
-awk -v OFS="\t" '$5==4 { sub(/:[0-9]+/, "", $1); print $0 }' degeneracy-all-sites.bed > fourfolds.bed
+awk -v OFS="\t" '$5==0 { sub(/:[0-9]+$/, "", $4); print $0 }' degeneracy-all-sites.bed > zerofolds.bed
+awk -v OFS="\t" '$5==4 { sub(/:[0-9]+$/, "", $4); print $0 }' degeneracy-all-sites.bed > fourfolds.bed
 
 # Get arrays of gene names encountered in BED files
 zerogenes=( $( cut -f4 zerofolds.bed | sort | uniq ) )
 fourgenes=( $( cut -f4 fourfolds.bed | sort | uniq ) )
 
-# For each gene, extract part of VCF by BED and feed to piawka, name loci as genes
+# Get gene by mRNA BED, extract needed sites and feed to piawka, name loci as genes
 # Make sure `grep -w gene_name` does always filter out one gene in your case too
+# Then two commands below take ~3 sec each
 parallel -j20 \
-  bcftools view -R \<\( grep -w {} zerofolds.bed \) $vcf \| \
-  piawka LOCUS={} $grp - > piawka_zerofolds.tsv ::: ${zerogenes[@]} # takes ~77 seconds
+  bcftools view -R \<\( grep -w {} ../mRNA.bed \) -T \<\( grep -w {} zerofolds.bed \| cut -f1,3 \) $vcf \| \
+  piawka LOCUS={} $grp - > piawka_zerofolds.tsv ::: ${zerogenes[@]} 
 
 parallel -j20 \
-  bcftools view -R \<\( grep -w {} fourfolds.bed \) $vcf \| \
-  piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]} # takes ~36 seconds
+  bcftools view -R \<\( grep -w {} ../mRNA.bed \) -T \<\( grep -w {} fourfolds.bed \| cut -f1,3 \) $vcf \| \
+  piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]}
 ```
 
-As you can see, large BED files with many intervals are processed extremely slow because of random access bottleneck. The last two commands would benefit from using fewer query regions (i.e. genes) with `PERSITE=1` and filtering the output by BED files afterwards[^2]:
-
-[^2]: Note that this particular comandlet is populating large arrays and runs ~50 times faster with `gawk` than with `mawk`.
-
-```bash
-piawka_par_reg.sh -p "-j20" -a "PERSITE=1" -v $vcf -g $grp -b ../genes.bed |
-  awk 'BEGIN { while ( getline < "zerofolds.bed" ) { zeros[$1"_"$3]=$4 };   \ # store chr_pos=gene combinations for 0- and 4-folds
-               while ( getline < "fourfolds.bed" ) { fours[$1"_"$3]=$4 } }  \ 
-       zeros[$1] { $1=zeros[$1]; print $0 > "piawka_zero_sites.tsv"; next } \ # filter 0- and 4-folds from piawka output by chr_pos
-       fours[$1] { $1=fours[$1]; print $0 > "piawka_four_sites.tsv" }'        # and name them by gene they come from
-
-# In the last step, summarize stats per gene using summarize_blks.awk,
-# the helper script internally used by piawka_par_blk.sh
-summarize_blks.awk piawka_zero_sites.tsv > piawka_zerofolds.tsv
-summarize_blks.awk piawka_four_sites.tsv > piawka_fourfolds.tsv
-```
+Note that we sliced the VCF using both big (-R) "regions" and small (-T) "targets". This method turns out to speed up data extraction 100-fold! We benefit a lot from this dark magic because IO is our main bottleneck. Without regions (or using targets  as regions) handling BED files with many small regions gets very slow.
 
 ## Alternatives
 

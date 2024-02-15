@@ -20,6 +20,8 @@ help=" \
                  HUD (default) : Hudson (1992) after Bhatia et al. (2013, eq. 10)\n \
                  WC : Weir and Cockerham (1984), biased for unequal groups with dissimilar Fst \n \
     MIS=0.5      maximum amount of missing genotypes in groups at site with PIXY=0 (default 0.5)\n \
+    VERBOSE=1    output numerator and denominator as 8th and 9th column\n \
+                 with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -38,8 +40,16 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.4"
+    Version: 0.7.5"
 if ( !ARGV[1] ) { print help; exit }
+}
+
+function verboseOutput( numerator, denominator ) {
+  out=numerator/denominator
+  if ( VERBOSE ) { 
+      out = out"\t"numerator"\t"denominator
+  }
+  return out
 }
 
 # First file: store lists of group members in `groups` array
@@ -121,14 +131,14 @@ NR>FNR && /^[^#]/ {
       if ( HET && nalleles[grp] ) {
         Lal[grp]++
         if ( MULT || nseen[grp]<=2 ) {
-          if ( !PERSITE && PIXY ) { 
+          if ( PIXY || PERSITE ) { 
             for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
             denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
           } else {
               for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
           }
         }
-        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", pi[g] }
+        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", verboseOutput( numerator[grp], denominator[grp] ) }
         delete thisal
       }
 		}
@@ -156,7 +166,8 @@ NR>FNR && /^[^#]/ {
           thisnum[g]=nalleles[g]^2
           thisden[g]=nalleles[g]*(nalleles[g]-1)
           for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
-          if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "pi", thisnum[g]/thisden[g] 
+          if ( PERSITE ) { 
+            if ( thisden[g] ) { print $1"_"$2, 1, g, ".", thisden[g], "pi", verboseOutput( thisnum[g], thisden[g] ) }
           } else {
               if ( PIXY ) { numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
               } else { pi[g]+=thisnum[g]/thisden[g] }
@@ -252,8 +263,8 @@ NR>FNR && /^[^#]/ {
                     }
                   }
                   if ( PERSITE ) { 
-                    print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2]
-                    if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum/thisfstden }
+                    if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, thisden[g,g2], "dxy", verboseOutput( thisnum[g,g2], thisden[g,g2] ) }
+                    if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, verboseOutput( thisfstnum, thisfstden ) }
                   } else {
                       if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
                       } else { dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2] }
@@ -288,19 +299,19 @@ END {
 
   	for (g in groups) {
       if ( Lal[g] ) {
-        if ( PIXY ) { piresult[g] = numerator[g]/denominator[g]
-        } else { piresult[g] = pi[g]/Lal[g] }
+        if ( PIXY ) { piresult[g] = verboseOutput( numerator[g], denominator[g] )
+        } else { piresult[g] = verboseOutput( pi[g], Lal[g] ) }
         print LOCUS, L, g, ".", Lal[g], pimetric, piresult[g]
       }
     }
   	for (i in combs) {
       if ( Lal[i] ) { 
-        if ( PIXY ) { dxyresult[i] = numerator[i]/denominator[i]
-        } else { dxyresult[i] = dxy[i]/Lal[i] }
+        if ( PIXY ) { dxyresult[i] = verboseOutput( numerator[i], denominator[i] )
+        } else { dxyresult[i] = verboseOutput( dxy[i], Lal[i] ) }
         split(i, ii, SUBSEP)
         print LOCUS, L, ii[1], ii[2], Lal[i], dxymetric, dxyresult[i]
         if ( fst_denominator[i] ) { 
-          print LOCUS, L, ii[1], ii[2], Lal[i], "Fst_"FST, fst_numerator[i]/fst_denominator[i] 
+          print LOCUS, L, ii[1], ii[2], Lal[i], "Fst_"FST, verboseOutput( fst_numerator[i], fst_denominator[i] ) 
         }
       }
     }
