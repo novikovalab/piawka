@@ -18,6 +18,7 @@ help=" \
     HET=1        output heterozygosity, i.e. within-sample pi (unsets default DXY=1)\n \
     FST=XXX or 1 output Fst using one of the following estimators (sets DXY=1):\n \
                  HUD (default) : Hudson (1992) after Bhatia et al. (2013, eq. 10)\n \
+                 WC : Weir and Cockerham (1984), biased for unequal groups with dissimilar Fst \n \
     MIS=0.5      maximum amount of missing genotypes in groups at site with PIXY=0 (default 0.5)\n \
     \n \
     Example groups.tsv:\n \
@@ -37,7 +38,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.3"
+    Version: 0.7.4"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -56,7 +57,7 @@ NR>FNR && /^#CHROM/ {
   # Set default variable values
   if ( PIXY == "" ) { PIXY=1 }
   if ( !HET && DXY == "" ) { DXY=1 }
-  if ( FST ) { DXY=1 }
+  if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
   if ( MIS == "" ) { MIS=0.5 }
 
   # Assign sample positions to groups
@@ -173,7 +174,7 @@ NR>FNR && /^[^#]/ {
                 delete thosealleles
                 split(seen[g2], yy, "")
                 for (al in yy) {
-                  bothalleles[yy[al]]++
+                  bothalleles[yy[al]]++ # so far keeps alleles from comparisons of g with previous groups
                   thosealleles[yy[al]] = alleles[g2,yy[al]]
                   if ( !thesealleles[yy[al]] ) { poolsize++ }
                 }
@@ -188,42 +189,84 @@ NR>FNR && /^[^#]/ {
                   # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
                   thisnum[g,g2]=nalleles[g]*nalleles[g2]
                   thisden[g,g2]=thisnum[g,g2]
+                  if ( FST ) { thisfstnum=""; thisfstden="" }
                   for ( x in bothalleles ) { 
                     if ( thesealleles[x] || thosealleles[x] ) {
                       thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
-                      if ( FST=="HUD" ) {
-                        h_hat1 = (thesealleles[x]*(nalleles[g]-thesealleles[x])) /  (nalleles[g] *(nalleles[g] -1)) # maybe optimize later
-                        h_hat2 = (thosealleles[x]*(nalleles[g2]-thosealleles[x])) / (nalleles[g2]*(nalleles[g2]-1)) # maybe optimize later
-                        fnum=(thesealleles[x]/nalleles[g] - thosealleles[x]/nalleles[g2])^2 - h_hat1/nalleles[g] - h_hat2/nalleles[g2]
-                        thisfstnum[g,g2]=fnum
-                        thisfstden[g,g2]=fnum + h_hat1 + h_hat2
+                      if ( FST ) {
+                        a1 = thesealleles[x]
+                        a2 = thosealleles[x]
+                        n1 = nalleles[g]
+                        n2 = nalleles[g2]
+                        if ( FST=="HUD" ) {
+                          pi1 = a1 * (n1 - a1) / (n1*(n1-1))
+                          pi2 = a2 * (n2 - a2) / (n2*(n2-1))
+                          hw = pi1 + pi2
+                          hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
+                          thisfstnum+=hb-hw
+                          thisfstden+=hb
+                          # Below is numerically the same but closer to original formula of Bhatia et al. 2013, eq. 10
+                          #h_hat1 = (a1*(n1-a1)) / (n1*(n1-1)) # maybe optimize later
+                          #h_hat2 = (a2*(n2-a2)) / (n2*(n2-1)) # maybe optimize later
+                          #fnum=(a1/n1 - a2/n2)^2 - h_hat1/n1 - h_hat2/n2
+                          #thisfstnum+=fnum
+                          #thisfstden+=fnum + h_hat1 + h_hat2
+                        } else { 
+                            if ( FST=="WC" ) {
+                              # Formula from Bhatia et al. 2013, eq. (6)
+
+                              sizes = n1 * n2 / ( n1 + n2 )
+                              frac = 1 / ( n1 + n2 - 2 )
+                              mism = n1 * ( a1 / n1 ) * ( 1 - a1 / n1 ) + n2 * ( a2 / n2 ) * ( 1 - a2 / n2 )
+
+                              den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
+                              if ( ! den ) { break } # WC Fst is NaN at uniform sites
+                              thisfstnum += den - 2 * sizes * frac * mism
+                              thisfstden += den
+
+                              # Below is closer to Weir & Cockerham (1984) but something is wrong
+                              # Pretending r=2 now
+                              #h1 = (a1*(n1-a1)) / (n1*(n1-1)) # maybe optimize later
+                              #h2 = (a2*(n2-a2)) / (n2*(n2-1)) # maybe optimize later
+                              #n1 /= 2 # count of "diploid individuals"
+                              #n2 /= 2
+                              #p1 = a1
+                              #p2 = a2
+                              #n_bar = (n1 + n2) / 2 # average number of "diploid individuals", divided by r
+                              #rn = 2*n_bar
+                              #n_C = rn - (n1^2 + n2^2)/rn # also divided by r-1
+                              #p_bar = ( n1 * p1 + n2 * p2 ) / rn
+                              #s2 = ( n1 * (p1 - p_bar) + n2 * (p2 - p_bar) ) / n_bar # also divided by r-1
+                              #h_bar = ( n1 * h1 + n2 * h2 ) / rn
+
+                              #a = ( n_bar/n_C ) * ( s2 - ( 1/n_bar-1 ) * ( p_bar * ( 1 - p_bar ) - 0.5 * s2 - 0.25 * h_bar ) ) # 0.5 is (r-1)/r
+                              #b = ( n_bar / ( n_bar - 1 ) ) * ( p_bar * ( 1 - p_bar ) - 0.5 * s2 - ( ( 2 * n_bar-1 ) / ( 4 * n_bar ) ) * h_bar )
+                              #c = 0.5*h_bar
+
+                              #thisfstnum+=a
+                              #thisfstden+=a+b+c
+                            } 
+                          }
+                        if ( !MULT ) { break } # no need to repeat twice for biallelic comparisons
                       }
-                      #if ( FST=="NEI" ) { # output does not look sensible so far
-                      #  pi1 = 1 - (thesealleles[x]*(thesealleles[x]-1)) / (nalleles[g]* (nalleles[g]-1))
-                      #  pi2 = 1 - (thosealleles[x]*(thosealleles[x]-1)) / (nalleles[g2]* (nalleles[g2]-1))
-                      #  hw = ( pi1 + pi2 ) / 2
-                      #  hb = 1 - (thesealleles[x]*thosealleles[x]) / (nalleles[g]*nalleles[g2])
-                      #  thisfstnum[g,g2]=hb-hw
-                      #  thisfstden[g,g2]=hb
-                      #}
                     }
                   }
                   if ( PERSITE ) { 
                     print $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2]/thisden[g,g2]
-                    if ( FST ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum[g,g2]/thisfstden[g,g2] }
+                    if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum/thisfstden }
                   } else {
                       if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
                       } else { dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2] }
-                      if ( FST ) { fst_numerator[g,g2]+=thisfstnum[g,g2]; fst_denominator[g,g2]+=thisfstden[g,g2] }
+                      if ( FST ) { fst_numerator[g,g2]+=thisfstnum; fst_denominator[g,g2]+=thisfstden }
                     }
-  			  	   	}
+  			  	    }
               }
-  			  	}
-          }
-  			}
-  		}
+  			    }
+  		    }
+        }
+	    }
     }
-	}
+  }
 }
 
 END {

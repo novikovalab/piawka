@@ -25,3 +25,5 @@
 (2024-02-14) 0.7.2 : fix ALT regex not filtering out indels in mawk but not in gawk
 
 (2024-02-14) 0.7.3 : add MIS option
+
+(2024-02-14) 0.7.4 : add FST=WC option, set FST=HUD as default
