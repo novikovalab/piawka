@@ -3,7 +3,24 @@
 
 The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in VCF files. Developed to analyze mixed-ploidy groups with substantial amounts of missing data.
 
-Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it in a few aspects:
+Table of Contents
+=================
+
+   * [Running piawka](#running-piawka)
+      * [Installation](#installation)
+      * [Usage](#usage)
+      * [Input files](#input-files)
+      * [Options](#options)
+      * [Output](#output)
+   * [Example data](#example-data)
+      * [Single-threaded execution (pure AWK)](#single-threaded-execution-pure-awk)
+      * [Parallel execution (with GNU parallel)](#parallel-execution-with-gnu-parallel)
+      * [Advanced example: genewise 4-fold and 0-fold sites' pi and Dxy](#advanced-example-genewise-4-fold-and-0-fold-sites-pi-and-dxy)
+   * [Alternatives](#alternatives)
+   * [References](#references)
+   * [Citing piawka](#citing-piawka)
+
+Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka` builds upon it in a few aspects:
 
  - supports **arbitrary ploidy level**, including mixed-ploidy groups
  - supports `pixy`-**weighted and unweighted π and Dxy** calculation
@@ -29,20 +46,20 @@ This metric might give unpredictable values at sites with lots of missing data, 
 
 Just clone the repo (or even simply download the `scripts` folder if you don't need 80Mb example VCF file) and you are good to go!
 
-```
+```bash
 git clone https://github.com/novikovalab/piawka.git
 cd piawka
 ```
 
 We recommend the `mawk` AWK interpreter for `piawka` as it's much faster than all alternatives we know. If you don't have it, just change the shebangs to your `awk` distro like
 
-```
+```bash
 mawk || sed -i '1s/mawk/awk/' ./scripts/piawka ./scripts/summarize_blks.awk
 ```
 
 It might be useful to add `piawka` location to `PATH` environmental variable to run it from anywhere by either executing the following code or adding it to your `.bashrc` file:
 
-```
+```bash
 echo 'export PATH="/path/to/piawka/scripts:$PATH"' >> ~/.bashrc
 ```
 
@@ -50,19 +67,19 @@ echo 'export PATH="/path/to/piawka/scripts:$PATH"' >> ~/.bashrc
 
 To get help, run `piawka` without any arguments:
 
-```
+```bash
 piawka
 ```
 
 `piawka` works with decompressed VCF files. The easiest way to use it is streaming the VCF file via stdin:
 
-```
+```bash
 zcat file.vcf.gz | piawka [OPTIONS] groups_file - > piawka_pi-dxy.tsv
 ```
 
 If you want to parallelize the counting and have GNU parallel installed, try our wrapper scripts:
 
-```
+```bash
 # Parallelize VCF reading and count summary statistics for entire file (a bit less precise)
 piawka_par_blk.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz
 
@@ -114,7 +131,7 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
  - **locus** : either genomic position of analyzed locus or custom `LOCUS` value.
  - **nSites** : number of "potentially useful" lines in the VCF file (SNPs or invariant sites before filtering for number of alleles (and genotyping rate for weighted pi or dxy))
  - **pop1** : analyzed group 1
- - **pop2** : "." for pi values or group 2 for Dxy and Fst values
+ - **pop2** : `.` for pi values or group 2 for Dxy and Fst values
  - **nUsed** : number of sites used for pi calculation (i.e. SNPs and invariant sites; for weighted pi or dxy these should also pass the 50% genotyping rate threshold)
  - **metric** : pi or dxy (or "het" for heterozygosity), average weighted or `pixy`-like
  - **value** of the metric
@@ -131,7 +148,7 @@ Software versions used for testing: `bcftools==1.19`, `parallel==20230822`, `maw
 
 In the most simple case, one would calculate summary pi and Dxy for each group and combination of groups for the entire region covered by the VCF file using site-weighted pi like this:
 
-```
+```bash
 cd ./examples
 vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
@@ -164,7 +181,7 @@ scaffold_1_9999942_10500000  289790  PUWS_4n           LE_2n         289464  dxy
 
 Now, let's test the parallel VCF reading:
 
-```
+```bash
 vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out2=piawka_blks.tsv
@@ -194,7 +211,7 @@ alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  .             289710  p
 
 A common usecase is running `piawka` for a set of genomic regions (genes or windows). Having a BED file with these regions (like example `genes.bed`) at hand and helper tools like `bcftools` GNU `parallel` installed, this can be parallelized like:
 
-```
+```bash
 vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 bed=genes.bed
@@ -224,18 +241,20 @@ AL5G20950  107  PUWS_4n           CESiberia_2n  106  dxy_pixy  0.00548654
 
 One can limit calculations to synonymous/non-synonymous sites inferred using an external tool. Example below was made with [`degenotate`](https://github.com/harvardinformatics/degenotate). At preparation step, `degeneracy-all-sites.bed` is made using `degenotate` with annotation file and reference genome sequence[^1]. Then following steps are needed to extract 0-folds and 4-folds and calculate genewise pi and dxy from them:
 
-```
+[^1]: I was using [`liftoff`](https://github.com/agshumate/Liftoff) annotation that lacks phase info so I had to sanitize it first with `agat_sp_fix_cds_phase.pl` from [AGAT toolkit](https://github.com/NBISweden/AGAT). Details [here](https://github.com/harvardinformatics/degenotate/issues/32).
+
+```bash
 cd examples/degenotate
 vcf=../alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=../groups.tsv
 
-# Extract 0fold and 4fold BED lines
-awk -v OFS="\t" '$5==0 { print $0 }' degeneracy-all-sites.bed > zerofolds.bed
-awk -v OFS="\t" '$5==4 { print $0 }' degeneracy-all-sites.bed > fourfolds.bed
+# Extract 0fold and 4fold BED lines, remove position info attached to gene name by degenotate
+awk -v OFS="\t" '$5==0 { sub(/:[0-9]+/, "", $1); print $0 }' degeneracy-all-sites.bed > zerofolds.bed
+awk -v OFS="\t" '$5==4 { sub(/:[0-9]+/, "", $1); print $0 }' degeneracy-all-sites.bed > fourfolds.bed
 
-# Need unique gene names, so strip position info from NAME field of BED
-zerogenes=( $( cut -f4 zerofolds.bed | sed 's/:[0-9]\+//' | sort | uniq ) )
-fourgenes=( $( cut -f4 fourfolds.bed | sed 's/:[0-9]\+//' | sort | uniq ) )
+# Get arrays of gene names encountered in BED files
+zerogenes=( $( cut -f4 zerofolds.bed | sort | uniq ) )
+fourgenes=( $( cut -f4 fourfolds.bed | sort | uniq ) )
 
 # For each gene, extract part of VCF by BED and feed to piawka, name loci as genes
 # Make sure `grep -w gene_name` does always filter out one gene in your case too
@@ -248,9 +267,22 @@ parallel -j20 \
   piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]} # takes ~36 seconds
 ```
 
-Another possibility is treating each line of `zerofolds.bed` and `fourfolds.bed` as a region for `piawka_par_reg.sh` and then summarize the result by genes using `summarize_blks.awk` helper script, but this way the result will be unweighted and might be less precise.
+As you can see, large BED files with many intervals are processed extremely slow because of random access bottleneck. The last two commands would benefit from using fewer query regions (i.e. genes) with `PERSITE=1` and filtering the output by BED files afterwards[^2]:
 
-[^1]: I was using [`liftoff`](https://github.com/agshumate/Liftoff) annotation that lacks phase info so I had to sanitize it first with `agat_sp_fix_cds_phase.pl` from [AGAT toolkit](https://github.com/NBISweden/AGAT). Details [here](https://github.com/harvardinformatics/degenotate/issues/32).
+[^2]: Note that this particular comandlet is populating large arrays and runs ~50 times faster with `gawk` than with `mawk`.
+
+```bash
+piawka_par_reg.sh -p "-j20" -a "PERSITE=1" -v $vcf -g $grp -b ../genes.bed |
+  awk 'BEGIN { while ( getline < "zerofolds.bed" ) { zeros[$1"_"$3]=$4 };   \ # store chr_pos=gene combinations for 0- and 4-folds
+               while ( getline < "fourfolds.bed" ) { fours[$1"_"$3]=$4 } }  \ 
+       zeros[$1] { $1=zeros[$1]; print $0 > "piawka_zero_sites.tsv"; next } \ # filter 0- and 4-folds from piawka output by chr_pos
+       fours[$1] { $1=fours[$1]; print $0 > "piawka_four_sites.tsv" }'        # and name them by gene they come from
+
+# In the last step, summarize stats per gene using summarize_blks.awk,
+# the helper script internally used by piawka_par_blk.sh
+summarize_blks.awk piawka_zero_sites.tsv > piawka_zerofolds.tsv
+summarize_blks.awk piawka_four_sites.tsv > piawka_fourfolds.tsv
+```
 
 ## Alternatives
 
