@@ -1,13 +1,13 @@
 ``piawka`` <img src="logo/logo.svg" align="right" width="25%">
 ==========
 
-The powerful `awk` script to calculate π and Dxy (or πxy, or Nei's D) in VCF files.
+The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in VCF files.
 
 Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), it builds upon it in a few aspects:
 
- - **supports arbitrary ploidy level**, including mixed-ploidy groups
- - supports `pixy`-weighted and unweighted π calculation
- - can use multiallelic SNPs, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups. Thus, `piawka` might be more suitable for multi-species VCF files with higher share of multiallelic SNPs. 
+ - supports **arbitrary ploidy level**, including mixed-ploidy groups
+ - supports `pixy`-**weighted and unweighted π and Dxy** calculation
+ - can use **multiallelic SNPs**, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups. Thus, `piawka` might be more suitable for multi-species VCF files with higher share of multiallelic SNPs. 
  - **lightweight and portable**, runs wherever vanilla AWK can run (Windows, macOS, Linux...) and requires no installation
  - **faster on a single core** (and can be parallelized with shell tools, e.g. GNU `parallel` -- see [Usage](#usage))
 
@@ -21,7 +21,7 @@ With option `PIXY=0` `piawka` will calculate **unweighted** (also confusingly ca
 
 $$ π_{w}, Dxy_{w} = { { \sum^n { N_{diff} \over N_{comp} } } \over n } $$
 
-This metric might give unpredictable values at sites with lots of missing data, so we deliberately chose to only use sites with >50% alleles genotyped in the current group for unweighted π and Dxy calculation (the threshold can be changed via the `MIS` option).
+This metric might give unpredictable values at sites with lots of missing data, so in this case we deliberately chose to only use sites with >50% alleles genotyped in the current group (the threshold can be changed via the `MIS` option).
 
 ## Running `piawka`
 
@@ -34,7 +34,7 @@ git clone https://github.com/novikovalab/piawka.git
 cd piawka
 ```
 
-We recommend the `mawk` AWK interpreter for `piawka` (it's much faster!) If you don't have it, just change the shebangs to `awk` like
+We recommend the `mawk` AWK interpreter for `piawka` as it's much faster than all alternatives we know. If you don't have it, just change the shebangs to your `awk` distro like
 
 ```
 mawk || sed -i '1s/mawk/awk/' ./scripts/piawka ./scripts/summarize_blks.awk
@@ -54,15 +54,16 @@ To get help, run `piawka` without any arguments:
 piawka
 ```
 
-`piawka` works with decompressed VCF files. The most convenient way to use it is streaming the VCF file via stdin:
+`piawka` works with decompressed VCF files. The easiest way to use it is streaming the VCF file via stdin:
 
 ```
 zcat file.vcf.gz | piawka [OPTIONS] groups_file - > piawka_pi-dxy.tsv
 ```
+
 If you want to parallelize the counting and have GNU parallel installed, try our wrapper scripts:
 
 ```
-# Parallelize VCF reading and count summary statistics for entire file
+# Parallelize VCF reading and count summary statistics for entire file (a bit less precise)
 piawka_par_blk.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz
 
 # Split VCF by BED regions and count stats for each region in parallel
@@ -82,11 +83,11 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
 
  - `DXY=1` (default): output Dxy values along with pi values.
  - `PIXY=1` (default) : use the missingness-based site weighting as in [`pixy`](https://github.com/ksamuk/pixy). Might be better for groups with lots (>10%) of missing data according to [this paper](https://doi.org/10.1111/1755-0998.13707). `piawka` results might be slightly different (and more precise) because here we also make use of sites marked as multiallelic if they have two alleles in a given group. Full convergence with `pixy` can be enforced by filtering out multiallelic sites before running `piawka` (e.g. `bcftools view -M2 file.vcf.gz`), or I can make it an option if there is demand for that.
- - `MULT=1` : counts pi and Dxy including multiallelic sites. Default is biallelic sites only. **Note that behavior of multiallelic sites diversity is less well-described, use at own risk!**
+ - `MULT=1` (experimental) : counts pi and Dxy including multiallelic sites. Default is biallelic sites only. **Note that behavior of multiallelic sites diversity is less well-described, use at own risk!**
  - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=1` will not make any difference in this case.
  - `LOCUS="locus_name"` : the name of the locus in the output. Meaningless with `PERSITE=1`. Default is "chr\_start\_end" (first chromosome encountered in the file is taken).
  - `HET=1` : output heterozygosity, i.e. within-sample pi values. All samples present in the first column of `groups_file` are used, the second column is ignored. Same is running `piawka DXY=0` with single-sample groups but much more efficient. Ignores `DXY=1`.
- - `FST=XXX` or `FST=1` : output Fst values for population pairs. Sets `DXY=1`. Following alternatives exist: `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013). **Note that Fst behavior is less well-described in presence of missing data!** Therefore, consider comparing results with `PIXY=0` and `PIXY=1`.
+ - `FST=XXX` or `FST=1` (experimental) : output Fst values for population pairs. Sets `DXY=1`. Following alternatives exist: `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013). **Note that Fst behavior is less well-described in presence of missing data!** Therefore, consider comparing results with `PIXY=0` and `PIXY=1`.
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Default 0.5.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
@@ -102,7 +103,6 @@ Here are examples of useful `parallel` options to be passed as `-a parallel_opti
 
  - `-j 20` : number of parallel jobs (defaults to available CPUs)
  - `--block 10M` : for `piawka_par_blk.sh`, the size of the VCF block for 1 `piawka` job.
- - `--keep-order` : for `piawka_par_blk.sh`, make the order of lines in the output same as in non-parallel `piawka` run.
  - `--bar` : for `piawka_par_reg.sh`, display progress bar (the share of processed regions) in `stderr`.
 
 Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_tutorial.html) for more details on GNU `parallel`.
@@ -114,7 +114,7 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
  - **locus** : either genomic position of analyzed locus or custom `LOCUS` value.
  - **nSites** : number of "potentially useful" lines in the VCF file (SNPs or invariant sites before filtering for number of alleles (and genotyping rate for weighted pi or dxy))
  - **pop1** : analyzed group 1
- - **pop2** : "." for pi values or group 2 for Dxy values
+ - **pop2** : "." for pi values or group 2 for Dxy and Fst values
  - **nUsed** : number of sites used for pi calculation (i.e. SNPs and invariant sites; for weighted pi or dxy these should also pass the 50% genotyping rate threshold)
  - **metric** : pi or dxy (or "het" for heterozygosity), average weighted or `pixy`-like
  - **value** of the metric
@@ -123,9 +123,9 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
 
 You can try `piawka` with the (part of) genomic variant data we made for Siberian *Arabidopsis lyrata* populations. `alyrata_scaff_1_10000k-10500k.vcf.gz` contains data for diploids and polyploids with various amounts of missing data split into several admixture groups defined in `groups.tsv` file. There are ~0.5M sites and 4 groups.
 
-The following lazy time tests were run on a Lenovo laptop with a 12th gen Core i7.
+The following lazy time tests were run on a Lenovo laptop with a 12th gen Core i7 and an SSD (it matters because `piawka` performance is often IO-bound).
 
-Software versions: `bcftools==1.19`, `parallel==20230822`, `mawk==1.3.4` (but `piawka` should not be too version-dependent).
+Software versions used for testing: `bcftools==1.19`, `parallel==20230822`, `mawk==1.3.4`, `piawka==0.7.3`.
 
 ### Single-threaded execution (pure AWK)
 
@@ -137,28 +137,28 @@ vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out=piawka.tsv
 
-zcat $vcf | piawka PIXY=0 $grp - > $out
-head $out | column -t
+time zcat $vcf | piawka $grp - > $out
+column -t $out
 ```
 
 The output is:
 
 ```
-
-real    0m18.834s
-user    0m18.816s
-sys     0m0.887s
+real    0m9.768s
+user    0m11.263s
+sys     0m0.617s
 
 scaffold_1_9999942_10500000  310091  UKScandinavia_2n  .             215090  pi_w   0.00988236
-scaffold_1_9999942_10500000  310091  PUWS_4n           .             219820  pi_w   0.010075
-scaffold_1_9999942_10500000  310091  CESiberia_2n      .             215849  pi_w   0.00867701
-scaffold_1_9999942_10500000  310091  LE_2n             .             218437  pi_w   0.00870315
-scaffold_1_9999942_10500000  310091  PUWS_4n           CESiberia_2n  210149  dxy_w  0.0108729
-scaffold_1_9999942_10500000  310091  UKScandinavia_2n  CESiberia_2n  202752  dxy_w  0.0149389
-scaffold_1_9999942_10500000  310091  UKScandinavia_2n  PUWS_4n       205623  dxy_w  0.014567
-scaffold_1_9999942_10500000  310091  LE_2n             CESiberia_2n  211095  dxy_w  0.0101943
-scaffold_1_9999942_10500000  310091  UKScandinavia_2n  LE_2n         205216  dxy_w  0.0147753
-scaffold_1_9999942_10500000  310091  PUWS_4n           LE_2n         213396  dxy_w  0.0106753
+scaffold_1_9999942_10500000  289790  UKScandinavia_2n  .             289710  pi_pixy   0.00844215
+scaffold_1_9999942_10500000  289790  PUWS_4n           .             289614  pi_pixy   0.00893565
+scaffold_1_9999942_10500000  289790  CESiberia_2n      .             289676  pi_pixy   0.00749526
+scaffold_1_9999942_10500000  289790  LE_2n             .             289658  pi_pixy   0.00746886
+scaffold_1_9999942_10500000  289790  PUWS_4n           CESiberia_2n  289475  dxy_pixy  0.00954623
+scaffold_1_9999942_10500000  289790  UKScandinavia_2n  CESiberia_2n  289507  dxy_pixy  0.0127503
+scaffold_1_9999942_10500000  289790  UKScandinavia_2n  PUWS_4n       289448  dxy_pixy  0.0124935
+scaffold_1_9999942_10500000  289790  LE_2n             CESiberia_2n  289518  dxy_pixy  0.00882309
+scaffold_1_9999942_10500000  289790  UKScandinavia_2n  LE_2n         289495  dxy_pixy  0.0125041
+scaffold_1_9999942_10500000  289790  PUWS_4n           LE_2n         289464  dxy_pixy  0.00930029
 ```
 
 ### Parallel execution (with GNU `parallel`)
@@ -169,14 +169,29 @@ Now, let's test the parallel VCF reading:
 vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out2=piawka_blks.tsv
-time piawka_par_blk.sh -a "-j20 --block 10M" -p "PIXY=0" -g $grp -v $vcf > $out2
 
-#real    0m4.261s
-#user    0m30.856s
-#sys     0m3.198s
+time piawka_par_blk.sh -a "-j20 --block 10M --keep-order" -g $grp -v $vcf > $out2
+column -t $out2
 ```
 
-The output is identical to the first one except that the lines might be shuffled (you can change that by adding `--keep-order` `parallel` option.)
+The output is not in order and a bit less precise because `nUsed`-weighted mean of per-block statistics is taken. In addition, by default first column is set to the name of the analyzed file:
+
+```
+real    0m3.206s
+user    0m17.146s
+sys     0m4.102s
+
+alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  LE_2n         289495  dxy_pixy  0.0127575
+alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  PUWS_4n       289448  dxy_pixy  0.0126721
+alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  CESiberia_2n  289507  dxy_pixy  0.0131888
+alyrata_scaff_1_10000k-10500k  289790  LE_2n             .             289658  pi_pixy   0.00772492
+alyrata_scaff_1_10000k-10500k  289790  PUWS_4n           LE_2n         289464  dxy_pixy  0.00943501
+alyrata_scaff_1_10000k-10500k  289790  LE_2n             CESiberia_2n  289518  dxy_pixy  0.00919411
+alyrata_scaff_1_10000k-10500k  289790  CESiberia_2n      .             289676  pi_pixy   0.00783204
+alyrata_scaff_1_10000k-10500k  289790  PUWS_4n           CESiberia_2n  289475  dxy_pixy  0.00982684
+alyrata_scaff_1_10000k-10500k  289790  PUWS_4n           .             289614  pi_pixy   0.00897606
+alyrata_scaff_1_10000k-10500k  289790  UKScandinavia_2n  .             289710  pi_pixy   0.00858058
+```
 
 A common usecase is running `piawka` for a set of genomic regions (genes or windows). Having a BED file with these regions (like example `genes.bed`) at hand and helper tools like `bcftools` GNU `parallel` installed, this can be parallelized like:
 
@@ -186,24 +201,25 @@ grp=groups.tsv
 bed=genes.bed
 out3=piawka_genes.tsv
 
-time piawka_par_reg.sh -a "-j20" -p "PIXY=0" -b $bed -g $grp -v $vcf > $out3
+time piawka_par_reg.sh -a "-j20" -b $bed -g $grp -v $vcf > $out3
 
 head -5 $out3 | column -t
 ```
 
-```
-real    0m3.900s
-user    0m25.943s
-sys     0m17.486s
+Parallel reading works even better with a BED file because tabix indexing is put to use; the test dataset is too small to show it in a convincing way though. And we get stats for all of the genes in under three seconds:
 
-AL5G20950  116  UKScandinavia_2n  .             85   pi_w   0.00630252
-AL5G20950  116  PUWS_4n           .             103  pi_w   0.00341604
-AL5G20950  116  CESiberia_2n      .             102  pi_w   0.0103426
-AL5G20950  116  LE_2n             .             103  pi_w   0.0123319
-AL5G20950  116  PUWS_4n           CESiberia_2n  102  dxy_w  0.00665266
 ```
+real    0m2.921s
+user    0m18.361s
+sys     0m14.211s
 
--- and we have the stats for many genes after a single pass through the file in 4 seconds!
+AL5G20950  107  UKScandinavia_2n  .             107  pi_pixy   0.00589623
+AL5G20950  107  PUWS_4n           .             107  pi_pixy   0.00366512
+AL5G20950  107  CESiberia_2n      .             106  pi_pixy   0.00764818
+AL5G20950  107  LE_2n             .             107  pi_pixy   0.0112503
+AL5G20950  107  PUWS_4n           CESiberia_2n  106  dxy_pixy  0.00548654
+. . .
+```
 
 ### Advanced example: genewise 4-fold and 0-fold sites' pi and Dxy
 
@@ -226,11 +242,11 @@ fourgenes=( $( cut -f4 fourfolds.bed | sed 's/:[0-9]\+//' | sort | uniq ) )
 # Make sure `grep -w gene_name` does always filter out one gene in your case too
 parallel -j20 \
   bcftools view -R \<\( grep -w {} zerofolds.bed \) $vcf \| \
-  piawka LOCUS={} $grp - > piawka_zerofolds.tsv ::: ${zerogenes[@]}
+  piawka LOCUS={} $grp - > piawka_zerofolds.tsv ::: ${zerogenes[@]} # takes ~77 seconds
 
 parallel -j20 \
   bcftools view -R \<\( grep -w {} fourfolds.bed \) $vcf \| \
-  piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]}
+  piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]} # takes ~36 seconds
 ```
 
 Another possibility is treating each line of `zerofolds.bed` and `fourfolds.bed` as a region for `piawka_par_reg.sh` and then summarize the result by genes using `summarize_blks.awk` helper script, but this way the result will be unweighted and might be less precise.
@@ -249,7 +265,11 @@ For arbitrary ploidy levels that might be arbitrarily mixed there is an R packag
 
 ## References
 
-The `pixy` method of dealing with missing data for π calculation was introduced in [this paper](https://doi.org/10.1111/1755-0998.13326). You can find discussion on the applicability of this metric [here](https://doi.org/10.1111/1755-0998.13707) and [here](https://doi.org/10.1111/1755-0998.13738). We suggest to parallelize `piawka` using GNU `parallel` which is introduced [here](https://doi.org/10.5281/zenodo.1146014).
+The `pixy` method of dealing with missing data for π calculation was introduced in [this paper](https://doi.org/10.1111/1755-0998.13326). You can find discussion on the applicability of the `pixy` metric [here](https://doi.org/10.1111/1755-0998.13707) and [here](https://doi.org/10.1111/1755-0998.13738). 
+
+Our choice of Hudson's Fst estimator (and the way of summarizing it over sites) is influenced by [this paper](http://dx.doi.org/10.1101/gr.154831.113) whose authors argue that it is least burdened with assumptions and least biased with variable sample sizes. Usage of Fst estimation for multiple alleles is advocated by Weir and Cockerham [here](http://dx.doi.org/10.2307/2408641).
+
+We suggest to parallelize `piawka` using GNU `parallel` which is introduced [here](https://doi.org/10.5281/zenodo.1146014).
 
 ## Citing `piawka`
 
