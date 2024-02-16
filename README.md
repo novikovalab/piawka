@@ -17,7 +17,9 @@ The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in 
    * [References](#references)
    * [Citing piawka](#citing-piawka)
 
-Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka` builds upon it in a few aspects:
+Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka`[^0] builds upon it in a few aspects:
+
+[^0] Pronounced *pi: jaf ka:* after a Russian word meaning "leech"
 
  - supports **arbitrary ploidy level**, including mixed-ploidy groups
  - supports `pixy`-**weighted and unweighted π and Dxy** calculation
@@ -98,10 +100,12 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `DXY=1` (default): output Dxy values along with pi values.
  - `PIXY=1` (default) : use the missingness-based site weighting as in [`pixy`](https://github.com/ksamuk/pixy). Might be better for groups with lots (>10%) of missing data according to [this paper](https://doi.org/10.1111/1755-0998.13707). `piawka` results might be slightly different (and more precise) because here we also make use of sites marked as multiallelic if they have two alleles in a given group. Full convergence with `pixy` can be enforced by filtering out multiallelic sites before running `piawka` (e.g. `bcftools view -M2 file.vcf.gz`), or I can make it an option if there is demand for that.
  - `MULT=1` (experimental) : counts pi and Dxy including multiallelic sites. Default is biallelic sites only. **Note that behavior of multiallelic sites diversity is less well-described, use at own risk!**
- - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=1` will not make any difference in this case.
+ - `PERSITE=1` : returns per-site estimates instead of default VCF-wide average. Note that adding `PIXY=0` will not make any difference in this case.
  - `LOCUS="locus_name"` : the name of the locus in the output. Meaningless with `PERSITE=1`. Default is "chr\_start\_end" (first chromosome encountered in the file is taken).
  - `HET=1` : output heterozygosity, i.e. within-sample pi values. All samples present in the first column of `groups_file` are used, the second column is ignored. Same is running `piawka DXY=0` with single-sample groups but much more efficient. Ignores `DXY=1`.
- - `FST=XXX` or `FST=1` (experimental) : output Fst values for population pairs. Sets `DXY=1`. Following alternatives exist: `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013). **Note that Fst behavior is less well-described in presence of missing data!** Therefore, consider comparing results with `PIXY=0` and `PIXY=1`.
+ - `FST=XXX` or `FST=1` (experimental) : output Fst values for population pairs. Sets `DXY=1`. **Note that Fst behavior is less well-described in presence of missing data!** Therefore, consider comparing results with `PIXY=0` and `PIXY=1`. Following alternatives exist: 
+    - `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013);
+    - `WC` -- Weir and Cockerham (1984) as interpreted by Bhatia et al. (2013).
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Default 0.5.
  - `VERBOSE=1` : appends numerator and denominator to output as 8th and 9th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
 
@@ -133,6 +137,8 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
  - **nUsed** : number of sites used for pi calculation (i.e. SNPs and invariant sites; for weighted pi or dxy these should also pass the 50% genotyping rate threshold)
  - **metric** : pi or dxy (or "het" for heterozygosity), average weighted or `pixy`-like
  - **value** of the metric
+
+ If `VERBOSE=1` was supplied, two more columns, **numerator** and **denominator**, are appended.
 
 ## Example data
 
