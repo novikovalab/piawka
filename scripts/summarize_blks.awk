@@ -22,7 +22,7 @@ BEGIN{ OFS="\t" }
 END{
   for (i in nSites) {
     split(i, pops, SUBSEP)
-    if ( numerator[i] ) {
+    if ( denominator[i] ) {
         finvalue[i]=numerator[i]/denominator[i]
     } else {
         split(nUsed[i], weights, " ")
