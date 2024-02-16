@@ -19,7 +19,7 @@ The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in 
 
 Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka`[^1] builds upon it in a few aspects:
 
-[^1] Pronounced *pi: jaf ka:* after a Russian word meaning "leech"
+[^1]: Pronounced *pi: jaf ka:* after a Russian word meaning "leech"
 
  - supports **arbitrary ploidy level**, including mixed-ploidy groups
  - supports `pixy`-**weighted and unweighted π and Dxy** calculation
