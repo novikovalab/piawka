@@ -17,9 +17,9 @@ The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in 
    * [References](#references)
    * [Citing piawka](#citing-piawka)
 
-Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka`[^0] builds upon it in a few aspects:
+Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka`[^1] builds upon it in a few aspects:
 
-[^0] Pronounced *pi: jaf ka:* after a Russian word meaning "leech"
+[^1] Pronounced *pi: jaf ka:* after a Russian word meaning "leech"
 
  - supports **arbitrary ploidy level**, including mixed-ploidy groups
  - supports `pixy`-**weighted and unweighted π and Dxy** calculation
@@ -231,9 +231,9 @@ AL5G20950  107  PUWS_4n           CESiberia_2n  106  dxy_pixy  0.00548654
 
 ### Advanced example: genewise 4-fold and 0-fold sites' pi and Dxy
 
-One can limit calculations to synonymous/non-synonymous sites inferred using an external tool. Example below was made with [`degenotate`](https://github.com/harvardinformatics/degenotate). At preparation step, `degeneracy-all-sites.bed` is made using `degenotate` with annotation file and reference genome sequence[^1]. Then following steps are needed to extract 0-folds and 4-folds and calculate genewise pi and dxy from them:
+One can limit calculations to synonymous/non-synonymous sites inferred using an external tool. Example below was made with [`degenotate`](https://github.com/harvardinformatics/degenotate). At preparation step, `degeneracy-all-sites.bed` is made using `degenotate` with annotation file and reference genome sequence[^2]. Then following steps are needed to extract 0-folds and 4-folds and calculate genewise pi and dxy from them:
 
-[^1]: I was using [`liftoff`](https://github.com/agshumate/Liftoff) annotation that lacks phase info so I had to sanitize it first with `agat_sp_fix_cds_phase.pl` from [AGAT toolkit](https://github.com/NBISweden/AGAT). Details [here](https://github.com/harvardinformatics/degenotate/issues/32).
+[^2]: I was using [`liftoff`](https://github.com/agshumate/Liftoff) annotation that lacks phase info so I had to sanitize it first with `agat_sp_fix_cds_phase.pl` from [AGAT toolkit](https://github.com/NBISweden/AGAT). Details [here](https://github.com/harvardinformatics/degenotate/issues/32).
 
 ```bash
 cd examples/degenotate
