@@ -40,7 +40,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.5"
+    Version: 0.7.6"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -91,10 +91,12 @@ NR>FNR && /^#CHROM/ {
 NR>FNR && /^[^#]/ {
 
   # Inferring range for locus name
-  if ( !LOCUS ) {
+  if ( LOCUS == "" ) {
     if ( !minpos ) { chrom=$1; minpos=$2 }
     if ( $2 > maxpos ) { maxpos=$2 }
   }
+
+  if ( PERSITE && LOCUS != "" ) { $1=LOCUS"_"$1 }
 
 	# Process only SNPs (possibly monomorphic or multiallelic)
   # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
@@ -295,7 +297,7 @@ END {
       pimetric= "het" substr(pimetric, match(pimetric, "_") )
     }
 
-    if ( !LOCUS ) { LOCUS=chrom"_"minpos"_"maxpos }
+    if ( LOCUS=="" ) { LOCUS=chrom"_"minpos"_"maxpos }
 
   	for (g in groups) {
       if ( Lal[g] ) {

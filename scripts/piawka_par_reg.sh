@@ -10,12 +10,13 @@
 # -a parallel_options: a string of space-separated options for GNU parallel (e.g. -a "-j20 --block 10M")
 #
 # -b bed_file: the BED file with regions to analyze in parallel jobs.
-#              If it contains 4+ columns, the 4th is passed as the locus name (LOCUS) to piawka.
+#              If it contains 4+ columns, the 4th is passed as the locus name (LOCUS) to piawka_options
+#              ( but can be overridden by LOCUS passed with -p . )
+#              Thus, to suppress locus name with PERSITE=1, add -p "LOCUS=''" .
 #
 # -g grp_file: the groups file for piawka (see piawka docs).
 #
 # -p piawka_options: a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1").
-#                    Note that LOCUS value, if provided, will be overridden.
 #
 # -v vcf_gz: the compressed VCF file.
 
@@ -42,6 +43,6 @@ done
 awk '{if ($4) {$4="/"$4}; print $1 ":" $2+1 "-" $3 $4}' $bed |
   parallel $paropts \
   bcftools view -r {//} $vcf \| \
-  piawka $piopts LOCUS={/} $grp -
+  piawka LOCUS={/} $piopts $grp -
 
 
