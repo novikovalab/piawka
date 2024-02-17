@@ -23,7 +23,7 @@ END{
   for (i in nSites) {
     split(i, pops, SUBSEP)
     if ( denominator[i] ) {
-        finvalue[i]=numerator[i]/denominator[i]"\t"numerator[i]"\t"denominator[i]
+        finvalue[i]=numerator[i]/denominator[i]
     } else {
         split(nUsed[i], weights, " ")
         split(value[i], values, " ")

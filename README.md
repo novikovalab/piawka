@@ -19,7 +19,7 @@ The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in 
 
 Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka`[^1] builds upon it in a few aspects:
 
-[^1]: Pronounced *pi: jaf ka:* after a Russian word meaning "leech".
+[^1]: Pronounced *pi: jaf ka:* after a Russian word meaning "leech"
 
  - supports **arbitrary ploidy level**, including mixed-ploidy groups
  - supports `pixy`-**weighted and unweighted π and Dxy** calculation
@@ -107,7 +107,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
     - `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013);
     - `WC` -- Weir and Cockerham (1984) as interpreted by Bhatia et al. (2013).
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Default 0.5.
- - `VERBOSE=1` (default with `PIXY=1`) : appends numerator and denominator to output as 8th and 9th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
+ - `VERBOSE=1` : appends numerator and denominator to output as 8th and 9th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
@@ -137,8 +137,8 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
  - **nUsed** : number of sites used for pi calculation (i.e. SNPs and invariant sites; for weighted pi or dxy these should also pass the 50% genotyping rate threshold)
  - **metric** : pi or dxy (or "het" for heterozygosity), average weighted or `pixy`-like
  - **value** of the metric
- - **numerator**
- - **denominator** -- the two last columns are omitted with `PIXY=0` by default, also controlled by the `VERBOSE` parameter.
+
+ If `VERBOSE=1` was supplied, two more columns, **numerator** and **denominator**, are appended.
 
 ## Example data
 
