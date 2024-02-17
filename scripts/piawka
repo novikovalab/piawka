@@ -169,7 +169,7 @@ NR>FNR && /^[^#]/ {
           thisden[g]=nalleles[g]*(nalleles[g]-1)
           for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
           if ( PERSITE ) { 
-            if ( thisden[g] ) { print $1"_"$2, 1, g, ".", thisden[g], "pi", verboseOutput( thisnum[g], thisden[g] ) }
+            if ( thisden[g] ) { print $1"_"$2, 1, g, ".", 1, "pi", verboseOutput( thisnum[g], thisden[g] ) }
           } else {
               if ( PIXY ) { numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
               } else { pi[g]+=thisnum[g]/thisden[g] }
@@ -265,7 +265,7 @@ NR>FNR && /^[^#]/ {
                     }
                   }
                   if ( PERSITE ) { 
-                    if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, thisden[g,g2], "dxy", verboseOutput( thisnum[g,g2], thisden[g,g2] ) }
+                    if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, 1, "dxy", verboseOutput( thisnum[g,g2], thisden[g,g2] ) }
                     if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, verboseOutput( thisfstnum, thisfstden ) }
                   } else {
                       if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
