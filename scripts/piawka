@@ -61,6 +61,9 @@ NR==FNR {
   }
 }
 
+# Store first position for LOCUS name if it is not set
+FIRSTDATALINE { chrom=$1; minpos=$2; FIRSTDATALINE=0 }
+
 # Second file (VCF), header line
 NR>FNR && /^#CHROM/ {
 
@@ -69,6 +72,8 @@ NR>FNR && /^#CHROM/ {
   if ( !HET && DXY == "" ) { DXY=1 }
   if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
   if ( MIS == "" ) { MIS=0.5 }
+
+  if (LOCUS=="") { FIRSTDATALINE=1 }
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
@@ -91,10 +96,11 @@ NR>FNR && /^#CHROM/ {
 NR>FNR && /^[^#]/ {
 
   # Inferring range for locus name
-  if ( LOCUS == "" ) {
-    if ( !minpos ) { chrom=$1; minpos=$2 }
-    if ( $2 > maxpos ) { maxpos=$2 }
-  }
+  # This counter is slower yet POSIX-compliant
+  #if ( LOCUS == "" ) {
+  #  if ( !minpos ) { chrom=$1; minpos=$2 }
+  #  if ( $2 > maxpos ) { maxpos=$2 }
+  #}
 
   if ( PERSITE && LOCUS != "" ) { $1=LOCUS"_"$1 }
 
@@ -297,7 +303,7 @@ END {
       pimetric= "het" substr(pimetric, match(pimetric, "_") )
     }
 
-    if ( LOCUS=="" ) { LOCUS=chrom"_"minpos"_"maxpos }
+    if ( LOCUS=="" ) { maxpos=$2; LOCUS=chrom"_"minpos"_"maxpos }
 
   	for (g in groups) {
       if ( Lal[g] ) {
