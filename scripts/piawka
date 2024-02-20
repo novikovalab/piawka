@@ -22,7 +22,6 @@ help=" \
     MIS=0.5      maximum amount of missing genotypes in groups at site with PIXY=0 (default 0.5)\n \
     VERBOSE=1    output numerator and denominator as 8th and 9th column\n \
                  with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n \
-    TAJLIKE=1    output Tajima's D-like statistic (different variance; unset by PERSITE=1 or MULT=1)\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -55,7 +54,7 @@ NR==FNR {
 }
 
 # Store first position for LOCUS name if it is not set
-FIRSTDATALINE { chrom=$1; minpos=$2; FIRSTDATALINE=0 }
+FIRSTDATALINE && LOCUS=="" { chrom=$1; minpos=$2; FIRSTDATALINE=0 }
 
 # Second file (VCF), header line
 NR>FNR && /^#CHROM/ {
@@ -65,13 +64,12 @@ NR>FNR && /^#CHROM/ {
   if ( !HET && DXY == "" ) { DXY=1 }
   if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
   if ( MIS == "" ) { MIS=0.5 }
-  if ( PERSITE || MULT ) { TAJLIKE=0 }
 
   if ( LOCUS=="" ) { FIRSTDATALINE=1 }
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
-    if ( groupmem[$i] ) { 
+    if ( groupmem[$i] != "" ) { 
        groupindex[i]=groupmem[$i]
        groups[groupmem[$i]]++
      }
@@ -89,18 +87,10 @@ NR>FNR && /^#CHROM/ {
 # Second file: process sites
 NR>FNR && /^[^#]/ {
 
-  # Inferring range for locus name
-  # This counter is slower yet POSIX-compliant
-  #if ( LOCUS == "" ) {
-  #  if ( !minpos ) { chrom=$1; minpos=$2 }
-  #  if ( $2 > maxpos ) { maxpos=$2 }
-  #}
-
   if ( PERSITE && LOCUS != "" ) { $1=LOCUS"_"$1 }
 
 	# Process only SNPs (possibly monomorphic or multiallelic)
   # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
-  # To process SNPs that only have one ALT allele
 	if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
   
     # Increment gene length for estimation of % missing
@@ -114,34 +104,36 @@ NR>FNR && /^[^#]/ {
 		# Pool GT values for groups, count each state and missing data
 		for (i=10; i<=NF; i++) {
       grp=groupindex[i]
-			for (c=1; c<match( $i, ":" ); c+=2) {
-        al=substr($i,c,1)
-				if ( al == "." ) {
-					if ( !PIXY ) { miss[grp]+=match( $i, ":" )/2 }
-          break
-        } else {
-          if ( HET ) { thisal[al]++ }
-					alleles[grp,al]++
-					nalleles[grp]++
-          if ( !seen[grp,al] ) {
-            seen[grp,al]++
-            seen[grp]=al seen[grp]
-            nseen[grp]++
-          }
-        }
-			}
-      if ( HET && nalleles[grp] ) {
-        Lal[grp]++
-        if ( MULT || nseen[grp]<=2 ) {
-          if ( PIXY || PERSITE ) { 
-            for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
-            denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
+      if ( grp != "" ) {
+		  	for (c=1; c<match( $i, ":" ); c+=2) {
+          al=substr($i,c,1)
+		  		if ( al == "." ) {
+		  			if ( !PIXY ) { miss[grp]+=match( $i, ":" )/2 }
+            break
           } else {
-              for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
+            if ( HET ) { thisal[al]++ }
+		  			alleles[grp,al]++
+		  			nalleles[grp]++
+            if ( !seen[grp,al] ) {
+              seen[grp,al]++
+              seen[grp]=al seen[grp]
+              nseen[grp]++
+            }
           }
+		  	}
+        if ( HET && nalleles[grp] ) {
+          Lal[grp]++
+          if ( MULT || nseen[grp]<=2 ) {
+            if ( PIXY || PERSITE ) { 
+              for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
+              denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
+            } else {
+                for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
+            }
+          }
+          if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", formatOutput( numerator[grp], denominator[grp] ) }
+          delete thisal
         }
-        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", formatOutput( numerator[grp], denominator[grp] ) }
-        delete thisal
       }
 		}
 
@@ -149,19 +141,11 @@ NR>FNR && /^[^#]/ {
     # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
     if ( !HET ) {
   		for ( g in groups ) {
-  			if ( miss[g]/nalleles[g] <= MIS && ( MULT || nseen[g]<=2 ) ) {
+  			if ( nalleles[g]>0 && miss[g]/nalleles[g] <= MIS && ( MULT || nseen[g]<=2 ) ) {
   
   				# Increment number of sites used for calculation
   				Lal[g]++
           
-          if ( TAJLIKE && nalleles[g] % groups[g] == 0 ) {
-            if ( nseen[g] > 1 ) { segr[g]++ }
-            for ( i=1; i<nalleles[g]; i++ ) {
-              a1[g]+=1/i
-              a2[g]+=1/i^2
-              }
-          }
-  
           # Extract allele counts of the group
           delete thesealleles
           delete bothalleles
@@ -172,7 +156,6 @@ NR>FNR && /^[^#]/ {
           }
   
   				# Add to pi: probability that two randomly picked alleles differ
-          # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
           thisnum[g]=nalleles[g]^2
           thisden[g]=nalleles[g]*(nalleles[g]-1)
           for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
@@ -187,7 +170,7 @@ NR>FNR && /^[^#]/ {
   				# Calculate pi between this group and all other groups with <50% missing data
           if ( DXY ) {
   			  	for ( g2 in groups ) {
-  			  		if ( g2 < g && miss[g2]/nalleles[g2] <= MIS && ( MULT || nseen[g2]<=2 ) ) {
+  			  		if ( g2 < g && nalleles[g2] && miss[g2]/nalleles[g2] <= MIS && ( MULT || nseen[g2]<=2 ) ) {
               
                 # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
                 poolsize=nseen[g]
@@ -265,12 +248,6 @@ END {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
         } else { pinum[g] = pi[g]; piden[g] = Lal[g] }
         print LOCUS, L, g, ".", Lal[g], pimetric, formatOutput( pinum[g], piden[g] )
-        if ( TAJLIKE ) {
-          tajnum[g]=""
-          tajden[g]=""
-          calcTajimaLike( pinum[g]/piden[g], segr[g], a1[g]/Lal[g], a2[g]/Lal[g], groups[g] )
-          print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
-        }
       }
     }
   	for (i in combs) {
@@ -348,15 +325,3 @@ function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
   #thisfstden+=a+b+c
 }
 
-# Tajima's D-like statistic calculation
-# The formula below is classic Tajima's D but with missing data we calculate a1 and a2 in a slightly different way
-function calcTajimaLike( pi, S, a1, a2, n ) {
-  b1=(n+1)/(3n-3)
-  b2=(2*(n^2+n+3))/(9n*(n-1))
-  c1=b1-1/a1
-  c2=b2-(n+2)/(a1*n)+a2/(a1^2)
-  e1=c1/a1
-  e2=c2/(a1^2+a2)
-  tajnum[g]=pinum[g]/piden[g] - S/a1
-  tajden[g]=sqrt(e1*S + e2*S*(S-1))
-}
