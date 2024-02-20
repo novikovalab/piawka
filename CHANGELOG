@@ -1,3 +1,5 @@
+(2024-02-20) 0.7.7 : add Tajima's D-like statistic, sanitize code
+
 (2024-02-15) 0.7.6 : improve LOCUS behavior with PERSITE=1 and in piawka_par_reg.sh
 
 (2024-02-15) 0.7.5 : add VERBOSE=1 option
