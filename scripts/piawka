@@ -60,7 +60,7 @@ NR>FNR && /^#CHROM/ {
   if ( PIXY == "" ) { PIXY=1 }
   if ( !HET && DXY == "" ) { DXY=1 }
   if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
-  if ( !PIXY && MIS == "" ) { MIS=0.5 }
+  if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
 
   if ( LOCUS=="" ) { FIRSTDATALINE=1 }
 
