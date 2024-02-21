@@ -274,17 +274,10 @@ function incrementFstHudson( a1, a2, n1, n2 ) {
   hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
   thisfstnum+=hb-hw
   thisfstden+=hb
-  # Below is numerically the same but closer to original formula of Bhatia et al. 2013, eq. 10
-  #h_hat1 = (a1*(n1-a1)) / (n1*(n1-1)) # maybe optimize later
-  #h_hat2 = (a2*(n2-a2)) / (n2*(n2-1)) # maybe optimize later
-  #fnum=(a1/n1 - a2/n2)^2 - h_hat1/n1 - h_hat2/n2
-  #thisfstnum+=fnum
-  #thisfstden+=fnum + h_hat1 + h_hat2
 } 
 
 function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
   # Formula from Bhatia et al. 2013, eq. (6)
-
   sizes = n1 * n2 / ( n1 + n2 )
   frac = 1 / ( n1 + n2 - 2 )
   mism = n1 * ( a1 / n1 ) * ( 1 - a1 / n1 ) + n2 * ( a2 / n2 ) * ( 1 - a2 / n2 )
@@ -293,27 +286,5 @@ function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
   if ( ! den ) { return } # WC Fst is NaN at uniform sites
   thisfstnum += den - 2 * sizes * frac * mism
   thisfstden += den
-
-  # Below is closer to Weir & Cockerham (1984) but something is wrong
-  # Pretending r=2 now
-  #h1 = (a1*(n1-a1)) / (n1*(n1-1)) # maybe optimize later
-  #h2 = (a2*(n2-a2)) / (n2*(n2-1)) # maybe optimize later
-  #n1 /= 2 # count of "diploid individuals"
-  #n2 /= 2
-  #p1 = a1
-  #p2 = a2
-  #n_bar = (n1 + n2) / 2 # average number of "diploid individuals", divided by r
-  #rn = 2*n_bar
-  #n_C = rn - (n1^2 + n2^2)/rn # also divided by r-1
-  #p_bar = ( n1 * p1 + n2 * p2 ) / rn
-  #s2 = ( n1 * (p1 - p_bar) + n2 * (p2 - p_bar) ) / n_bar # also divided by r-1
-  #h_bar = ( n1 * h1 + n2 * h2 ) / rn
-
-  #a = ( n_bar/n_C ) * ( s2 - ( 1/n_bar-1 ) * ( p_bar * ( 1 - p_bar ) - 0.5 * s2 - 0.25 * h_bar ) ) # 0.5 is (r-1)/r
-  #b = ( n_bar / ( n_bar - 1 ) ) * ( p_bar * ( 1 - p_bar ) - 0.5 * s2 - ( ( 2 * n_bar-1 ) / ( 4 * n_bar ) ) * h_bar )
-  #c = 0.5*h_bar
-
-  #thisfstnum+=a
-  #thisfstden+=a+b+c
 }
 
