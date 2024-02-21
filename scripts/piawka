@@ -110,6 +110,7 @@ NR>FNR && /^[^#]/ {
 		for (g in groups) { miss[g]=0; nalleles[g]=0; nseen[g]=0 }
 		delete alleles
     delete seen
+    delete seenlist
 
 		# Pool GT values for groups, count each state and missing data
 		for (i=10; i<=NF; i++) {
