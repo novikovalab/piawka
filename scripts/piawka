@@ -332,7 +332,7 @@ function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
 
 }
 
-fuction incrementFstWeirCockerhamOrig( a1, a2, n1, n2 ) {
+function incrementFstWeirCockerhamOrig( a1, a2, n1, n2 ) {
   # Below is closer to Weir & Cockerham (1984) but something is wrong
   # Pretending r=2 now
   h1 = (a1*(n1-a1)) / (n1*(n1-1)) # maybe optimize later
