@@ -107,7 +107,7 @@ NR>FNR && /^[^#]/ {
     L++
 
 		# Reset site-specific parameters
-		for (g in groups) { miss[g]=0; nalleles[g]=0; nseen[g]=0 }
+		for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
 		delete alleles
     delete seen
     delete seenlist
@@ -120,6 +120,7 @@ NR>FNR && /^[^#]/ {
           al=substr($i,c,1)
 		  		if ( al == "." ) {
 		  			if ( !PIXY ) { miss[grp]+=match( $i, ":" )/2 }
+            misind[grp]++
             break
           } else {
             if ( HET ) { thisal[al]++ }
@@ -157,7 +158,9 @@ NR>FNR && /^[^#]/ {
   				# Increment number of sites used for calculation
   				Lal[g]++
           
-          if ( TAJLIKE && nalleles[g] % groups[g] == 0 ) {
+          # Possible improvement: check if ploidy is mixed once per group
+          if ( TAJLIKE && nalleles[g] % ( groups[g] - misind[g] ) == 0 ) {
+            if ( nalleles[g] > maxnalleles[g] ) { maxnalleles[g] = nalleles[g] }
             if ( nseen[g] > 1 ) { segr[g]++ }
             for ( i=1; i<nalleles[g]; i++ ) {
               a1[g]+=1/i
@@ -223,7 +226,6 @@ NR>FNR && /^[^#]/ {
                           incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
                         } else if ( FST=="WC" ) { 
                           incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
-                        } 
                         } else if ( FST=="WC_ORIG" ) { 
                           incrementFstWeirCockerhamOrig( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
                         } 
@@ -274,7 +276,7 @@ END {
         if ( TAJLIKE ) {
           tajnum[g]=""
           tajden[g]=""
-          calcTajimaLike( pinum[g]/piden[g], segr[g], a1[g]/Lal[g], a2[g]/Lal[g], groups[g] )
+          calcTajimaLike( pinum[g]/piden[g], segr[g], a1[g]/Lal[g], a2[g]/Lal[g], maxnalleles[g] )
           print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
         }
       }
@@ -311,12 +313,6 @@ function incrementFstHudson( a1, a2, n1, n2 ) {
   hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
   thisfstnum+=hb-hw
   thisfstden+=hb
-  # Below is numerically the same but closer to original formula of Bhatia et al. 2013, eq. 10
-  #h_hat1 = (a1*(n1-a1)) / (n1*(n1-1)) # maybe optimize later
-  #h_hat2 = (a2*(n2-a2)) / (n2*(n2-1)) # maybe optimize later
-  #fnum=(a1/n1 - a2/n2)^2 - h_hat1/n1 - h_hat2/n2
-  #thisfstnum+=fnum
-  #thisfstden+=fnum + h_hat1 + h_hat2
 } 
 
 function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
