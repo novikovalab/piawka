@@ -103,10 +103,12 @@ NR>FNR && /^[^#]/ {
 		for (i=10; i<=NF; i++) {
       grp=groupindex[i]
       if ( grp != "" ) {
-		  	for (c=1; c<match( $i, ":" ); c+=2) {
+        gtend=match( $i, ":" )
+        if ( gtend==0 ) { gtend=length($i)+1 }
+		  	for (c=1; c<gtend; c+=2) {
           al=substr($i,c,1)
 		  		if ( al == "." ) {
-		  			miss[grp]+=match( $i, ":" )/2
+		  			miss[grp]+=gtend/2
             break
           } else {
             if ( HET ) { thisal[al]++ }
