@@ -55,7 +55,7 @@ NR==FNR {
 }
 
 # Store first position for LOCUS name if it is not set
-FIRSTDATALINE { chrom=$1; minpos=$2; FIRSTDATALINE=0 }
+FIRSTDATALINE && LOCUS=="" { chrom=$1; minpos=$2; FIRSTDATALINE=0 }
 
 # Second file (VCF), header line
 NR>FNR && /^#CHROM/ {
@@ -71,7 +71,7 @@ NR>FNR && /^#CHROM/ {
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
-    if ( groupmem[$i] ) { 
+    if ( groupmem[$i] != "" ) { 
        groupindex[i]=groupmem[$i]
        groups[groupmem[$i]]++
      }
@@ -114,22 +114,24 @@ NR>FNR && /^[^#]/ {
 		# Pool GT values for groups, count each state and missing data
 		for (i=10; i<=NF; i++) {
       grp=groupindex[i]
-			for (c=1; c<match( $i, ":" ); c+=2) {
-        al=substr($i,c,1)
-				if ( al == "." ) {
-					if ( !PIXY ) { miss[grp]+=match( $i, ":" )/2 }
-          break
-        } else {
-          if ( HET ) { thisal[al]++ }
-					alleles[grp,al]++
-					nalleles[grp]++
-          if ( !seen[grp,al] ) {
-            seen[grp,al]++
-            seen[grp]=al seen[grp]
-            nseen[grp]++
+      if ( grp != "" ) {
+		  	for (c=1; c<match( $i, ":" ); c+=2) {
+          al=substr($i,c,1)
+		  		if ( al == "." ) {
+		  			if ( !PIXY ) { miss[grp]+=match( $i, ":" )/2 }
+            break
+          } else {
+            if ( HET ) { thisal[al]++ }
+		  			alleles[grp,al]++
+		  			nalleles[grp]++
+            if ( !seen[grp,al] ) {
+              seen[grp,al]++
+              seenlist[grp]=al seen[grp]
+              nseen[grp]++
+            }
           }
-        }
-			}
+		  	}
+      }
       if ( HET && nalleles[grp] ) {
         Lal[grp]++
         if ( MULT || nseen[grp]<=2 ) {
@@ -148,7 +150,7 @@ NR>FNR && /^[^#]/ {
 		# Calculate pi for groups with <50% missing data 
     # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
     if ( !HET ) {
-  		for ( g in groups ) {
+  		for ( g in seenlist ) {
   			if ( miss[g]/nalleles[g] <= MIS && ( MULT || nseen[g]<=2 ) ) {
   
   				# Increment number of sites used for calculation
@@ -165,7 +167,7 @@ NR>FNR && /^[^#]/ {
           # Extract allele counts of the group
           delete thesealleles
           delete bothalleles
-          split(seen[g], xx, "")
+          split(seenlist[g], xx, "")
           for (al in xx) {
             bothalleles[xx[al]]++
             thesealleles[xx[al]] = alleles[g,xx[al]]
@@ -186,7 +188,7 @@ NR>FNR && /^[^#]/ {
   
   				# Calculate pi between this group and all other groups with <50% missing data
           if ( DXY ) {
-  			  	for ( g2 in groups ) {
+  			  	for ( g2 in seenlist ) {
   			  		if ( g2 < g && miss[g2]/nalleles[g2] <= MIS && ( MULT || nseen[g2]<=2 ) ) {
               
                 # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
@@ -194,7 +196,7 @@ NR>FNR && /^[^#]/ {
 
                 # Extract alleles of the group
                 delete thosealleles
-                split(seen[g2], yy, "")
+                split(seenlist[g2], yy, "")
                 for (al in yy) {
                   bothalleles[yy[al]]++ # so far keeps alleles from comparisons of g with previous groups
                   thosealleles[yy[al]] = alleles[g2,yy[al]]
