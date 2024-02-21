@@ -106,7 +106,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `FST=XXX` or `FST=1` (experimental) : output Fst values for population pairs. Sets `DXY=1`. **Note that Fst behavior is less well-described in presence of missing data!** Therefore, consider comparing results with `PIXY=0` and `PIXY=1`. Following alternatives exist: 
     - `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013);
     - `WC` -- Weir and Cockerham (1984) as interpreted by Bhatia et al. (2013).
- - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Default 0.5.
+ - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Supposed to be a number between 0 and 1; default 0.5 if `PIXY=0` and 1 otherwise.
  - `VERBOSE=1` : appends numerator and denominator to output as 8th and 9th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
