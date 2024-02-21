@@ -46,11 +46,7 @@ if ( !ARGV[1] ) { print help; exit }
 
 # First file: store lists of group members in `groups` array
 NR==FNR { 
-  if ( !HET ) {
-    groupmem[$1]=$2
-  } else {
-    groupmem[$1]=$1
-  }
+    groupmem[$1]=HET ? $1 : $2
 }
 
 # Store first position for LOCUS name if it is not set
@@ -231,16 +227,8 @@ END {
   if ( !PERSITE ) {
     
     # Prepare "metric" field for output
-    if ( PIXY ) { 
-      pimetric="pi_pixy"
-      dxymetric="dxy_pixy"
-    } else { 
-      pimetric="pi_w"
-      dxymetric="dxy_w"
-    }
-    if ( HET ) {
-      pimetric= "het" substr(pimetric, match(pimetric, "_") )
-    }
+    PIXY ? metric="pixy" : metric="w"
+    if ( HET ) { pimetric= "het_" metric }
 
     if ( LOCUS=="" ) { maxpos=$2; LOCUS=chrom"_"minpos"_"maxpos }
 
