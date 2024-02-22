@@ -160,6 +160,16 @@ NR>FNR && /^[^#]/ {
   
   				# Increment number of sites used for calculation
   				Lal[g]++
+          
+          # Possible improvement: check if ploidy is mixed once per group
+          if ( TAJLIKE && nalleles[g] % ( groups[g] - misind[g] ) == 0 ) {
+            if ( nalleles[g] > maxnalleles[g] ) { maxnalleles[g] = nalleles[g] }
+            if ( nseen[g] > 1 ) { segr[g]++ }
+            for ( i=1; i<nalleles[g]; i++ ) {
+              a1[g]+=1/i
+              a2[g]+=1/i^2
+              }
+          }
   
           # Extract allele counts of the group
           delete thesealleles
@@ -175,18 +185,6 @@ NR>FNR && /^[^#]/ {
           thisnum[g]=nalleles[g]^2
           thisden[g]=nalleles[g]*(nalleles[g]-1)
           for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
-
-          # Possible improvement: check if ploidy is mixed once per group
-          if ( TAJLIKE && nalleles[g] % ( groups[g] - misind[g] ) == 0 && nseen[g] == 2 ) {
-            if ( nalleles[g] > maxnalleles[g] ) { maxnalleles[g] = nalleles[g] }
-            segr[g]++
-            tajpinum[g]+=thisnum[g]
-            tajpiden[g]+=thisden[g]
-            for ( i=1; i<nalleles[g]; i++ ) {
-              a1[g]+=1/i
-              a2[g]+=1/i^2
-            }
-          }
 
           if ( PERSITE ) { 
             if ( thisden[g] ) { print $1"_"$2, 1, g, ".", 1, "pi", formatOutput( thisnum[g], thisden[g] ) }
@@ -279,9 +277,9 @@ END {
         } else { pinum[g] = pi[g]; piden[g] = Lal[g] }
         print LOCUS, L, g, ".", Lal[g], pimetric, formatOutput( pinum[g], piden[g] )
         if ( TAJLIKE ) {
-          tajnum[g]=tajpinum[g]/tajpiden[g] - segr[g]/(a1[g]/segr[g])
-          tajden[g]=calcTajimaLike( segr[g], a1[g]/segr[g], a2[g]/segr[g], maxnalleles[g] )
-          #calcTajimaLike( segr[g]*(tajpinum[g]/tajpiden[g]), segr[g], a1[g]/segr[g], a2[g]/segr[g], maxnalleles[g] )
+          tajnum[g]=""
+          tajden[g]=""
+          calcTajimaLike( pinum[g]/piden[g], segr[g], a1[g]/Lal[g], a2[g]/Lal[g], maxnalleles[g] )
           print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
         }
       }
@@ -360,12 +358,13 @@ function incrementFstWeirCockerhamOrig( a1, a2, n1, n2 ) {
 
 # Tajima's D-like statistic calculation
 # The formula below is classic Tajima's D but with missing data we calculate a1 and a2 in a slightly different way
-function calcTajimaLike( S, a1, a2, n ) {
+function calcTajimaLike( pi, S, a1, a2, n ) {
   b1=(n+1)/(3n-3)
   b2=(2*(n^2+n+3))/(9n*(n-1))
   c1=b1-1/a1
   c2=b2-(n+2)/(a1*n)+a2/(a1^2)
   e1=c1/a1
   e2=c2/(a1^2+a2)
-  return sqrt(e1*S + e2*S*(S-1))
+  tajnum[g]=pinum[g]/piden[g] - S/a1
+  tajden[g]=sqrt(e1*S + e2*S*(S-1))
 }
