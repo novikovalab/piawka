@@ -167,12 +167,11 @@ NR>FNR && /^[^#]/ {
                 numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
               } else { 
                 pi[g]+=thisnum[g]/thisden[g]
-                if ( VERBOSE ) {
-                  allmiss[g]+=miss[g]
-                  allgeno[g]+=nalleles[g]
-                }
               }
-              
+              if ( VERBOSE ) {
+                allmiss[g]+=miss[g]
+                allgeno[g]+=nalleles[g]
+              }
             }
   
   				# Calculate pi between this group and all other groups with <50% missing data

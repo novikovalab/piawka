@@ -107,7 +107,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
     - `HUD` (default) -- Hudson (1992) after Bhatia et al. (2013);
     - `WC` -- Weir and Cockerham (1984) as interpreted by Bhatia et al. (2013).
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Supposed to be a number between 0 and 1; default 0.5 if `PIXY=0` and 1 otherwise.
- - `VERBOSE=1` : appends numerator and denominator to output as 8th and 9th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
+ - `VERBOSE=1` : appends numerator, denominator, nGenotypes and nMissing to output as 8th-11th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
