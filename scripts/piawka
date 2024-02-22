@@ -21,7 +21,7 @@ help=" \
                  WC : Weir and Cockerham (1984), biased for unequal groups with dissimilar Fst \n \
     MIS=0.5      maximum share of missing genotypes in groups at site (between 0 and 1);\n \
                  default 1 with PIXY=1 and 0.5 with PIXY=0\n \
-    VERBOSE=1    output numerator and denominator as 8th and 9th column\n \
+    VERBOSE=1    output numerator, denominator, nGenotypes and nMissing as 8th-11th columns\n \
                  with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n \
     \n \
     Example groups.tsv:\n \
@@ -131,7 +131,7 @@ NR>FNR && /^[^#]/ {
                 for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
             }
           }
-          if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", formatOutput( numerator[grp], denominator[grp] ) }
+          if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", formatOutput( numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
           delete thisal
         }
       }
@@ -161,10 +161,18 @@ NR>FNR && /^[^#]/ {
           for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
 
           if ( PERSITE ) { 
-            if ( thisden[g] ) { print $1"_"$2, 1, g, ".", 1, "pi", formatOutput( thisnum[g], thisden[g] ) }
+            if ( thisden[g] ) { print $1"_"$2, 1, g, ".", 1, "pi", formatOutput( thisnum[g], thisden[g], nalleles[g], miss[g] ) }
           } else {
-              if ( PIXY ) { numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
-              } else { pi[g]+=thisnum[g]/thisden[g] }
+              if ( PIXY ) { 
+                numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
+              } else { 
+                pi[g]+=thisnum[g]/thisden[g]
+                if ( VERBOSE ) {
+                  allmiss[g]+=miss[g]
+                  allgeno[g]+=nalleles[g]
+                }
+              }
+              
             }
   
   				# Calculate pi between this group and all other groups with <50% missing data
@@ -209,8 +217,8 @@ NR>FNR && /^[^#]/ {
                     }
                   }
                   if ( PERSITE ) { 
-                    if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, 1, "dxy", formatOutput( thisnum[g,g2], thisden[g,g2] ) }
-                    if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, formatOutput( thisfstnum, thisfstden ) }
+                    if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, 1, "dxy", formatOutput( thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+                    if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, formatOutput( thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
                   } else {
                       if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
                       } else { dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2] }
@@ -239,7 +247,7 @@ END {
       if ( Lal[g] ) {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
         } else { pinum[g] = pi[g]; piden[g] = Lal[g] }
-        print LOCUS, L, g, ".", Lal[g], HET ? "pi_"metric : metric, formatOutput( pinum[g], piden[g] )
+        print LOCUS, L, g, ".", Lal[g], HET ? "pi_"metric : metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
       }
     }
   	for (i in combs) {
@@ -247,9 +255,9 @@ END {
         if ( PIXY ) { dxynum[i] = numerator[i]; dxyden[i]=denominator[i] 
         } else { dxynum[i] = dxy[i]; dxyden[i]=Lal[i] }
         split(i, ii, SUBSEP)
-        print LOCUS, L, ii[1], ii[2], Lal[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i] )
+        print LOCUS, L, ii[1], ii[2], Lal[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
         if ( fst_denominator[i] ) { 
-          print LOCUS, L, ii[1], ii[2], Lal[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i] ) 
+          print LOCUS, L, ii[1], ii[2], Lal[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
       }
     }
@@ -259,10 +267,10 @@ END {
 ### FUNCTIONS
 
 # Print just the value or value, numerator, denominator if VERBOSE
-function formatOutput( numerator, denominator ) {
+function formatOutput( numerator, denominator, nGeno, nMiss ) {
   out=numerator/denominator
   if ( VERBOSE ) { 
-      out = out"\t"numerator"\t"denominator
+      out = out"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   }
   return out
 }
