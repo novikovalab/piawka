@@ -131,7 +131,7 @@ NR>FNR && /^[^#]/ {
 		  			nalleles[grp]++
             if ( !seen[grp,al] ) {
               seen[grp,al]++
-              seenlist[grp]=al seen[grp]
+              seenlist[grp]=al seenlist[grp]
               nseen[grp]++
             }
           }
