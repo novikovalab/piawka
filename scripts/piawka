@@ -258,7 +258,7 @@ END {
       if ( nUsed[g] ) {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
         } else { pinum[g] = pi[g]; piden[g] = nUsed[g] }
-        print LOCUS, nSites, g, ".", nUsed[g], HET ? "pi_"metric : metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
+        print LOCUS, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric , formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
       }
     }
   	for (i in combs) {
