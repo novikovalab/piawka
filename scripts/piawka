@@ -52,34 +52,6 @@ NR==FNR {
     groupmem[$1]=HET ? $1 : $2
 }
 
-# Second file (VCF), header line
-NR>FNR && /^#CHROM/ {
-
-  # Set default variable values
-  if ( PIXY == "" ) { PIXY=1 }
-  if ( !HET && DXY == "" ) { DXY=1 }
-  if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
-  if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
-  if ( NSITES!="" ) { nSites=NSITES }
-
-  # Assign sample positions to groups
-  for (i=10; i<=NF; i++) {
-    if ( groupmem[$i] != "" ) { 
-       groupindex[i]=groupmem[$i]
-       groups[groupmem[$i]]++
-     }
-  }
-  # Store group combinations
-  if ( DXY && !PERSITE ) {
-    for (g in groups) {
-      for (g2 in groups) {
-        if (g2 < g) { combs[g,g2]++ }
-      }
-    }
-  }
-  DATALINES=1
-}
-
 # Second file: process sites
 NR>FNR && DATALINES {
 
@@ -233,6 +205,34 @@ NR>FNR && DATALINES {
 	    }
     }
   }
+}
+
+# Second file (VCF), header line
+NR>FNR && /^#CHROM/ {
+
+  # Set default variable values
+  if ( PIXY == "" ) { PIXY=1 }
+  if ( !HET && DXY == "" ) { DXY=1 }
+  if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
+  if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
+  if ( NSITES!="" ) { nSites=NSITES }
+
+  # Assign sample positions to groups
+  for (i=10; i<=NF; i++) {
+    if ( groupmem[$i] != "" ) { 
+       groupindex[i]=groupmem[$i]
+       groups[groupmem[$i]]++
+     }
+  }
+  # Store group combinations
+  if ( DXY && !PERSITE ) {
+    for (g in groups) {
+      for (g2 in groups) {
+        if (g2 < g) { combs[g,g2]++ }
+      }
+    }
+  }
+  DATALINES=1
 }
 
 END {
