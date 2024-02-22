@@ -108,6 +108,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
     - `WC` -- Weir and Cockerham (1984) as interpreted by Bhatia et al. (2013).
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Supposed to be a number between 0 and 1; default 0.5 if `PIXY=0` and 1 otherwise.
  - `VERBOSE=1` : appends numerator, denominator, nGenotypes and nMissing to output as 8th-11th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
+ - `NSITES=1000` : length of the analyzed locus. Knowing it is useful to check the genotyping quality at the locus. By default it is guessed from the VCF CHROM and POS fields, but it can be also passed via command line to improve accuracy when some VCF lines are expected to be missing.
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
@@ -131,7 +132,7 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
 `piawka` outputs a long-format table with no header and following columns:
 
  - **locus** : either genomic position of analyzed locus or custom `LOCUS` value.
- - **nSites** : number of "potentially useful" lines in the VCF file (SNPs or invariant sites before filtering for number of alleles (and genotyping rate for weighted pi or dxy))
+ - **nSites** : the length of the region in the analyzed VCF file. Can be passed via the `NSITES` argument.
  - **pop1** : analyzed group 1
  - **pop2** : `.` for pi values or group 2 for Dxy and Fst values
  - **nUsed** : number of sites used for pi calculation (i.e. SNPs and invariant sites; for weighted pi or dxy these should also pass the 50% genotyping rate threshold)

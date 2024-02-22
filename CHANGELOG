@@ -1,3 +1,7 @@
+(2024-02-22) 0.7.8 : add nGenotypes and nMissing columnts to output,
+                     add NSITES and change nSites field philosophy,
+                     bug fixes
+
 (2024-02-20) 0.7.7 : sanitize & optimize code
 
 (2024-02-15) 0.7.6 : improve LOCUS behavior with PERSITE=1 and in piawka_par_reg.sh

@@ -43,7 +43,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.7"
+    Version: 0.7.8"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -77,10 +77,11 @@ NR>FNR && /^#CHROM/ {
       }
     }
   }
+  DATALINES=1
 }
 
 # Second file: process sites
-NR>FNR && /^[^#]/ {
+NR>FNR && DATALINES {
 
   # Increment nSites
   if ( NSITES=="" || LOCUS=="" ) {
