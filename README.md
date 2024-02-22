@@ -139,7 +139,12 @@ Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_t
  - **metric** : pi or dxy (or "het" for heterozygosity), average weighted or `pixy`-like
  - **value** of the metric
 
- If `VERBOSE=1` was supplied, two more columns, **numerator** and **denominator**, are appended.
+ If `VERBOSE=1` was supplied, four additional columns are appended:
+
+ - **numerator** of the statistic
+ - **denominator**
+ - **nGenotypes** : total number of called sites, with a possible maximum of ploidy * n_samples * nUsed
+ - **nMissing** : total number of missing genotype calls
 
 ## Example data
 
