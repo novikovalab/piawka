@@ -39,10 +39,10 @@ while getopts ":a:b:g:p:v:" opt; do
   esac
 done
 
-# If gene names contain slashes, replace {//} with {= s@/.*@@ =} and {/} with {= s@^[^/]/+@@ =}
-awk '{if ($4) {$4="/"$4}; print $1 ":" $2+1 "-" $3 $4}' $bed |
-  parallel $paropts \
-  bcftools view -r {//} $vcf \| \
-  piawka LOCUS={/} $piopts $grp -
+# BED start field is 0-based and bcftools index -r option is not, so increment second field first
+awk -v OFS="\t" '{$2++}1' $bed |
+  parallel --colsep '\t' $paropts \
+  bcftools view -r {1}:{2}-{3} $vcf \| \
+  piawka LOCUS={4} NSITES='$(( {3} - {2} + 1 ))' $piopts $grp -
 
 

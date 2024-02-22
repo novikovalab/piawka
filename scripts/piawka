@@ -23,6 +23,8 @@ help=" \
                  default 1 with PIXY=1 and 0.5 with PIXY=0\n \
     VERBOSE=1    output numerator, denominator, nGenotypes and nMissing as 8th-11th columns\n \
                  with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n \
+    NSITES=1000  length of locus to be passed as nSites (e.g. gene length);\n \
+                 default is the range of the POS field in the provided VCF\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -50,9 +52,6 @@ NR==FNR {
     groupmem[$1]=HET ? $1 : $2
 }
 
-# Store first position for LOCUS name if it is not set
-FIRSTDATALINE && LOCUS=="" { chrom=$1; minpos=$2; FIRSTDATALINE=0 }
-
 # Second file (VCF), header line
 NR>FNR && /^#CHROM/ {
 
@@ -61,8 +60,7 @@ NR>FNR && /^#CHROM/ {
   if ( !HET && DXY == "" ) { DXY=1 }
   if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
   if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
-
-  if ( LOCUS=="" ) { FIRSTDATALINE=1 }
+  if ( NSITES!="" ) { nSites=NSITES }
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
@@ -84,15 +82,18 @@ NR>FNR && /^#CHROM/ {
 # Second file: process sites
 NR>FNR && /^[^#]/ {
 
-  if ( PERSITE && LOCUS != "" ) { $1=LOCUS"_"$1 }
+  # Increment nSites
+  if ( NSITES=="" || LOCUS=="" ) {
+    if ( !minpos[$1] ) { minpos[$1]=$2 }
+    maxpos[$1]=$2
+  }
 
 	# Process only SNPs (possibly monomorphic or multiallelic)
   # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
 	if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
   
-    # Increment gene length for estimation of % missing
-    L++
-
+    if ( PERSITE && LOCUS != "" ) { $1=LOCUS"_"$1 }
+  
 		# Reset site-specific parameters
 		for (g in groups) { miss[g]=0; nalleles[g]=0; nseen[g]=0 }
 		delete alleles
@@ -122,7 +123,7 @@ NR>FNR && /^[^#]/ {
           }
 		  	}
         if ( HET && nalleles[grp] ) {
-          Lal[grp]++
+          nUsed[grp]++
           if ( MULT || nseen[grp]<=2 ) {
             if ( PIXY || PERSITE ) { 
               for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
@@ -144,7 +145,7 @@ NR>FNR && /^[^#]/ {
   			if ( miss[g]/(miss[g]+nalleles[g]) <= MIS && ( MULT || nseen[g]<=2 ) ) {
   
   				# Increment number of sites used for calculation
-  				Lal[g]++
+  				nUsed[g]++
           
           # Extract allele counts of the group
           delete thesealleles
@@ -195,7 +196,7 @@ NR>FNR && /^[^#]/ {
                 if ( MULT || poolsize <= 2 ) {
 
   			  	    	# Increment number of sites used for dxy
-  			  	    	Lal[g,g2]++
+  			  	    	nUsed[g,g2]++
                   
   			  	    	# Add to dxy: probability that two alleles picked from two groups differ
                   # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
@@ -240,23 +241,33 @@ END {
     PIXY ? metric="pixy" : metric="w"
     if ( HET ) { metric="het_" metric }
 
-    if ( LOCUS=="" ) { maxpos=$2; LOCUS=chrom"_"minpos"_"maxpos }
+    if ( LOCUS=="" ) {
+      for ( i in minpos ) { 
+          LOCUS = i"_"minpos[i]"_"maxpos[i]"_"LOCUS
+      }
+      LOCUS=substr(LOCUS,1,length(LOCUS)-1)
+    }
+    if ( NSITES=="" ) { 
+      for ( i in minpos ) {
+        nSites+=maxpos[i]-minpos[i]+1
+      }
+    }
 
   	for (g in groups) {
-      if ( Lal[g] ) {
+      if ( nUsed[g] ) {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
-        } else { pinum[g] = pi[g]; piden[g] = Lal[g] }
-        print LOCUS, L, g, ".", Lal[g], HET ? "pi_"metric : metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
+        } else { pinum[g] = pi[g]; piden[g] = nUsed[g] }
+        print LOCUS, nSites, g, ".", nUsed[g], HET ? "pi_"metric : metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
       }
     }
   	for (i in combs) {
-      if ( Lal[i] ) { 
+      if ( nUsed[i] ) { 
         if ( PIXY ) { dxynum[i] = numerator[i]; dxyden[i]=denominator[i] 
-        } else { dxynum[i] = dxy[i]; dxyden[i]=Lal[i] }
+        } else { dxynum[i] = dxy[i]; dxyden[i]=nUsed[i] }
         split(i, ii, SUBSEP)
-        print LOCUS, L, ii[1], ii[2], Lal[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+        print LOCUS, nSites, ii[1], ii[2], nUsed[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
         if ( fst_denominator[i] ) { 
-          print LOCUS, L, ii[1], ii[2], Lal[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+          print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
       }
     }
