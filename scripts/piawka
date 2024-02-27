@@ -180,18 +180,12 @@ NR>FNR && /^[^#]/ {
           if ( TAJLIKE ) {
             if ( nalleles[g] > maxnalleles[g] ) { maxnalleles[g] = nalleles[g] }
             if ( nseen[g] > 1 ) { 
-              #segr[g]++
               segr[g]+=recalcSegr( sqrt(1-thisnum[g]/thisden[g]), 1, nalleles[g], nalleles[g]+miss[g] )
-              altsegr[g]++
-              #segpinum[g]+=thisnum[g]
-              #segpiden[g]+=thisden[g]
-              #segnall[g]+=nalleles[g]
-              #segmiss[g]+=miss[g]
-              }
-            #for ( i=1; i<nalleles[g]; i++ ) {
-            #  a1[g]+=1/i
-            #  a2[g]+=1/i^2
-            #}
+            }
+            for ( i=1; i<nalleles[g]; i++ ) {
+              a1[g]+=1/i
+              a2[g]+=1/i^2
+            }
           }
 
           if ( PERSITE ) { 
@@ -286,18 +280,11 @@ END {
         print LOCUS, L, g, ".", Lal[g], pimetric, formatOutput( pinum[g], piden[g] )
         if ( TAJLIKE && segr[g] ) {
 
-          # Homebrewed correction for missing data
-          for ( i=1; i<maxnalleles[g]; i++ ) { a1[g]+=1/i; a2[g]+=1/i^2 }
-          #segp[g]=sqrt(1-segpinum[g]/segpiden[g]); if( segp[g] < 0.5 ) { segp[g]=1-segp[g] }
-          #segnall[g]=int(segnall[g]/segr[g])
-          #segmiss[g]=int(segmiss[g]/segr[g])
-          #segr[g]=recalcSegr( segp[g], segr[g], segnall[g], nalleles[g]+miss[g] )
-
-          # Ferretti-style correction for missing data
-          #a1[g]/=Lal[g]
-          #a2[g]/=Lal[g]
-          tajnum[g]=(pinum[g]/piden[g])*Lal[g] - altsegr[g]/a1[g]
-          tajden[g]=calcTajimaVar( altsegr[g], a1[g], a2[g], int(sqrt(piden[g]/Lal[g]))+1 )
+          # Ferretti-style correction of a1 + my correction of segr[g] with recalcSegr() give the best result
+          a1[g]/=Lal[g]
+          a2[g]/=Lal[g]
+          tajnum[g]=(pinum[g]/piden[g])*Lal[g] - segr[g]/a1[g]
+          tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], int(sqrt(piden[g]/Lal[g]))+1 ) # could as well replace by nalleles[g]+miss[g]
           print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
         }
       }
