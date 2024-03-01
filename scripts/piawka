@@ -182,7 +182,7 @@ NR>FNR && /^[^#]/ {
             if ( !targetN[g] ) { targetN[g]=int( (nalleles[g]+miss[g]) * (1-MIS) ) }
             maf=nalleles[g]
             for ( x in thesealleles ) { if ( thesealleles[x] < maf ) { maf=thesealleles[x] } }
-            segr[g]+=( rand() >= probLoseSegr( maf, targetN[g], nalleles[g] ) )
+            segr[g]+=1-probLoseSegr( maf, targetN[g], nalleles[g] )
             # Calculate folded SFS
             #sfs[g,maf]++
             #if ( maf > maxmaf[g] ) { maxmaf[g]=maf }
@@ -399,8 +399,45 @@ function probLoseSegrCalc( count, excess, nalleles,    pnum, pden ) {
   if ( excess < count ) { return 0 }
   pnum=1
   for (i=2;i<=count;i++) { pnum*=i } # factorial of allele count
-  if ( excess > count ) { for (i=count; i<=excess; i++) { pnum*=(nalleles-i) } }
+  if ( excess > count ) { 
+    for (i=count; i<=excess; i++) { pnum*=(nalleles-i) }
+    pnum*=nChooseK( excess, count )
+  }
   pden=1
   for (i=nalleles-excess; i<=nalleles; i++) { pden*=i }
   return pnum/pden
+}
+
+function nChooseK (n, k,    num, den) {
+  if ( k >= n ) { return 1 }
+  num=1
+  for (i=n; i>n-k; i--) { num*=i }
+  den=1
+  for (i=2; i<=k; i++) { den*=i }
+  return num/den
+}
+
+function downsampleMaf ( count, targetN, nalleles,    excess, pden ) {
+  excess = nalleles-targetN
+  if ( excess <= 0 ) { return count }
+  pden = rand()
+  for (i=nalleles-excess; i<=nalleles; i++) { pden*=i }
+  for (i=0; i<count; i++) {
+    if ( pden < mafLoseN(count, i+1, excess, nalleles) ) { return i }
+  }
+  return count
+}
+
+function mafLoseN ( count, n, excess, nalleles,    pnum ) {
+  pnum=1
+  if ( n > excess ) { pnum=0 
+  } else if ( n==0 ) { for (i=1; i<=excess; i++) { pnum*=(nalleles-count-i) } 
+  } else {
+    for (i=count-n; i<=count; i++) { pnum*=i }
+    if ( n < excess ) {
+      for (i=0; i<excess-n; i++) { pnum*=(nalleles-count-i) }
+      pnum*=nChooseK( excess, n )
+    }
+  }
+  return pnum
 }
