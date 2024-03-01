@@ -65,6 +65,7 @@ NR>FNR && /^#CHROM/ {
   if ( PIXY == "" ) { PIXY=1 }
   if ( !HET && DXY == "" ) { DXY=1 }
   if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
+  if ( TAJLIKE && MIS=="" ) { MIS=0 }
   if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
   if ( PERSITE || MULT ) { TAJLIKE=0 }
 
@@ -178,12 +179,14 @@ NR>FNR && /^[^#]/ {
           #
           # Possible improvement: check if ploidy is mixed once per group
           if ( TAJLIKE && nseen[g]==2 ) {
-            # Calculate folded SFS
+            if ( !targetN[g] ) { targetN[g]=int( (nalleles[g]+miss[g]) * (1-MIS) ) }
             maf=nalleles[g]
             for ( x in thesealleles ) { if ( thesealleles[x] < maf ) { maf=thesealleles[x] } }
-            sfs[g,maf]++
-            if ( maf > maxmaf[g] ) { maxmaf[g]=maf }
-            segr[g]+=recalcSegr( maf/nalleles[g], 1, nalleles[g], nalleles[g]+miss[g] )
+            segr[g]+=( rand() >= probLoseSegr( maf, targetN[g], nalleles[g] ) )
+            # Calculate folded SFS
+            #sfs[g,maf]++
+            #if ( maf > maxmaf[g] ) { maxmaf[g]=maf }
+            #segr[g]+=recalcSegr( maf/nalleles[g], 1, nalleles[g], nalleles[g]+miss[g] )
           }
 
           if ( PERSITE ) { 
@@ -277,18 +280,18 @@ END {
         } else { pinum[g] = pi[g]; piden[g] = Lal[g] }
         print LOCUS, L, g, ".", Lal[g], pimetric, formatOutput( pinum[g], piden[g] )
         if ( TAJLIKE && segr[g] ) {
-          for (i=1;i<maxmaf[g];i++) { a1[g]+=1/i }
-          for (i=1;i<nalleles[g]+miss[g];i++) { tgt_a1[g]+=1/i; tgt_a2[g]+=1/i^2 }
+          for (i=1;i<targetN[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
+          #for (i=1;i<nalleles[g]+miss[g];i++) { tgt_a1[g]+=1/i; tgt_a2[g]+=1/i^2 }
 
           # Is theta pi from SFS any different?
-          for (i=1;i<maxmaf[g];i++) { tP[g]+=maxmaf[g]/(maxmaf[g]-1)*2*sfs[g,i]*(i/maxmaf[g])*(1-i/maxmaf[g]) }
+          #for (i=1;i<maxmaf[g];i++) { tP[g]+=maxmaf[g]/(maxmaf[g]-1)*2*sfs[g,i]*(i/maxmaf[g])*(1-i/maxmaf[g]) }
 
           # Ferretti-style correction of a1 + my correction of segr[g] with recalcSegr() give the best result
           #a1[g]/=Lal[g]
           #a2[g]/=Lal[g]
-          tajnum[g]=tP[g] - segr[g]/a1[g]
-          tajden[g]=calcTajimaVar( segr[g], tgt_a1[g], tgt_a2[g], nalleles[g]+miss[g] ) # could as well replace by nalleles[g]+miss[g]
-          print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] ), "pi_noSFS="pinum[g]/piden[g]*Lal[g], "tP_SFS="tP[g]
+          tajnum[g]= pinum[g]/piden[g]*Lal[g] - segr[g]/a1[g]
+          tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], targetN[g] ) # could as well replace by nalleles[g]+miss[g]
+          print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
         }
       }
     }
@@ -380,6 +383,24 @@ function recalcSegr( prob, S, n, target ) {
   while ( n < target ) {
     S+=(prob^n+(1-prob)^n)*S/(n+1)
     n++
-    }
-  return S
   }
+  return S
+}
+
+function probLoseSegr( count, targetN, nalleles,    excess, prob ) {
+  excess = nalleles-targetN
+  prob = 0
+  prob+=probLoseSegrCalc( count, excess, nalleles )
+  prob+=probLoseSegrCalc( nalleles-count, excess, nalleles )
+  return prob
+}
+
+function probLoseSegrCalc( count, excess, nalleles,    pnum, pden ) {
+  if ( excess < count ) { return 0 }
+  pnum=1
+  for (i=2;i<=count;i++) { pnum*=i } # factorial of allele count
+  if ( excess > count ) { for (i=count; i<=excess; i++) { pnum*=(nalleles-i) } }
+  pden=1
+  for (i=nalleles-excess; i<=nalleles; i++) { pden*=i }
+  return pnum/pden
+}
