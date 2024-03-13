@@ -74,40 +74,38 @@ NR>FNR && DATALINES {
     delete seenlist
 
 		# Pool GT values for groups, count each state and missing data
-		for (i=10; i<=NF; i++) {
+		for (i in groupindex) {
       grp=groupindex[i]
-      if ( grp != "" ) {
-        gtend=match( $i, ":" )
-        if ( gtend==0 ) { gtend=length($i)+1 }
-		  	for (c=1; c<gtend; c+=2) {
-          al=substr($i,c,1)
-		  		if ( al == "." ) {
-		  			miss[grp]+=gtend/2
-            break
-          } else {
-            if ( HET ) { thisal[al]++ }
-		  			alleles[grp,al]++
-		  			nalleles[grp]++
-            if ( !seen[grp,al] ) {
-              seen[grp,al]++
-              seenlist[grp]=al seenlist[grp]
-              nseen[grp]++
-            }
+      gtend=match( $i, ":" )
+      if ( gtend==0 ) { gtend=length($i)+1 }
+	  	for (c=1; c<gtend; c+=2) {
+        al=substr($i,c,1)
+	  		if ( al == "." ) {
+	  			miss[grp]+=gtend/2
+          break
+        } else {
+          if ( HET ) { thisal[al]++ }
+	  			alleles[grp,al]++
+	  			nalleles[grp]++
+          if ( !seen[grp,al] ) {
+            seen[grp,al]++
+            seenlist[grp]=al seenlist[grp]
+            nseen[grp]++
           }
-		  	}
-        if ( HET && nalleles[grp] ) {
-          nUsed[grp]++
-          if ( MULT || nseen[grp]<=2 ) {
-            if ( PIXY || PERSITE ) { 
-              for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
-              denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
-            } else {
-                for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
-            }
-          }
-          if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", formatOutput( numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
-          delete thisal
         }
+	  	}
+      if ( HET && nalleles[grp] ) {
+        nUsed[grp]++
+        if ( MULT || nseen[grp]<=2 ) {
+          if ( PIXY || PERSITE ) { 
+            for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
+            denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
+          } else {
+              for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
+          }
+        }
+        if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", formatOutput( numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
+        delete thisal
       }
 		}
 
