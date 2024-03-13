@@ -182,10 +182,12 @@ NR>FNR && /^[^#]/ {
             if ( !targetN[g] ) { targetN[g]=int( (nalleles[g]+miss[g]) * (1-MIS) ) }
             maf=nalleles[g]
             for ( x in thesealleles ) { if ( thesealleles[x] < maf ) { maf=thesealleles[x] } }
-            segr[g]+=1-probLoseSegr( maf, targetN[g], nalleles[g] )
+            #segr[g]+=1-probLoseSegr( maf, targetN[g], nalleles[g] )
             # Calculate folded SFS
-            #sfs[g,maf]++
+            maf=downsampleMaf(maf, targetN[g], nalleles[g])
+            sfs[g,maf]++
             #if ( maf > maxmaf[g] ) { maxmaf[g]=maf }
+            if ( maf > 0 ) { sfs[g,maf]++; segr[g]++ }
             #segr[g]+=recalcSegr( maf/nalleles[g], 1, nalleles[g], nalleles[g]+miss[g] )
           }
 
@@ -284,12 +286,13 @@ END {
           #for (i=1;i<nalleles[g]+miss[g];i++) { tgt_a1[g]+=1/i; tgt_a2[g]+=1/i^2 }
 
           # Is theta pi from SFS any different?
-          #for (i=1;i<maxmaf[g];i++) { tP[g]+=maxmaf[g]/(maxmaf[g]-1)*2*sfs[g,i]*(i/maxmaf[g])*(1-i/maxmaf[g]) }
+          for (i=1;i<targetN[g];i++) { tP[g]+=targetN[g]/(targetN[g]-1)*2*sfs[g,i]*(i/targetN[g])*(1-i/targetN[g]) }
+          #tP[g]=pinum[g]/piden[g]*Lal[g]
 
           # Ferretti-style correction of a1 + my correction of segr[g] with recalcSegr() give the best result
           #a1[g]/=Lal[g]
           #a2[g]/=Lal[g]
-          tajnum[g]= pinum[g]/piden[g]*Lal[g] - segr[g]/a1[g]
+          tajnum[g]= tP[g] - segr[g]/a1[g]
           tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], targetN[g] ) # could as well replace by nalleles[g]+miss[g]
           print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
         }
@@ -400,11 +403,11 @@ function probLoseSegrCalc( count, excess, nalleles,    pnum, pden ) {
   pnum=1
   for (i=2;i<=count;i++) { pnum*=i } # factorial of allele count
   if ( excess > count ) { 
-    for (i=count; i<=excess; i++) { pnum*=(nalleles-i) }
+    for (i=count; i<excess; i++) { pnum*=(nalleles-i) }
     pnum*=nChooseK( excess, count )
   }
   pden=1
-  for (i=nalleles-excess; i<=nalleles; i++) { pden*=i }
+  for (i=0; i<excess; i++) { pden*=(nalleles-i) }
   return pnum/pden
 }
 
@@ -421,19 +424,21 @@ function downsampleMaf ( count, targetN, nalleles,    excess, pden ) {
   excess = nalleles-targetN
   if ( excess <= 0 ) { return count }
   pden = rand()
-  for (i=nalleles-excess; i<=nalleles; i++) { pden*=i }
+  for (i=0; i<excess; i++) { pden*=(nalleles-i) } # multiply by denominator
+  cumsum=mafLoseN(count, 0, excess, nalleles)
   for (i=0; i<count; i++) {
-    if ( pden < mafLoseN(count, i+1, excess, nalleles) ) { return i }
+    cumsum+=mafLoseN(count, i+1, excess, nalleles)
+    if ( pden < cumsum ) { return count-i }
   }
-  return count
+  return 0
 }
 
 function mafLoseN ( count, n, excess, nalleles,    pnum ) {
   pnum=1
   if ( n > excess ) { pnum=0 
-  } else if ( n==0 ) { for (i=1; i<=excess; i++) { pnum*=(nalleles-count-i) } 
+  } else if ( n==0 ) { for (i=0; i<excess; i++) { pnum*=(nalleles-count-i) } 
   } else {
-    for (i=count-n; i<=count; i++) { pnum*=i }
+    for (i=count-n+1; i<=count; i++) { pnum*=i }
     if ( n < excess ) {
       for (i=0; i<excess-n; i++) { pnum*=(nalleles-count-i) }
       pnum*=nChooseK( excess, n )
@@ -441,3 +446,9 @@ function mafLoseN ( count, n, excess, nalleles,    pnum ) {
   }
   return pnum
 }
+
+function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
+  for (i=1; i<n1; i++) { coef1+=(1/i+1/(n1-i)) }
+  for (i=1; i<n2; i++) { coef2+=(1/i+1/(n2-i)) }
+  return S*(coef2/coef1)
+  }
