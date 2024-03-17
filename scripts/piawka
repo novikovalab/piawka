@@ -190,7 +190,9 @@ NR>FNR && /^[^#]/ {
             #if ( maf > maxmaf[g] ) { maxmaf[g]=maf }
             #if ( maf > 0 ) { sfs[g,maf]++; segr[g]++ }
             #segr[g]+=recalcSegr( maf/nalleles[g], 1, nalleles[g], nalleles[g]+miss[g] )
+            for (i=1;i<nalleles[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
             segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] )
+            truesegr[g]++
           }
 
           if ( PERSITE ) { 
@@ -285,15 +287,15 @@ END {
         print LOCUS, L, g, ".", Lal[g], pimetric, formatOutput( pinum[g], piden[g] )
         if ( TAJLIKE && segr[g] ) {
           #for (i=1;i<targetN[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
-          for (i=1;i<nalleles[g]+miss[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
+          #for (i=1;i<nalleles[g]+miss[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
 
           # Is theta pi from SFS any different?
           #for (i=1;i<targetN[g];i++) { tP[g]+=targetN[g]/(targetN[g]-1)*2*sfs[g,i]*(i/targetN[g])*(1-i/targetN[g]) }
           tP[g]=pinum[g]/piden[g]*Lal[g]
 
           # Ferretti-style correction of a1 + my correction of segr[g] with recalcSegr() give the best result
-          #a1[g]/=Lal[g]
-          #a2[g]/=Lal[g]
+          a1[g]/=truesegr[g]
+          a2[g]/=truesegr[g]
           tajnum[g]= tP[g] - segr[g]/a1[g]
           tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] ) # could as well replace by nalleles[g]+miss[g]
           print LOCUS, L, g, ".", Lal[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
