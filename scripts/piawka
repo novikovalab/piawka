@@ -24,6 +24,7 @@ help=" \
     VERBOSE=1    output numerator and denominator as 8th and 9th column\n \
                  with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n \
     TAJLIKE=1    output Tajima's D-like statistic (different variance; unset by PERSITE=1 or MULT=1)\n \
+                 not to be run on mixed-ploidy groups!\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -65,7 +66,6 @@ NR>FNR && /^#CHROM/ {
   if ( PIXY == "" ) { PIXY=1 }
   if ( !HET && DXY == "" ) { DXY=1 }
   if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
-  # if ( TAJLIKE && MIS=="" ) { MIS=0 }
   if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
   if ( PERSITE || MULT ) { TAJLIKE=0 }
 
@@ -179,17 +179,6 @@ NR>FNR && /^[^#]/ {
           #
           # Possible improvement: check if ploidy is mixed once per group
           if ( TAJLIKE && nseen[g]==2 ) {
-            #if ( !targetN[g] ) { targetN[g]=int( (nalleles[g]+miss[g]) * (1-MIS) ) }
-            #maf=nalleles[g]
-
-            #for ( x in thesealleles ) { if ( thesealleles[x] < maf ) { maf=thesealleles[x] } }
-            #segr[g]+=1-probLoseSegr( maf, targetN[g], nalleles[g] )
-            # Calculate folded SFS
-            #maf=downsampleMaf(maf, targetN[g], nalleles[g])
-            #sfs[g,maf]++
-            #if ( maf > maxmaf[g] ) { maxmaf[g]=maf }
-            #if ( maf > 0 ) { sfs[g,maf]++; segr[g]++ }
-            #segr[g]+=recalcSegr( maf/nalleles[g], 1, nalleles[g], nalleles[g]+miss[g] )
             for (i=1;i<nalleles[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
             segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] )
             truesegr[g]++
@@ -286,14 +275,7 @@ END {
         } else { pinum[g] = pi[g]; piden[g] = Lal[g] }
         print LOCUS, L, g, ".", Lal[g], pimetric, formatOutput( pinum[g], piden[g] )
         if ( TAJLIKE && segr[g] ) {
-          #for (i=1;i<targetN[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
-          #for (i=1;i<nalleles[g]+miss[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
-
-          # Is theta pi from SFS any different?
-          #for (i=1;i<targetN[g];i++) { tP[g]+=targetN[g]/(targetN[g]-1)*2*sfs[g,i]*(i/targetN[g])*(1-i/targetN[g]) }
           tP[g]=pinum[g]/piden[g]*Lal[g]
-
-          # Ferretti-style correction of a1 + my correction of segr[g] with recalcSegr() give the best result
           a1[g]/=truesegr[g]
           a2[g]/=truesegr[g]
           tajnum[g]= tP[g] - segr[g]/a1[g]
@@ -350,30 +332,6 @@ function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
 
 }
 
-function incrementFstWeirCockerhamOrig( a1, a2, n1, n2 ) {
-  # Below is closer to Weir & Cockerham (1984) but something is wrong
-  # Pretending r=2 now
-  h1 = (a1*(n1-a1)) / (n1*(n1-1)) # maybe optimize later
-  h2 = (a2*(n2-a2)) / (n2*(n2-1)) # maybe optimize later
-  n1 /= 2 # count of "diploid individuals"
-  n2 /= 2
-  p1 = a1
-  p2 = a2
-  n_bar = (n1 + n2) / 2 # average number of "diploid individuals", divided by r
-  rn = 2*n_bar
-  n_C = rn - (n1^2 + n2^2)/rn # also divided by r-1
-  p_bar = ( n1 * p1 + n2 * p2 ) / rn
-  s2 = ( n1 * (p1 - p_bar) + n2 * (p2 - p_bar) ) / n_bar # also divided by r-1
-  h_bar = ( n1 * h1 + n2 * h2 ) / rn
-
-  a = ( n_bar/n_C ) * ( s2 - ( 1/n_bar-1 ) * ( p_bar * ( 1 - p_bar ) - 0.5 * s2 - 0.25 * h_bar ) ) # 0.5 is (r-1)/r
-  b = ( n_bar / ( n_bar - 1 ) ) * ( p_bar * ( 1 - p_bar ) - 0.5 * s2 - ( ( 2 * n_bar-1 ) / ( 4 * n_bar ) ) * h_bar )
-  c = 0.5*h_bar
-
-  thisfstnum+=a
-  thisfstden+=a+b+c
-  }
-
 # Tajima's D-like statistic calculation
 # The formula below is classic Tajima's D but with missing data we calculate a1 and a2 in a slightly different way
 function calcTajimaVar( S, a1, a2, n ) {
@@ -384,71 +342,6 @@ function calcTajimaVar( S, a1, a2, n ) {
   e1=c1/a1
   e2=c2/(a1^2+a2)
   return sqrt(e1*S + e2*S*(S-1))
-}
-
-function recalcSegr( prob, S, n, target ) {
-  while ( n < target ) {
-    S+=(prob^n+(1-prob)^n)*S/(n+1)
-    n++
-  }
-  return S
-}
-
-function probLoseSegr( count, targetN, nalleles,    excess, prob ) {
-  excess = nalleles-targetN
-  prob = 0
-  prob+=probLoseSegrCalc( count, excess, nalleles )
-  prob+=probLoseSegrCalc( nalleles-count, excess, nalleles )
-  return prob
-}
-
-function probLoseSegrCalc( count, excess, nalleles,    pnum, pden ) {
-  if ( excess < count ) { return 0 }
-  pnum=1
-  for (i=2;i<=count;i++) { pnum*=i } # factorial of allele count
-  if ( excess > count ) { 
-    for (i=count; i<excess; i++) { pnum*=(nalleles-i) }
-    pnum*=nChooseK( excess, count )
-  }
-  pden=1
-  for (i=0; i<excess; i++) { pden*=(nalleles-i) }
-  return pnum/pden
-}
-
-function nChooseK (n, k,    num, den) {
-  if ( k >= n ) { return 1 }
-  num=1
-  for (i=n; i>n-k; i--) { num*=i }
-  den=1
-  for (i=2; i<=k; i++) { den*=i }
-  return num/den
-}
-
-function downsampleMaf ( count, targetN, nalleles,    excess, pden ) {
-  excess = nalleles-targetN
-  if ( excess <= 0 ) { return count }
-  pden = rand()
-  for (i=0; i<excess; i++) { pden*=(nalleles-i) } # multiply by denominator
-  cumsum=mafLoseN(count, 0, excess, nalleles)
-  for (i=0; i<count; i++) {
-    cumsum+=mafLoseN(count, i+1, excess, nalleles)
-    if ( pden < cumsum ) { return count-i }
-  }
-  return 0
-}
-
-function mafLoseN ( count, n, excess, nalleles,    pnum ) {
-  pnum=1
-  if ( n > excess ) { pnum=0 
-  } else if ( n==0 ) { for (i=0; i<excess; i++) { pnum*=(nalleles-count-i) } 
-  } else {
-    for (i=count-n+1; i<=count; i++) { pnum*=i }
-    if ( n < excess ) {
-      for (i=0; i<excess-n; i++) { pnum*=(nalleles-count-i) }
-      pnum*=nChooseK( excess, n )
-    }
-  }
-  return pnum
 }
 
 function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
