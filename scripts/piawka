@@ -25,6 +25,8 @@ help=" \
                  with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n \
     NSITES=1000  length of locus to be passed as nSites (e.g. gene length);\n \
                  default is the range of the POS field in the provided VCF\n \
+    TAJLIKE=1    output Tajima's D-like statistic (different variance; unset by PERSITE=1 or MULT=1)\n \
+                 not to be run on mixed-ploidy groups!\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -43,7 +45,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.8"
+    Version: 0.7.9"
 if ( !ARGV[1] ) { print help; exit }
 }
 
@@ -63,12 +65,13 @@ NR>FNR && DATALINES {
 
 	# Process only SNPs (possibly monomorphic or multiallelic)
   # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
+  # To process SNPs that only have one ALT allele
 	if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
   
     if ( PERSITE && LOCUS != "" ) { $1=LOCUS"_"$1 }
   
 		# Reset site-specific parameters
-		for (g in groups) { miss[g]=0; nalleles[g]=0; nseen[g]=0 }
+		for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
 		delete alleles
     delete seen
     delete seenlist
@@ -128,9 +131,17 @@ NR>FNR && DATALINES {
           }
   
   				# Add to pi: probability that two randomly picked alleles differ
+          # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
           thisnum[g]=nalleles[g]^2
           thisden[g]=nalleles[g]*(nalleles[g]-1)
           for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
+          #
+          # Possible improvement: check if ploidy is mixed once per group
+          if ( TAJLIKE && nseen[g]==2 ) {
+            for (i=1;i<nalleles[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
+            segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] )
+            truesegr[g]++
+          }
 
           if ( PERSITE ) { 
             if ( thisden[g] ) { print $1"_"$2, 1, g, ".", 1, "pi", formatOutput( thisnum[g], thisden[g], nalleles[g], miss[g] ) }
@@ -257,6 +268,14 @@ END {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
         } else { pinum[g] = pi[g]; piden[g] = nUsed[g] }
         print LOCUS, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric , formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
+        if ( TAJLIKE && segr[g] ) {
+          tP[g]=pinum[g]/piden[g]*nUsed[g]
+          a1[g]/=truesegr[g]
+          a2[g]/=truesegr[g]
+          tajnum[g]= tP[g] - segr[g]/a1[g]
+          tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] ) # could as well replace by nalleles[g]+miss[g]
+          print LOCUS, L, g, ".", nUsed[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
+        }
       }
     }
   	for (i in combs) {
@@ -305,3 +324,20 @@ function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
   thisfstden += den
 }
 
+# Tajima's D-like statistic calculation
+# The formula below is classic Tajima's D but with missing data we calculate a1 and a2 in a slightly different way
+function calcTajimaVar( S, a1, a2, n ) {
+  b1=(n+1)/(3*n-3)
+  b2=(2*(n^2+n+3))/(9*n*(n-1))
+  c1=b1-1/a1
+  c2=b2-(n+2)/(a1*n)+a2/(a1^2)
+  e1=c1/a1
+  e2=c2/(a1^2+a2)
+  return sqrt(e1*S + e2*S*(S-1))
+}
+
+function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
+  for (i=1; i<n1; i++) { coef1+=(1/i+1/(n1-i)) }
+  for (i=1; i<n2; i++) { coef2+=(1/i+1/(n2-i)) }
+  return S*(coef2/coef1)
+  }

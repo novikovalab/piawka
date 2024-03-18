@@ -268,6 +268,10 @@ parallel -j20 \
 
 Note that we sliced the VCF using both big (-R) "regions" and small (-T) "targets". This method turns out to speed up data extraction 100-fold! We benefit a lot from this dark magic because IO is our main bottleneck. Without regions (or using targets  as regions) handling BED files with many small regions gets very slow.
 
+## Known compatibility issues
+
+ - `piawka v0.7.9` and above segfaults when executed by `mawk v1.2`. Updating `mawk` solves it.
+
 ## Alternatives
 
 This script shows all strong and weak points of being written in a simple text-processing language of `awk`. While combining high speed with not too complicated code, it lacks good error handling. It means that with corrupted inputs the script will do its best to produce *some* result silently. If you would like a more verbose solution, consider some better-developed alternatives.

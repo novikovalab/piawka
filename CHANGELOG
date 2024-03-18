@@ -1,3 +1,5 @@
+(2024-03-18) 0.7.9 : add TAJLIKE option
+
 (2024-02-22) 0.7.8 : add nGenotypes and nMissing columnts to output,
                      add NSITES and change nSites field philosophy,
                      bug fixes
