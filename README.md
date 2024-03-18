@@ -13,6 +13,7 @@ The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in 
       * [Single-threaded execution (pure AWK)](#single-threaded-execution-pure-awk)
       * [Parallel execution (with GNU parallel)](#parallel-execution-with-gnu-parallel)
       * [Advanced example: genewise 4-fold and 0-fold sites' pi and Dxy](#advanced-example-genewise-4-fold-and-0-fold-sites-pi-and-dxy)
+   * [Known compatibility issues](#known-compatibility-issues)
    * [Alternatives](#alternatives)
    * [References](#references)
    * [Citing piawka](#citing-piawka)
@@ -109,6 +110,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Supposed to be a number between 0 and 1; default 0.5 if `PIXY=0` and 1 otherwise.
  - `VERBOSE=1` : appends numerator, denominator, nGenotypes and nMissing to output as 8th-11th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
  - `NSITES=1000` : length of the analyzed locus. Knowing it is useful to check the genotyping quality at the locus. By default it is guessed from the VCF CHROM and POS fields, but it can be also passed via command line to improve accuracy when some VCF lines are expected to be missing.
+ - `TAJLIKE=1` (experimental): calculate Tajima's D-like statistic. With `MIS=0` it is identical to Tajima's D calculated over sites with no missing data. It corrects for missing data using [Ferretti](http://dx.doi.org/10.1534/genetics.112.139949)-like adjustment of theta-W and differences in expected numbers of segregating sites under different sample sizes as derived by Tajima. The result seems to be centered around the "true" Tajima's D value under a broad range of missing data percentages, but its variance should be broader. Thus, statistical significance of deviation is harder to estimate (maybe bootstrap?).
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 
