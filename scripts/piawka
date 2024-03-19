@@ -7,7 +7,9 @@ help=" \
     It outputs pi within each group and dxy between each pair of groups.\n \
     \n \
     Usage: \n \
-    zcat file.vcf.gz | piawka [OPTIONS] groups_file - \n \
+    zcat file.vcf.gz | piawka [OPTIONS] groups_file -   # the last dash is important here! \n \
+      or \n \
+    piawka [OPTIONS] groups_file <( zcat file.vcf.gz ) \n \
     \n \
     Options: \n \
     PIXY=1       calculate pixy-like pi instead of average weighted pi (default)\n \
