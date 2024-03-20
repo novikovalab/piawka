@@ -1,41 +1,43 @@
-(2024-03-18) 0.7.9 : add TAJLIKE option
+(2024-03-20) 0.7.10 : add RHO option
 
-(2024-02-22) 0.7.8 : add nGenotypes and nMissing columnts to output,
-                     add NSITES and change nSites field philosophy,
-                     bug fixes
+(2024-03-18) 0.7.9  : add TAJLIKE option
 
-(2024-02-20) 0.7.7 : sanitize & optimize code
+(2024-02-22) 0.7.8  : add nGenotypes and nMissing columnts to output,
+                      add NSITES and change nSites field philosophy,
+                      bug fixes
 
-(2024-02-15) 0.7.6 : improve LOCUS behavior with PERSITE=1 and in piawka_par_reg.sh
+(2024-02-20) 0.7.7  : sanitize & optimize code
 
-(2024-02-15) 0.7.5 : add VERBOSE=1 option
+(2024-02-15) 0.7.6  : improve LOCUS behavior with PERSITE=1 and in piawka_par_reg.sh
 
-(2024-02-14) 0.7.4 : add FST=WC option, set FST=HUD as default
+(2024-02-15) 0.7.5  : add VERBOSE=1 option
 
-(2024-02-14) 0.7.3 : add MIS option
+(2024-02-14) 0.7.4  : add FST=WC option, set FST=HUD as default
 
-(2024-02-14) 0.7.2 : fix ALT regex not filtering out indels in mawk but not in gawk
+(2024-02-14) 0.7.3  : add MIS option
 
-(2024-02-14) 0.7.1 : bug fix for MULT=0 (exclude comparisons where two groups do not have nested allele pools)
+(2024-02-14) 0.7.2  : fix ALT regex not filtering out indels in mawk but not in gawk
 
-(2024-02-13) 0.7   : add FST=HUD option, output matches pixy on diploid VCFs
+(2024-02-14) 0.7.1  : bug fix for MULT=0 (exclude comparisons where two groups do not have nested allele pools)
 
-(2024-02-13) 0.6.1 : code & math simplifications
+(2024-02-13) 0.7    : add FST=HUD option, output matches pixy on diploid VCFs
 
-(2024-02-07) 0.6   : add HET option, improve PERSITE handling
+(2024-02-13) 0.6.1  : code & math simplifications
 
-(2024-02-07) 0.5.2 : optimize GT extraction, speed improvements
+(2024-02-07) 0.6    : add HET option, improve PERSITE handling
 
-(2024-02-06) 0.5.1 : optimize group assignment (drop unused groups)
+(2024-02-07) 0.5.2  : optimize GT extraction, speed improvements
 
-                     set PIXY=1 and DXY=1 by default
-(2024-01-30) 0.5   : add DXY option,
+(2024-02-06) 0.5.1  : optimize group assignment (drop unused groups)
 
-(2024-01-25) 0.4   : add PIXY option
+                      set PIXY=1 and DXY=1 by default
+(2024-01-30) 0.5    : add DXY option,
 
-(2024-01-24) 0.3   : curly braces, curly braces everywhere (bug fix)
+(2024-01-25) 0.4    : add PIXY option
 
-                     dropped regex match in #CHROM block
-                     shortened PERSITE printing block,
-                     added integer-based pi and dxy formulas,
-(2024-01-10) 0.2   : included multiallelics with 2 alleles in given group into comparisons with !MULT,
+(2024-01-24) 0.3    : curly braces, curly braces everywhere (bug fix)
+
+                      dropped regex match in #CHROM block
+                      shortened PERSITE printing block,
+                      added integer-based pi and dxy formulas,
+(2024-01-10) 0.2    : included multiallelics with 2 alleles in given group into comparisons with !MULT,

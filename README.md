@@ -1,7 +1,7 @@
 ``piawka`` <img src="logo/logo.svg" align="right" width="25%">
 ==========
 
-The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and Fst in VCF files. Developed to analyze mixed-ploidy groups with substantial amounts of missing data.
+The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and some more simple stats (Fst, Tajima's D, Ronfort's rho) in VCF files. Developed to analyze arbitrary-ploidy groups with substantial amounts of missing data.
 
    * [Running piawka](#running-piawka)
       * [Installation](#installation)
@@ -22,11 +22,12 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka`[^1] build
 
 [^1]: Pronounced *pi: jaf ka:* after a Russian word meaning "leech".
 
- - supports **arbitrary ploidy level**, including mixed-ploidy groups
+ - supports **arbitrary ploidy level**, including mixed-ploidy groups for some stats
  - supports `pixy`-**weighted and unweighted π and Dxy** calculation
  - can use **multiallelic SNPs**, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups. Thus, `piawka` might be more suitable for multi-species VCF files with higher share of multiallelic SNPs. 
  - **lightweight and portable**, runs wherever vanilla AWK can run (Windows, macOS, Linux...) and requires no installation
  - **faster on a single core** (and can be parallelized with shell tools, e.g. GNU `parallel` -- see [Usage](#usage))
+ - includes additional **useful stuff** : Tajima's D-like statistic (with missing data correction), Ronfort's rho (useful for inter-ploidy divergence comparisons)
 
 By default, it reports `pixy`-like π and Dxy:
 
@@ -110,7 +111,8 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `MIS=0.5` : maximum share of missing data at a site for a group to be considered. Supposed to be a number between 0 and 1; default 0.5 if `PIXY=0` and 1 otherwise.
  - `VERBOSE=1` : appends numerator, denominator, nGenotypes and nMissing to output as 8th-11th columns respectively. For pi and Dxy with `PIXY=0`, numerator is the sum of metric values across the VCF and denominator = nUsed.
  - `NSITES=1000` : length of the analyzed locus. Knowing it is useful to check the genotyping quality at the locus. By default it is guessed from the VCF CHROM and POS fields, but it can be also passed via command line to improve accuracy when some VCF lines are expected to be missing.
- - `TAJLIKE=1` (experimental): calculate Tajima's D-like statistic. With `MIS=0` it is identical to Tajima's D calculated over sites with no missing data. It corrects for missing data using [Ferretti](http://dx.doi.org/10.1534/genetics.112.139949)-like adjustment of theta-W and differences in expected numbers of segregating sites under different sample sizes as derived by Tajima. The result seems to be centered around the "true" Tajima's D value under a broad range of missing data percentages, but its variance should be broader. Thus, statistical significance of deviation is harder to estimate (maybe bootstrap?).
+ - `TAJLIKE=1` (experimental): calculate Tajima's D-like statistic. With `MIS=0` it is identical to Tajima's D calculated over sites with no missing data. It corrects for missing data using [Ferretti](http://dx.doi.org/10.1534/genetics.112.139949)-like adjustment of theta-W and differences in expected numbers of segregating sites under different sample sizes as derived by Tajima. The result seems to be centered around the "true" Tajima's D value under a broad range of missing data percentages, but its variance should be broader. Thus, statistical significance of deviation is harder to estimate (maybe jackknife/bootstrap?) **Not to be used with mixed-ploidy groups!** 
+ - `RHO=1` : calculates Ronfort (1998)'s $\rho$, a ploidy-corrected divergence metric that is best fit for comparing different-ploidy populations. **Not to be used with mixed-ploidy groups!** 
 
 Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
 

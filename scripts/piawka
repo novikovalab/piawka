@@ -49,7 +49,7 @@ help=" \
     where nSites = SNPs + invariant sites,\n \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
-    Version: 0.7.9"
+    Version: 0.7.10"
 if ( !ARGV[1] ) { print help; exit }
 }
 
