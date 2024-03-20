@@ -216,37 +216,45 @@ DATALINES && NR > DATALINES {
                     }
                   }
                   if ( RHO ) {
-                    thisrhonum=thisrhoden=""
-                    # Define Hs, Ht, correct and go!
                     if (!thisden[g2]) {
                       thisnum[g2]=nalleles[g2]^2
                       thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
                       for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x2]^2 }
                     }
-                    bothnum[g,g2]=(nalleles[g] + nalleles[g2])^2
-                    bothden[g,g2]=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
-                    for ( x in bothalleles ) { bothnum[g,g2]-=(thesealleles[x]+thosealleles[x])^2 }
-                    Ht[g,g2] += bothnum[g,g2] / bothden[g,g2]
-                    Hs[g,g2] += ( (thisnum[g]/thisden[g] ) + (thisnum[g2]/thisden[g2]) ) / 2
-                    Hsp[g,g2] += ( thisnum[g]/thisden[g] * (ploidy[g]-1)/ploidy[g] + thisnum[g2]/thisden[g2] * (ploidy[g2]-1)/ploidy[g2] ) / 2
+                    # Here Hs = average of pi values of two populations,
+                    #      Ht = pi of two populations pooled,
+                    #      Hsp = Hs corrected for ploidy
+                    thisHtnum=(nalleles[g] + nalleles[g2])^2
+                    thisHtden=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
+                    for ( x in bothalleles ) { thisHtden-=(thesealleles[x]+thosealleles[x])^2 }
+                    thisHsnum = ( (thisnum[g]*thisden[g2] ) + (thisnum[g2]*thisden[g]) )
+                    thisHsden = 2 * thisden[g] * thisden[g2] # same as Hspden
+                    thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
                   }
                   if ( PERSITE ) { 
                     if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, 1, "dxy", formatOutput( thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
                     if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, formatOutput( thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
                     if ( RHO ) { 
-                      Hpt[g,g2] = Hs[g,g2] + 2 * (Ht[g,g2] - Hs[g,g2])
-                      thisrhonum=Hpt[g,g2]-Hs[g,g2]
-                      thisrhoden=Hpt[g,g2]-Hsp[g,g2]
-
-                      Ht[g,g2]=Hs[g,g2]=Hsp[g,g2]=0
-
+                      Hs = thisHsnum/thisHsden
+                      Ht = thisHtnum/thisHtden
+                      Hsp = thisHspnum/thisHsden
+                      Hpt = Hs + 2 * (Ht - Hs)
+                      thisrhonum=Hpt-Hs
+                      thisrhoden=Hpt-Hsp
                       print $1"_"$2, 1, g, g2, 1, "Rho", formatOutput( thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
                     }
                   } else {
                       if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
                       } else { dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2] }
                       if ( FST ) { fst_numerator[g,g2]+=thisfstnum; fst_denominator[g,g2]+=thisfstden }
-                    }
+                      if ( RHO ) {
+                        Htnum[g,g2] += thisHtnum 
+                        Htden[g,g2] += thisHtden 
+                        Hsnum[g,g2] += thisHsnum
+                        Hsden[g,g2] += thisHsden 
+                        Hspnum[g,g2] += thisHspnum
+                      }
+                  }
   			  	    }
               }
   			    }
@@ -329,11 +337,15 @@ END {
         if ( fst_denominator[i] ) { 
           print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
-        if ( RHO ) { 
-          Hs[i]/=nUsed[i]
-          Ht[i]/=nUsed[i]
-          Hsp[i]/=nUsed[i]
+        if ( RHO && Hsden[i] && Htden[i] ) { 
+          Hs[i] = Hsnum[i]/Hsden[i]
+          Ht[i] = Htnum[i]/Htden[i]
+          Hsp[i] = Hspnum[i]/Hsden[i]
           Hpt[i] = Hs[i] + 2 * (Ht[i] - Hs[i])
+          #Hs[i]/=nUsed[i]
+          #Ht[i]/=nUsed[i]
+          #Hsp[i]/=nUsed[i]
+          #Hpt[i] = Hs[i] + 2 * (Ht[i] - Hs[i])
           rho_numerator=Hpt[i]-Hs[i]
           rho_denominator=Hpt[i]-Hsp[i]
           print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Rho", formatOutput( rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
@@ -391,4 +403,4 @@ function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
   for (i=1; i<n1; i++) { coef1+=(1/i+1/(n1-i)) }
   for (i=1; i<n2; i++) { coef2+=(1/i+1/(n2-i)) }
   return S*(coef2/coef1)
-  }
+}

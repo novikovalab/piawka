@@ -1,0 +1,137 @@
+ARGC: 5
+ARGIND: 4
+ARGV: array, 5 elements
+BINMODE: 0
+CONVFMT: "%.6g"
+DATALINES: 1643
+DXY: 1
+ENVIRON: array, 38 elements
+ERRNO: ""
+FIELDWIDTHS: ""
+FILENAME: "/dev/fd/63"
+FNR: 519866
+FPAT: "[^[:space:]]+"
+FS: " "
+FST: "HUD"
+FUNCTAB: array, 47 elements
+HET: uninitialized scalar
+Hpt: array, 6 elements
+Hs: array, 6 elements
+Hsden: array, 6 elements
+Hsnum: array, 6 elements
+Hsp: array, 6 elements
+Hspnum: array, 6 elements
+Ht: array, 6 elements
+Htden: array, 6 elements
+Htnum: array, 6 elements
+IGNORECASE: 0
+L: untyped variable
+LINT: 0
+LOCUS: "scaffold_1_9999942_10500000"
+MIS: 1
+MULT: uninitialized scalar
+NF: 46
+NR: 520450
+NSITES: uninitialized scalar
+OFMT: "%.6g"
+OFS: "\t"
+ORS: "\n"
+PERSITE: uninitialized scalar
+PIXY: 1
+PREC: 53
+PROCINFO: array, 38 elements
+RHO: 1
+RLENGTH: 1
+ROUNDMODE: "N"
+RS: "\n"
+RSTART: 8
+RT: "\n"
+SUBSEP: "\034"
+SYMTAB: array, 135 elements
+TAJLIKE: uninitialized scalar
+TEXTDOMAIN: "messages"
+VERBOSE: uninitialized scalar
+a1: untyped variable
+a2: untyped variable
+al: 1
+alleles: array, 20 elements
+allgeno: array, 4 elements
+allmiss: array, 4 elements
+b1: untyped variable
+b2: untyped variable
+bothalleles: array, 1 elements
+bothden: array, 6 elements
+bothnum: array, 6 elements
+c: 9
+c1: untyped variable
+c2: untyped variable
+combs: array, 6 elements
+den: untyped variable
+denominator: array, 10 elements
+dxy: untyped variable
+dxyden: array, 6 elements
+dxynum: array, 6 elements
+e1: untyped variable
+e2: untyped variable
+frac: untyped variable
+fst_denominator: array, 6 elements
+fst_numerator: array, 6 elements
+g: "CESiberia_2n"
+g2: "CESiberia_2n"
+groupindex: array, 46 elements
+groupmem: array, 584 elements
+groups: array, 4 elements
+grp: "PUWS_4n"
+gtend: 8
+hb: 0
+help: "     This script takes a grouping file and a decompressed VCF as input.\n     It outputs pi within each group and dxy between each pair of groups.\n     \n     Usage: \n     zcat file.vcf.gz | piawka [OPTIONS] groups_file -   # the last dash is important here! \n       or \n     piawka [OPTIONS] groups_file <( zcat file.vcf.gz ) \n     \n     Options: \n     PIXY=1       calculate pixy-like pi instead of average weighted pi (default)\n     DXY=1        count between-group Dxy in addition to within-group pi (default)\n     MULT=1       use multiallelic sites\n     PERSITE=1    output values for each site instead of summary values\n     LOCUS='text' custom name of region to be shown in first column\n     HET=1        output heterozygosity, i.e. within-sample pi (unsets default DXY=1)\n     FST=XXX or 1 output Fst using one of the following estimators (sets DXY=1):\n                  HUD (default) : Hudson (1992) after Bhatia et al. (2013, eq. 10)\n                  WC : Weir and Cockerham (1984), biased for unequal groups with dissimilar Fst \n     MIS=0.5      maximum share of missing genotypes in groups at site (between 0 and 1);\n                  default 1 with PIXY=1 and 0.5 with PIXY=0\n     VERBOSE=1    output numerator, denominator, nGenotypes and nMissing as 8th-11th columns\n                  with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n     NSITES=1000  length of locus to be passed as nSites (e.g. gene length);\n                  default is the range of the POS field in the provided VCF\n     TAJLIKE=1    output Tajima's D-like statistic (different variance; unset by PERSITE=1 or MULT=1)\n                  not to be run on mixed-ploidy groups!\n     RHO=1        calculate Ronfort's (1998) rho -- a divergence metric most suitable for\n                  different-ploidy pops comparisons; not to be run on mixed-ploidy groups!\n     \n     Example groups.tsv:\n     \n     sample1 grp1\n     sample2 grp1\n     sample3 grp2\n     sample4 grp3\n     \n     Samples missing from the VCF or groups file will be silently skipped.\n     If one sample is assigned to two groups, only one will be used.\n     \n     Output is the long-format table with seven columns (no header):\n     \n     locus_name, nSites, pop1, pop2, nUsed, metric, value\n     \n     where nSites = SNPs + invariant sites,\n           nUsed = nSites - sites with too many alleles or too much missing data\n     \n     Version: 0.7.9"
+hw: 0
+i: "UKScandinavia_2n\034PUWS_4n"
+ii: array, 2 elements
+maxpos: array, 1 elements
+metric: "pixy"
+minpos: array, 1 elements
+misind: array, 4 elements
+mism: untyped variable
+miss: array, 5 elements
+nSites: 500059
+nUsed: array, 10 elements
+nalleles: array, 5 elements
+nseen: array, 5 elements
+numerator: array, 10 elements
+out: 0.56156640451760442
+pi: untyped variable
+pi1: 0
+pi2: 0
+piden: array, 4 elements
+pinum: array, 4 elements
+ploidy: array, 5 elements
+poolsize: 1
+rho_denominator: 0.0069823954452681433
+rho_numerator: 0.003921078705119329
+seen: array, 20 elements
+seenlist: array, 5 elements
+segr: untyped variable
+sizes: untyped variable
+tP: untyped variable
+tajden: untyped variable
+tajnum: untyped variable
+thesealleles: array, 1 elements
+thisHsden: 43200
+thisHsnum: 0
+thisHspnum: 0
+thisHtden: 650
+thisHtnum: 0
+thisal: untyped variable
+thisden: array, 10 elements
+thisfstden: 0
+thisfstnum: 0
+thisnum: array, 10 elements
+thisrhoden: untyped variable
+thisrhonum: untyped variable
+thosealleles: array, 1 elements
+truesegr: untyped variable
+x: 0
+x2: uninitialized scalar
+xx: array, 1 elements
+yy: array, 1 elements
