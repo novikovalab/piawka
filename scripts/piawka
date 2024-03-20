@@ -57,7 +57,7 @@ NR==FNR {
 }
 
 # Second file: process sites
-NR>FNR && DATALINES {
+NR > DATALINES {
 
   # Increment nSites
   if ( NSITES=="" || LOCUS=="" ) {
@@ -118,6 +118,15 @@ NR>FNR && DATALINES {
     # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
     if ( !HET ) {
   		for ( g in seenlist ) {
+
+        # Calculate group ploidy
+        if (!ploidy[g]) { 
+          ploidy[g] = ( miss[g] + nalleles[g] ) / groups[g]
+          if ( ploidy[g] % 1 != 0 && ( TAJLIKE || RHO ) ) {
+            print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "RHO" > "/dev/stderr"
+            }
+        }
+
   			if ( miss[g]/(miss[g]+nalleles[g]) <= MIS && ( MULT || nseen[g]<=2 ) ) {
   
   				# Increment number of sites used for calculation
@@ -243,7 +252,7 @@ NR>FNR && /^#CHROM/ {
       }
     }
   }
-  DATALINES=1
+  DATALINES=NR
 }
 
 END {
