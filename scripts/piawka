@@ -29,6 +29,8 @@ help=" \
                  default is the range of the POS field in the provided VCF\n \
     TAJLIKE=1    output Tajima's D-like statistic (different variance; unset by PERSITE=1 or MULT=1)\n \
                  not to be run on mixed-ploidy groups!\n \
+    RHO=1        calculate Ronfort's (1998) rho -- a divergence metric most suitable for\n \
+                 different-ploidy pops comparisons; not to be run on mixed-ploidy groups!\n \
     \n \
     Example groups.tsv:\n \
     \n \
@@ -56,8 +58,21 @@ NR==FNR {
     groupmem[$1]=HET ? $1 : $2
 }
 
+# First data line: calculate group ploidy if it matters
+NR == DATALINES+1 && ( TAJLIKE || RHO ) {
+  for (i=1;i<=NF;i++) {
+    ploidy[groupindex[i]] += ( match($i, ":")>0 ? match($i, ":") : length($i)+1 )
+  }
+  for (g in groups) {
+    ploidy[g] /= 2*groups[g]
+  }
+  if ( ploidy[g] % 1 != 0 && ( TAJLIKE || RHO ) ) {
+    print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "RHO" > "/dev/stderr"
+  }
+}
+
 # Second file: process sites
-NR > DATALINES {
+DATALINES && NR > DATALINES {
 
   # Increment nSites
   if ( NSITES=="" || LOCUS=="" ) {
@@ -118,15 +133,6 @@ NR > DATALINES {
     # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
     if ( !HET ) {
   		for ( g in seenlist ) {
-
-        # Calculate group ploidy
-        if (!ploidy[g]) { 
-          ploidy[g] = ( miss[g] + nalleles[g] ) / groups[g]
-          if ( ploidy[g] % 1 != 0 && ( TAJLIKE || RHO ) ) {
-            print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "RHO" > "/dev/stderr"
-            }
-        }
-
   			if ( miss[g]/(miss[g]+nalleles[g]) <= MIS && ( MULT || nseen[g]<=2 ) ) {
   
   				# Increment number of sites used for calculation
@@ -209,9 +215,33 @@ NR > DATALINES {
                       }
                     }
                   }
+                  if ( RHO ) {
+                    thisrhonum=thisrhoden=""
+                    # Define Hs, Ht, correct and go!
+                    if (!thisden[g2]) {
+                      thisnum[g2]=nalleles[g2]^2
+                      thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
+                      for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x2]^2 }
+                    }
+                    bothnum[g,g2]=(nalleles[g] + nalleles[g2])^2
+                    bothden[g,g2]=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
+                    for ( x in bothalleles ) { bothnum[g,g2]-=(thesealleles[x]+thosealleles[x])^2 }
+                    Ht[g,g2] += bothnum[g,g2] / bothden[g,g2]
+                    Hs[g,g2] += ( (thisnum[g]/thisden[g] ) + (thisnum[g2]/thisden[g2]) ) / 2
+                    Hsp[g,g2] += ( thisnum[g]/thisden[g] * (ploidy[g]-1)/ploidy[g] + thisnum[g2]/thisden[g2] * (ploidy[g2]-1)/ploidy[g2] ) / 2
+                  }
                   if ( PERSITE ) { 
                     if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, 1, "dxy", formatOutput( thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
                     if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, formatOutput( thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+                    if ( RHO ) { 
+                      Hpt[g,g2] = Hs[g,g2] + 2 * (Ht[g,g2] - Hs[g,g2])
+                      thisrhonum=Hpt[g,g2]-Hs[g,g2]
+                      thisrhoden=Hpt[g,g2]-Hsp[g,g2]
+
+                      Ht[g,g2]=Hs[g,g2]=Hsp[g,g2]=0
+
+                      print $1"_"$2, 1, g, g2, 1, "Rho", formatOutput( thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
+                    }
                   } else {
                       if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
                       } else { dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2] }
@@ -236,6 +266,7 @@ NR>FNR && /^#CHROM/ {
   if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
   if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
   if ( NSITES!="" ) { nSites=NSITES }
+  if ( MULT ) { RHO=0 }
 
   # Assign sample positions to groups
   for (i=10; i<=NF; i++) {
@@ -278,7 +309,7 @@ END {
       if ( nUsed[g] ) {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
         } else { pinum[g] = pi[g]; piden[g] = nUsed[g] }
-        print LOCUS, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric , formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
+        print LOCUS, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
         if ( TAJLIKE && segr[g] ) {
           tP[g]=pinum[g]/piden[g]*nUsed[g]
           a1[g]/=truesegr[g]
@@ -297,6 +328,15 @@ END {
         print LOCUS, nSites, ii[1], ii[2], nUsed[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
         if ( fst_denominator[i] ) { 
           print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+        }
+        if ( RHO ) { 
+          Hs[i]/=nUsed[i]
+          Ht[i]/=nUsed[i]
+          Hsp[i]/=nUsed[i]
+          Hpt[i] = Hs[i] + 2 * (Ht[i] - Hs[i])
+          rho_numerator=Hpt[i]-Hs[i]
+          rho_denominator=Hpt[i]-Hsp[i]
+          print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Rho", formatOutput( rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
       }
     }
