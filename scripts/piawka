@@ -53,26 +53,8 @@ help=" \
 if ( !ARGV[1] ) { print help; exit }
 }
 
-# First file: store lists of group members in `groups` array
-NR==FNR { 
-    groupmem[$1]=HET ? $1 : $2
-}
-
-# First data line: calculate group ploidy if it matters
-NR == DATALINES+1 && ( TAJLIKE || RHO ) {
-  for (i=1;i<=NF;i++) {
-    ploidy[groupindex[i]] += ( match($i, ":")>0 ? match($i, ":") : length($i)+1 )
-  }
-  for (g in groups) {
-    ploidy[g] /= 2*groups[g]
-  }
-  if ( ploidy[g] % 1 != 0 && ( TAJLIKE || RHO ) ) {
-    print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "RHO" > "/dev/stderr"
-  }
-}
-
-# Second file: process sites
-DATALINES && NR > DATALINES {
+# Process VCF lines ( rules for the groups file and header are below )
+DATALINES {
 
   # Increment nSites
   if ( NSITES=="" || LOCUS=="" ) {
@@ -226,7 +208,7 @@ DATALINES && NR > DATALINES {
                     #      Hsp = Hs corrected for ploidy
                     thisHtnum=(nalleles[g] + nalleles[g2])^2
                     thisHtden=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
-                    for ( x in bothalleles ) { thisHtden-=(thesealleles[x]+thosealleles[x])^2 }
+                    for ( x in bothalleles ) { thisHtnum-=(thesealleles[x]+thosealleles[x])^2 }
                     thisHsnum = ( (thisnum[g]*thisden[g2] ) + (thisnum[g2]*thisden[g]) )
                     thisHsden = 2 * thisden[g] * thisden[g2] # same as Hspden
                     thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
@@ -263,9 +245,16 @@ DATALINES && NR > DATALINES {
 	    }
     }
   }
+  next
 }
 
-# Second file (VCF), header line
+# Groups file (first in command line): store lists of group members in `groups` array
+NR==FNR { 
+  groupmem[$1]=HET ? $1 : $2
+  next
+}
+
+# Second file (VCF), header line: assign samples to groups
 NR>FNR && /^#CHROM/ {
 
   # Set default variable values
@@ -291,7 +280,23 @@ NR>FNR && /^#CHROM/ {
       }
     }
   }
-  DATALINES=NR
+  DATALINES=1
+  # Assign ploidy to groups using variant calls from next line, detect mixed-ploidy groups
+  if ( TAJLIKE || RHO ) {
+    getline nextline
+    split(nextline, fields, FS)
+    # Count alleles for each group, then divide by number of samples
+    for (i in groupindex) {
+      ploidy[groupindex[i]] += ( match(fields[i], ":")>0 ? match(fields[i], ":") : length(fields[i])+1 )
+    }
+    for (g in groups) {
+      ploidy[g] /= 2*groups[g]
+    }
+    if ( ploidy[g] % 1 != 0 && ( TAJLIKE || RHO ) ) {
+      print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "RHO" > "/dev/stderr"
+    }
+  }
+  next
 }
 
 END {
@@ -338,16 +343,12 @@ END {
           print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
         if ( RHO && Hsden[i] && Htden[i] ) { 
-          Hs[i] = Hsnum[i]/Hsden[i]
-          Ht[i] = Htnum[i]/Htden[i]
-          Hsp[i] = Hspnum[i]/Hsden[i]
-          Hpt[i] = Hs[i] + 2 * (Ht[i] - Hs[i])
-          #Hs[i]/=nUsed[i]
-          #Ht[i]/=nUsed[i]
-          #Hsp[i]/=nUsed[i]
-          #Hpt[i] = Hs[i] + 2 * (Ht[i] - Hs[i])
-          rho_numerator=Hpt[i]-Hs[i]
-          rho_denominator=Hpt[i]-Hsp[i]
+          Hs = Hsnum[i]/Hsden[i]
+          Ht = Htnum[i]/Htden[i]
+          Hsp = Hspnum[i]/Hsden[i]
+          Hpt = Hs + 2 * (Ht - Hs)
+          rho_numerator=Hpt-Hs
+          rho_denominator=Hpt-Hsp
           print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Rho", formatOutput( rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
       }
