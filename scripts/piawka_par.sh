@@ -50,16 +50,13 @@ if [ -z "$grp" ] || [ -z "$vcf" ]; then
 fi
 
 # default parameter values
-if [ -z ${paropts+x} ] && [ -z "$bed" ]; then 
-  paropts="--block 10M"
-fi
 if [[ $piopts != *LOCUS=* ]] && [ -z "$bed" ]; then 
   piopts="LOCUS=$( basename $vcf .vcf.gz ) "$piopts
 fi
 
 if [ -z "$bed" ]; then
   zcat $vcf | grep -v '^##' |
-  parallel $paropts --pipe --header : --halt now,fail=1 \
+  parallel $paropts --pipe --header --block 10M : --halt now,fail=1 \
   piawka VERBOSE=1 $piopts $grp - |
   { if [[ $piopts == *PERSITE=1* ]]; then cat -; else summarize_blks.awk -; fi; }
 else

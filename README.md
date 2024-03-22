@@ -131,7 +131,6 @@ Helper `parallel` scripts (`piawka_par.sh` and `piawka_par.sh`) accept following
 Here are examples of useful `parallel` options to be passed as `-a parallel_options`:
 
  - `-j 20` : number of parallel jobs (defaults to available CPUs)
- - `--block 10M` : for `piawka_par.sh`, the size of the VCF block for 1 `piawka` job.
  - `--bar` : for `piawka_par.sh`, display progress bar (the share of processed regions) in `stderr`.
 
 Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_tutorial.html) for more details on GNU `parallel`.
@@ -205,7 +204,7 @@ vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out2=piawka_blks.tsv
 
-time piawka_par.sh -a "-j20 --block 10M" -g $grp -v $vcf > $out2
+time piawka_par.sh -a "-j20" -g $grp -v $vcf > $out2
 
 #real    0m3.552s
 #user    0m17.537s
