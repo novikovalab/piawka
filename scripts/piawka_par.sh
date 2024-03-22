@@ -59,13 +59,13 @@ fi
 
 if [ -z "$bed" ]; then
   zcat $vcf | grep -v '^##' |
-  parallel $paropts --pipe --header : \
+  parallel $paropts --pipe --header : --halt now,fail=1 \
   piawka VERBOSE=1 $piopts $grp - |
   { if [[ $piopts == *PERSITE=1* ]]; then cat -; else summarize_blks.awk -; fi; }
 else
 # BED start field is 0-based and bcftools index -r option is not, so increment second field first
   awk -v OFS="\t" '{$2++}1' $bed |
-  parallel --colsep '\t' $paropts \
+  parallel --colsep '\t' $paropts --halt now,fail=1 \
   tabix -h $vcf {1}:{2}-{3} \| \
   piawka LOCUS={4} NSITES='$(( {3} - {2} + 1 ))' $piopts $grp -
 fi

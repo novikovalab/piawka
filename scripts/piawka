@@ -7,9 +7,9 @@ help=" \
     It outputs pi within each group and dxy between each pair of groups.\n \
     \n \
     Usage: \n \
-    zcat file.vcf.gz | piawka [OPTIONS] groups_file -   # the last dash is important here! \n \
-      or \n \
     piawka [OPTIONS] groups_file <( zcat file.vcf.gz ) \n \
+      or in pipeline like \n \
+    zcat file.vcf.gz | piawka [OPTIONS] groups_file -   # the last dash is important here! \n \
     \n \
     Options: \n \
     PIXY=1       calculate pixy-like pi instead of average weighted pi (default)\n \
@@ -50,7 +50,7 @@ help=" \
           nUsed = nSites - sites with too many alleles or too much missing data\n \
     \n \
     Version: 0.7.10"
-if ( !ARGV[1] ) { print help; exit }
+assert( ARGC>=2, "two mandatory arguments are the groups file and the VCF file" )
 }
 
 # Process VCF lines ( rules for the groups file and header are below )
@@ -250,6 +250,7 @@ DATALINES {
 
 # Groups file (first in command line): store lists of group members in `groups` array
 NR==FNR { 
+  if (FNR==1) { assert(NF==2, "the argument before the last must be a 2-column groups file") }
   groupmem[$1]=HET ? $1 : $2
   next
 }
@@ -280,7 +281,7 @@ NR>FNR && /^#CHROM/ {
       }
     }
   }
-  DATALINES=1
+  DATALINES=NR
   # Assign ploidy to groups using variant calls from next line, detect mixed-ploidy groups
   if ( TAJLIKE || RHO ) {
     getline nextline
@@ -300,6 +301,9 @@ NR>FNR && /^#CHROM/ {
 }
 
 END {
+  if (_assert_exit) { exit 1 }
+  assert( DATALINES, "no VCF header provided")
+  if (NR==DATALINES) { print "Warning: no data read for locus "LOCUS > "/dev/stderr" }
   if ( !PERSITE ) {
     
     # Prepare "metric" field for output
@@ -404,4 +408,14 @@ function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
   for (i=1; i<n1; i++) { coef1+=(1/i+1/(n1-i)) }
   for (i=1; i<n2; i++) { coef2+=(1/i+1/(n2-i)) }
   return S*(coef2/coef1)
+}
+
+function assert(condition, explanation) {
+  if (! condition) {
+    print help; print ""
+    printf("Error %s:%d: %s\n",
+           FILENAME, FNR, explanation) > "/dev/stderr"
+    _assert_exit=1
+    exit 1
+  }
 }
