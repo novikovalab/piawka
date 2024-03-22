@@ -4,6 +4,7 @@
 The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and some more simple stats (Fst, Tajima's D, Ronfort's rho) in VCF files. Developed to analyze arbitrary-ploidy groups with substantial amounts of missing data.
 
    * [Running piawka](#running-piawka)
+      * [Requirements](#requirements)
       * [Installation](#installation)
       * [Usage](#usage)
       * [Input files](#input-files)
@@ -27,7 +28,7 @@ Largely inspired by [`pixy`](https://github.com/ksamuk/pixy), `piawka`[^1] build
  - can use **multiallelic SNPs**, in biallelic mode also uses multiallelic SNPs that have two alleles in the analyzed groups. Thus, `piawka` might be more suitable for multi-species VCF files with higher share of multiallelic SNPs. 
  - **lightweight and portable**, runs wherever vanilla AWK can run (Windows, macOS, Linux...) and requires no installation
  - **faster on a single core** (and can be parallelized with shell tools, e.g. GNU `parallel` -- see [Usage](#usage))
- - includes additional **useful stuff** : Tajima's D-like statistic (with missing data correction), Ronfort's rho (useful for inter-ploidy divergence comparisons)
+ - includes additional **useful stuff** : Fst, Tajima's D-like statistic (with missing data correction), Ronfort's rho (useful for inter-ploidy divergence comparisons)
 
 By default, it reports `pixy`-like π and Dxy:
 
@@ -43,6 +44,10 @@ This metric might give unpredictable values at sites with lots of missing data, 
 
 ## Running `piawka`
 
+### Requirements
+
+To run `piawka` on a vcf file, nothing except any working `awk` distro is needed (best speed is achieved with `mawk`). To use the helper script and run `piawka` in parallel, `tabix`, `parallel` and `piawka` itself should be in the `PATH` environment variable.
+
 ### Installation
 
 Just clone the repo (or even simply download the `scripts` folder if you don't need 80Mb example VCF file) and you are good to go!
@@ -55,7 +60,7 @@ cd piawka
 We recommend the `mawk` AWK interpreter for `piawka` as it's much faster than all alternatives we know. If you don't have it, just change the shebangs to your `awk` distro like
 
 ```bash
-mawk || sed -i '1s/mawk/awk/' ./scripts/piawka ./scripts/summarize_blks.awk
+mawk || sed -i '1s/mawk/awk/' ./scripts/piawka ./scripts/*.awk
 ```
 
 It might be useful to add `piawka` location to `PATH` environmental variable to run it from anywhere by either executing the following code or adding it to your `.bashrc` file:
@@ -82,10 +87,10 @@ If you want to parallelize the counting and have GNU parallel installed, try our
 
 ```bash
 # Parallelize VCF reading and count summary statistics for entire file (a bit less precise)
-piawka_par_blk.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz
+piawka_par.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz
 
 # Split VCF by BED regions and count stats for each region in parallel
-piawka_par_reg.sh -a parallel_options -b bed_file -g groups_file -p piawka_options -v vcf_gz
+piawka_par.sh -a parallel_options -b bed_file -g groups_file -p piawka_options -v vcf_gz
 ```
 
 See [Options](#options) and [Examples](#example-data) for further details.
@@ -114,20 +119,20 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `TAJLIKE=1` (experimental): calculate Tajima's D-like statistic. With `MIS=0` it is identical to Tajima's D calculated over sites with no missing data. It corrects for missing data using [Ferretti](http://dx.doi.org/10.1534/genetics.112.139949)-like adjustment of theta-W and differences in expected numbers of segregating sites under different sample sizes as derived by Tajima. The result seems to be centered around the "true" Tajima's D value under a broad range of missing data percentages, but its variance should be broader. Thus, statistical significance of deviation is harder to estimate (maybe jackknife/bootstrap?) **Not to be used with mixed-ploidy groups!** 
  - `RHO=1` : calculates Ronfort (1998)'s $\rho$, a ploidy-corrected divergence metric that is best fit for comparing different-ploidy populations. **Not to be used with mixed-ploidy groups!** 
 
-Helper `parallel` scripts (`piawka_par_reg.sh` and `piawka_par_blk.sh`) accept following options:
+Helper `parallel` scripts (`piawka_par.sh` and `piawka_par.sh`) accept following options:
 
 - `-a parallel_options` : a string of space-separated options for GNU parallel (e.g. `-a "-j20"`)
 - `-b bed_file` : the BED file with regions to analyze in parallel jobs.
               If it contains 4+ columns, the 4th is passed as the locus name (LOCUS) to piawka.
  - `-g grp_file` : the groups file for `piawka`.
- - `-p piawka_options` : a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1"). *Note that with `piawka_par_reg.sh` the LOCUS value, if provided, will be overridden.* With `piawka_par_blk.sh`, by default `LOCUS` is set to the basename of the VCF file.
+ - `-p piawka_options` : a string of space-separated options for piawka (e.g. -p "PIXY=1 MULT=1"). *Note that with `piawka_par.sh` the LOCUS value, if provided, will be overridden.* With `piawka_par.sh`, by default `LOCUS` is set to the basename of the VCF file.
  - `-v vcf_gz` : the *compressed* VCF file for `piawka`.
 
 Here are examples of useful `parallel` options to be passed as `-a parallel_options`:
 
  - `-j 20` : number of parallel jobs (defaults to available CPUs)
- - `--block 10M` : for `piawka_par_blk.sh`, the size of the VCF block for 1 `piawka` job.
- - `--bar` : for `piawka_par_reg.sh`, display progress bar (the share of processed regions) in `stderr`.
+ - `--block 10M` : for `piawka_par.sh`, the size of the VCF block for 1 `piawka` job.
+ - `--bar` : for `piawka_par.sh`, display progress bar (the share of processed regions) in `stderr`.
 
 Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_tutorial.html) for more details on GNU `parallel`.
 
@@ -200,7 +205,7 @@ vcf=alyrata_scaff_1_10000k-10500k.vcf.gz
 grp=groups.tsv
 out2=piawka_blks.tsv
 
-time piawka_par_blk.sh -a "-j20 --block 10M" -g $grp -v $vcf > $out2
+time piawka_par.sh -a "-j20 --block 10M" -g $grp -v $vcf > $out2
 
 #real    0m3.552s
 #user    0m17.537s
@@ -219,7 +224,7 @@ grp=groups.tsv
 bed=genes.bed
 out3=piawka_genes.tsv
 
-time piawka_par_reg.sh -a "-j20" -b $bed -g $grp -v $vcf > $out3
+time piawka_par.sh -a "-j20" -b $bed -g $grp -v $vcf > $out3
 
 head -5 $out3 | column -t
 ```
@@ -262,15 +267,15 @@ fourgenes=( $( cut -f4 fourfolds.bed | sort | uniq ) )
 # Make sure `grep -w gene_name` does always filter out one gene in your case too
 # Then two commands below take ~3 sec each
 parallel -j20 \
-  bcftools view -R \<\( grep -w {} ../mRNA.bed \) -T \<\( grep -w {} zerofolds.bed \| cut -f1,3 \) $vcf \| \
+  tabix -R \<\( grep -w {} ../mRNA.bed \) -T \<\( grep -w {} zerofolds.bed \| cut -f1,3 \) $vcf \| \
   piawka LOCUS={} $grp - > piawka_zerofolds.tsv ::: ${zerogenes[@]} 
 
 parallel -j20 \
-  bcftools view -R \<\( grep -w {} ../mRNA.bed \) -T \<\( grep -w {} fourfolds.bed \| cut -f1,3 \) $vcf \| \
+  tabix -R \<\( grep -w {} ../mRNA.bed \) -T \<\( grep -w {} fourfolds.bed \| cut -f1,3 \) $vcf \| \
   piawka LOCUS={} $grp - > piawka_fourfolds.tsv ::: ${fourgenes[@]}
 ```
 
-Note that we sliced the VCF using both big (-R) "regions" and small (-T) "targets". This method turns out to speed up data extraction 100-fold! We benefit a lot from this dark magic because IO is our main bottleneck. Without regions (or using targets  as regions) handling BED files with many small regions gets very slow.
+Note that we sliced the VCF using both big (-R) "regions" and small (-T) "targets". This method turns out to speed up data extraction 100-fold! We benefit a lot from this dark magic because IO is our main bottleneck. Without regions (or using targets as regions) handling BED files with many small regions gets very slow.
 
 ## Known compatibility issues
 
