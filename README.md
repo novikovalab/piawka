@@ -1,7 +1,7 @@
 ``piawka`` <img src="logo/logo.svg" align="right" width="25%">
 ==========
 
-The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and some more simple stats (Fst, Tajima's D, Ronfort's rho) in VCF files. Developed to analyze arbitrary-ploidy groups with substantial amounts of missing data.
+The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and some more simple stats (Fst, Tajima's D, Ronfort's rho) in VCF files in the command line. Developed to analyze arbitrary-ploidy groups with substantial amounts of missing data.
 
    * [Running piawka](#running-piawka)
       * [Requirements](#requirements)
@@ -46,7 +46,9 @@ This metric might give unpredictable values at sites with lots of missing data, 
 
 ### Requirements
 
-To run `piawka` on a vcf file, nothing except any working `awk` distro is needed (best speed is achieved with `mawk`). To use the helper script and run `piawka` in parallel, `tabix`, `parallel` and `piawka` itself should be in the `PATH` environment variable.
+To run `piawka` on a vcf file, any working `awk` distro is sufficient (we recommend `mawk` as the fastest). To use the helper script and run `piawka` in parallel, `tabix`, `parallel` and `piawka` itself should be in the `PATH` environment variable.
+
+On Linux and macOS, get `mawk` using Google or your favorite package manager. On Windows, the easiest is to install [Windows subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) (Win 10/11) or [Cygwin](https://www.cygwin.com/) and proceed as in Linux.
 
 ### Installation
 
@@ -55,12 +57,20 @@ Just clone the repo (or even simply download the `scripts` folder if you don't n
 ```bash
 git clone https://github.com/novikovalab/piawka.git
 cd piawka
+
+# Test it!
+./scripts/piawka
 ```
 
-We recommend the `mawk` AWK interpreter for `piawka` as it's much faster than all alternatives we know. If you don't have it, just change the shebangs to your `awk` distro like
+If you are unable to install `mawk` and/or you get errors like `/usr/bin/mawk: No such file or directory`, you need to replace the shebangs: 
 
 ```bash
-mawk || sed -i '1s/mawk/awk/' ./scripts/piawka ./scripts/*.awk
+# Check the location of mawk or awk, suppose we have mawk:
+which mawk
+
+# Suppose it is at /opt/homebrew/bin/mawk
+# Then replace the first line of ./scripts/piawka with appropriate path manually or do
+sed -i '1s:/usr/bin/mawk:/opt/homebrew/bin/mawk:' ./scripts/piawka ./scripts/*.awk
 ```
 
 It might be useful to add `piawka` location to `PATH` environmental variable to run it from anywhere by either executing the following code or adding it to your `.bashrc` file:
@@ -80,7 +90,7 @@ piawka
 `piawka` works with decompressed VCF files. The easiest way to use it is streaming the VCF file via stdin:
 
 ```bash
-zcat file.vcf.gz | piawka [OPTIONS] groups_file - > piawka_pi-dxy.tsv
+piawka [OPTIONS] groups_file <( zcat file.vcf.gz ) > piawka_pi-dxy.tsv
 ```
 
 If you want to parallelize the counting and have GNU parallel installed, try our wrapper scripts:
@@ -90,7 +100,7 @@ If you want to parallelize the counting and have GNU parallel installed, try our
 piawka_par.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz
 
 # Split VCF by BED regions and count stats for each region in parallel
-piawka_par.sh -a parallel_options -b bed_file -g groups_file -p piawka_options -v vcf_gz
+piawka_par.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz -b bed_file
 ```
 
 See [Options](#options) and [Examples](#example-data) for further details.
