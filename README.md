@@ -93,10 +93,10 @@ piawka
 piawka [OPTIONS] groups_file <( zcat file.vcf.gz ) > piawka_pi-dxy.tsv
 ```
 
-If you want to parallelize the counting and have GNU parallel installed, try our wrapper scripts:
+If you want to parallelize the counting and have GNU parallel installed, try our wrapper script:
 
 ```bash
-# Parallelize VCF reading and count summary statistics for entire file (a bit less precise)
+# Parallelize VCF reading and count summary statistics for entire file
 piawka_par.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz
 
 # Split VCF by BED regions and count stats for each region in parallel
@@ -129,7 +129,7 @@ Options are provided as KEY=value pairs (no spaces around the `=` sign!) before 
  - `TAJLIKE=1` (experimental): calculate Tajima's D-like statistic. With `MIS=0` it is identical to Tajima's D calculated over sites with no missing data. It corrects for missing data using [Ferretti](http://dx.doi.org/10.1534/genetics.112.139949)-like adjustment of theta-W and differences in expected numbers of segregating sites under different sample sizes as derived by Tajima. The result seems to be centered around the "true" Tajima's D value under a broad range of missing data percentages, but its variance should be broader. Thus, statistical significance of deviation is harder to estimate (maybe jackknife/bootstrap?) **Not to be used with mixed-ploidy groups!** 
  - `RHO=1` : calculates Ronfort (1998)'s $\rho$, a ploidy-corrected divergence metric that is best fit for comparing different-ploidy populations. **Not to be used with mixed-ploidy groups!** 
 
-Helper `parallel` scripts (`piawka_par.sh` and `piawka_par.sh`) accept following options:
+Helper `parallel` script `piawka_par.sh` accepts following options:
 
 - `-a parallel_options` : a string of space-separated options for GNU parallel (e.g. `-a "-j20"`)
 - `-b bed_file` : the BED file with regions to analyze in parallel jobs.
@@ -141,7 +141,7 @@ Helper `parallel` scripts (`piawka_par.sh` and `piawka_par.sh`) accept following
 Here are examples of useful `parallel` options to be passed as `-a parallel_options`:
 
  - `-j 20` : number of parallel jobs (defaults to available CPUs)
- - `--bar` : for `piawka_par.sh`, display progress bar (the share of processed regions) in `stderr`.
+ - `--bar` : display progress bar (the share of processed regions) in `stderr`.
 
 Check the [`parallel` tutorial](https://www.gnu.org/software/parallel/parallel_tutorial.html) for more details on GNU `parallel`.
 

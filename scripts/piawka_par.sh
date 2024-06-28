@@ -56,7 +56,7 @@ fi
 
 if [ -z "$bed" ]; then
   zcat $vcf | grep -v '^##' |
-  parallel $paropts --pipe --header --block 10M : --halt now,fail=1 \
+  parallel $paropts --pipe --header : --block 10M --halt now,fail=1 \
   piawka VERBOSE=1 $piopts $grp - |
   { if [[ $piopts == *PERSITE=1* ]]; then cat -; else summarize_blks.awk -; fi; }
 else
