@@ -1,4 +1,4 @@
-#!/usr/bin/mawk -f
+#!/usr/bin/env mawk -f
 
 BEGIN{ 
 OFS="\t" 

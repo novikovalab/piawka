@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env bash
 
 print_help() {
 echo \
