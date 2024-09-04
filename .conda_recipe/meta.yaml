@@ -16,6 +16,8 @@ build:
     - "mkdir -p $PREFIX/bin"
     - "cp $RECIPE_DIR/../scripts/* $PREFIX/bin"
     - "chmod +x $PREFIX/bin/*"
+    - "mkdir -p $PREFIX/test"
+    - "cp $RECIPE_DIR/../examples/{minitest.vcf.gz,groups.tsv} $PREFIX/test"
 
 requirements:
   run:
@@ -26,7 +28,7 @@ requirements:
     
 test:
   commands:
-    - "which piawka" 
+    - "piawka $PREFIX/test/groups.tsv <(zcat $PREFIX/test/minitest.vcf.gz) > $PREFIX/test/test.out" 
 
 about:
   home: https://github.com/novikovalab/piawka
