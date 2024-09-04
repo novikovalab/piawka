@@ -11,6 +11,11 @@ source:
 build:
   number: 0
   script: #replace shebangs
+    - "set -x"
+    - "pwd"
+    - "mkdir -p $PREFIX/bin"
+    - "cp $RECIPE_DIR/../scripts/* $PREFIX/bin"
+    - "chmod +x $PREFIX/bin/*"
 
 requirements:
   run:
@@ -21,7 +26,7 @@ requirements:
     
 test:
   commands:
-    - piawka
+    - "which piawka" 
 
 about:
   home: https://github.com/novikovalab/piawka

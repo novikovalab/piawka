@@ -1,4 +1,4 @@
-#!/usr/bin/env mawk -f
+#!/usr/bin/env -S mawk -f
 #
 # This script summarizes piawka results counted over several loci.
 # It guesses if VERBOSE=1 was set by the number of fields.
