@@ -1,4 +1,4 @@
-#!/usr/bin/env -S mawk -f
+#!/usr/bin/env -S gawk -f
 
 # This script acts as `bedtools merge -d 1000`, joining BED records closer than 1kb to each other.
 # This is done to reduce the number of tabix queries with numerous, small, adjacent BED regions.

@@ -19,7 +19,7 @@ conda install -c bioconda piawka
 
 Make the following programs available in the command line (install and add to `PATH`):
 
- - `awk` (we recommend `mawk` >= 1.3.4)
+ - `awk` (we recommend `gawk` >= 1.3.4)
  - `tabix` (optional, for region-based analyses)
  - `parallel` (optional, for the parallel wrapper `piawka_par.sh`)
 
@@ -30,7 +30,7 @@ git clone https://github.com/novikovalab/piawka.git
 export PATH="$( realpath ./piawka/scripts ):${PATH}"
 ```
 
-**Note** that the shebang is set to `mawk` in all AWK scripts. If you have another AWK or if your `/usr/bin/env` does not support the `-S` option, change the shebangs.
+**Note** that the shebang is set to `gawk` in all AWK scripts. If you have another AWK or if your `/usr/bin/env` does not support the `-S` option, change the shebangs.
 
 # Use it!
 
