@@ -1,5 +1,5 @@
 #!/bin/sh
-"exec" "gawk" "-d" -f "$0" "--" "$@" && 0 {}
+"exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
 @include "getopt.awk"
 
