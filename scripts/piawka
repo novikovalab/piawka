@@ -13,7 +13,7 @@ BEGIN{
 
 # TODO: play with variable scope?
 
-function argparse(short, long, is_flag, desc,
+function add_argument(short, long, is_flag, desc,
                   help_col1) {
   narg++
   args_short[narg] = short
@@ -27,30 +27,9 @@ function argparse(short, long, is_flag, desc,
   # TODO: collect arg values into args[long] elements through awkcmd?
   }
 
-function main() {
-  argparse("1", "persite", 1, "output values for each site")
-  argparse("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
-  argparse("b", "bed", 0, "BED file with regions to be analyzed (optional)")
-  argparse("D", "nodxy", 1, "do not output Dxy")
-  argparse("f", "fst", 1, "output Hudson Fst")
-  argparse("F", "fstwc", 1, "output Weir and Cockerham Fst")
-  argparse("g", "groups", 0, "2-columns sample ID / group ID TSV file")
-  argparse("h", "help", 1, "show this help message")
-  argparse("H", "het", 1, "output only per-sample pi = heterozygosity")
-  argparse("l", "locus", 0, "custom name for the analyzed region")
-  argparse("m", "mult", 1, "use multiallelic sites")
-  argparse("M", "miss", 1, "max share of missing GT per group at site")
-  argparse("n", "nsites", 0, "custom value for nSites field (rarely needed)")
-  argparse("P", "nopixy", 1, "do not use pixy weighting of sites")
-  argparse("r", "rho", 1, "output Ronfort's rho")
-  argparse("t", "tajima", 1, "output Tajima's D")
-  argparse("v", "vcf", 0, "gzipped and tabixed VCF file")
-  getopt::Optind = 1 # start with 1st opt
-  getopt::Opterr = 1 # print getopt errs
+function parse_args() {
   while ((c=getopt::getopt(ARGC,ARGV,shortopts,longopts)) != -1) {
-    if (c == "?") { 
-      print getopt::Optopt; print help; return 0 
-    }
+    if (c == "?") { return 1 }
     for (i=1;i<=narg;i++) {
       if (getopt::Optopt == args_short[i] || getopt::Optopt == args_long[i]) {
         args[args_long[i]]=(args_isflag[i] ? 1 : getopt::Optarg)
@@ -58,6 +37,30 @@ function main() {
         }
       }
   }
+  return 0
+}
+
+function main() {
+  add_argument("1", "persite", 1, "output values for each site")
+  add_argument("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
+  add_argument("b", "bed", 0, "BED file with regions to be analyzed (optional)")
+  add_argument("D", "nodxy", 1, "do not output Dxy")
+  add_argument("f", "fst", 1, "output Hudson Fst")
+  add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst")
+  add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
+  add_argument("h", "help", 1, "show this help message")
+  add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
+  add_argument("l", "locus", 0, "custom name for the analyzed region")
+  add_argument("m", "mult", 1, "use multiallelic sites")
+  add_argument("M", "miss", 1, "max share of missing GT per group at site")
+  add_argument("n", "nsites", 0, "custom value for nSites field (rarely needed)")
+  add_argument("P", "nopixy", 1, "do not use pixy weighting of sites")
+  add_argument("r", "rho", 1, "output Ronfort's rho")
+  add_argument("t", "tajima", 1, "output Tajima's D")
+  add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
+  getopt::Optind = 1 # start with 1st opt
+  getopt::Opterr = 1 # print getopt errs
+  if ( parse_args() != 0 ) { print help; return 0 }
   if (args["help"]) { print help; return 0 }
   vcf_gz=args["vcf"]
   groups_file=args["groups"]
