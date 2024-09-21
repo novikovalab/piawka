@@ -1,77 +1,90 @@
-#!/usr/bin/env -S gawk -f
+#!/bin/sh
+"exec" "gawk" "-d" -f "$0" "--" "$@" && 0 {}
 
 @include "getopt.awk"
 
 BEGIN{ 
-OFS="\t" 
-help=" \
-    This script takes a grouping file and a decompressed VCF as input.\n \
-    It outputs pi within each group and dxy between each pair of groups.\n \
-    \n \
-    Usage: \n \
-    piawka [OPTIONS] groups_file <( zcat file.vcf.gz ) \n \
-      or in pipeline like \n \
-    zcat file.vcf.gz | piawka [OPTIONS] groups_file -   # the last dash is important here! \n \
-    \n \
-    Options: \n \
-    PIXY=1       calculate pixy-like pi instead of average weighted pi (default)\n \
-    DXY=1        count between-group Dxy in addition to within-group pi (default)\n \
-    MULT=1       use multiallelic sites\n \
-    PERSITE=1    output values for each site instead of summary values\n \
-    LOCUS='text' custom name of region to be shown in first column\n \
-    HET=1        output heterozygosity, i.e. within-sample pi (unsets default DXY=1)\n \
-    FST=XXX or 1 output Fst using one of the following estimators (sets DXY=1):\n \
-                 HUD (default) : Hudson (1992) after Bhatia et al. (2013, eq. 10)\n \
-                 WC : Weir and Cockerham (1984), biased for unequal groups with dissimilar Fst \n \
-    MIS=0.5      maximum share of missing genotypes in groups at site (between 0 and 1);\n \
-                 default 1 with PIXY=1 and 0.5 with PIXY=0\n \
-    VERBOSE=1    output numerator, denominator, nGenotypes and nMissing as 8th-11th columns\n \
-                 with PIXY=0 and PERSITE=0, numerator = sum of values and denominator = nUsed\n \
-    NSITES=1000  length of locus to be passed as nSites (e.g. gene length);\n \
-                 default is the range of the POS field in the provided VCF\n \
-    TAJLIKE=1    output Tajima's D-like statistic (different variance; unset by PERSITE=1 or MULT=1)\n \
-                 not to be run on mixed-ploidy groups!\n \
-    RHO=1        calculate Ronfort's (1998) rho -- a divergence metric most suitable for\n \
-                 different-ploidy pops comparisons; not to be run on mixed-ploidy groups!\n \
-    \n \
-    Example groups.tsv:\n \
-    \n \
-    sample1 grp1\n \
-    sample2 grp1\n \
-    sample3 grp2\n \
-    sample4 grp3\n \
-    \n \
-    Samples missing from the VCF or groups file will be silently skipped.\n \
-    If one sample is assigned to two groups, only one will be used.\n \
-    \n \
-    Output is the long-format table with seven columns (no header):\n \
-    \n \
-    locus_name, nSites, pop1, pop2, nUsed, metric, value\n \
-    \n \
-    where nSites = SNPs + invariant sites,\n \
-          nUsed = nSites - sites with too many alleles or too much missing data\n \
-    \n \
-    Version: 0.8.0"
-assert( ARGC>=2, "two mandatory arguments are the groups file and the VCF file" )
-exit main()
+  OFS="\t"
+  help="piawka v0.8.0\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]\nOptions:"
+  help_col1_width=20
+  parsecmd=""
+  exit main()
 }
 
 # TODO: play with variable scope?
 
+function argparse(short, long, is_flag, desc,
+                  help_col1) {
+  narg++
+  args_short[narg] = short
+  args_long[narg] = long
+  args_isflag[narg] = is_flag
+  shortopts = shortopts short (is_flag ? "" : ":")
+  longopts = longopts long (is_flag ? "" : ":") ","
+
+  help_col1 = "-"short", --"long (is_flag ? "" : " <arg>")
+  help = help "\n" sprintf("%-"help_col1_width"s", help_col1) desc
+  # TODO: collect arg values into args[long] elements through awkcmd?
+  }
+
 function main() {
-  # fiddling with arguments should be here
-  groups_file = ARGV[ARGC-2]
-  ARGV[ARGC-2] = ""
-  vcf_gz = ARGV[ARGC-1]
-  ARGV[ARGC-1] = ""
-  bed_file = "" #TODO
+  argparse("1", "persite", 1, "output values for each site")
+  argparse("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
+  argparse("b", "bed", 0, "BED file with regions to be analyzed (optional)")
+  argparse("D", "nodxy", 1, "do not output Dxy")
+  argparse("f", "fst", 1, "output Hudson Fst")
+  argparse("F", "fstwc", 1, "output Weir and Cockerham Fst")
+  argparse("g", "groups", 0, "2-columns sample ID / group ID TSV file")
+  argparse("h", "help", 1, "show this help message")
+  argparse("H", "het", 1, "output only per-sample pi = heterozygosity")
+  argparse("l", "locus", 0, "custom name for the analyzed region")
+  argparse("m", "mult", 1, "use multiallelic sites")
+  argparse("M", "miss", 1, "max share of missing GT per group at site")
+  argparse("n", "nsites", 0, "custom value for nSites field (rarely needed)")
+  argparse("P", "nopixy", 1, "do not use pixy weighting of sites")
+  argparse("r", "rho", 1, "output Ronfort's rho")
+  argparse("t", "tajima", 1, "output Tajima's D")
+  argparse("v", "vcf", 0, "gzipped and tabixed VCF file")
+  getopt::Optind = 1 # start with 1st opt
+  getopt::Opterr = 1 # print getopt errs
+  while ((c=getopt::getopt(ARGC,ARGV,shortopts,longopts)) != -1) {
+    if (c == "?") { 
+      print getopt::Optopt; print help; return 0 
+    }
+    for (i=1;i<=narg;i++) {
+      if (getopt::Optopt == args_short[i] || getopt::Optopt == args_long[i]) {
+        args[args_long[i]]=(args_isflag[i] ? 1 : getopt::Optarg)
+        break
+        }
+      }
+  }
+  if (args["help"]) { print help; return 0 }
+  vcf_gz=args["vcf"]
+  groups_file=args["groups"]
+  PIXY=args["nopixy"]
+  DXY=!args["nodxy"]
+  MULT=args["mult"]
+  PERSITE=args["persite"]
+  LOCUS=args["locus"]
+  HET=args["het"]
+  FST=args["fst"]
+  if (args["fstwc"]) { FST="WC" }
+  MIS=args["miss"]
+  VERBOSE=args["all"]
+  NSITES=args["nsites"]
+  TAJLIKE=args["tajima"]
+  RHO=args["rho"]
+
+  assert( vcf_gz!="", "missing argument: -v <file.vcf.gz>" )
+  assert( groups_file!="", "missing argument: -g <groups.tsv>" )
   if (bed_file != "") {
     while ( getline < bed_file > 0) {
       reg = $1":"$2+1"-"$3
       bed[$4 == "" ? reg : $4] = reg
+      # spawn children here
       }
     }
-  # TODO: add target file 
+  # TODO: use bed as target if asked 
 
   get_groups()
   get_header()
@@ -453,10 +466,11 @@ function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
 
 function assert(condition, explanation) {
   if (! condition) {
-    print help; print ""
+    print help
     printf("Error %s:%d: %s\n",
            FILENAME, FNR, explanation) > "/dev/stderr"
     _assert_exit=1
     exit 1
   }
 }
+
