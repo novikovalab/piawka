@@ -293,18 +293,18 @@ function process_sites() {
                       thisden[g,g2]=thisnum[g,g2]
                       if ( FST ) { thisfstnum=""; thisfstden="" }
                       for ( x in bothalleles ) { 
-                        # gawk breaks if you don't set uninitialized array elems to 0
+                        # gawk breaks here if you don't set uninitialized array elems to 0
                         if ( !(x in thesealleles) ) { thesealleles[x]=0 }
                         else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
-                          thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
-                          if ( FST ) {
-                            if ( FST=="HUD" ) { 
-                              incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
-                            } else if ( FST=="WC" ) { 
-                              incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
-                            } 
-                            if ( !MULT ) { break } # no need to increment twice for biallelic comparisons
-                          }
+                        thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+                        if ( FST ) {
+                          if ( FST=="HUD" ) { 
+                            incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+                          } else if ( FST=="WC" ) { 
+                            incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+                          } 
+                          if ( !MULT ) { break } # no need to increment twice for biallelic comparisons
+                        }
                       }
                       if ( RHO ) {
                         if (!thisden[g2]) {
