@@ -64,7 +64,7 @@ function main() {
   if (args["help"]) { print help; return 0 }
   vcf_gz=args["vcf"]
   groups_file=args["groups"]
-  PIXY=args["nopixy"]
+  PIXY=!args["nopixy"]
   DXY=!args["nodxy"]
   MULT=args["mult"]
   PERSITE=args["persite"]
@@ -230,6 +230,7 @@ function process_sites() {
               # Extract allele counts of the group
               delete thesealleles
               delete bothalleles
+              delete xx
               split(seenlist[g], xx, "")
               for (al in xx) {
                 bothalleles[xx[al]]++
@@ -277,7 +278,7 @@ function process_sites() {
                     for (al in yy) {
                       bothalleles[yy[al]]++ # so far keeps alleles from comparisons of g with previous groups
                       thosealleles[yy[al]] = alleles[g2,yy[al]]
-                      if ( !thesealleles[yy[al]] ) { poolsize++ }
+                      if ( !(yy[al] in thesealleles) ) { poolsize++ }
                     }
   
                     # If not MULT, proceed only if common allele pool has <=2 alleles
@@ -292,7 +293,9 @@ function process_sites() {
                       thisden[g,g2]=thisnum[g,g2]
                       if ( FST ) { thisfstnum=""; thisfstden="" }
                       for ( x in bothalleles ) { 
-                        if ( thesealleles[x] || thosealleles[x] ) {
+                        # gawk breaks if you don't set uninitialized array elems to 0
+                        if ( !(x in thesealleles) ) { thesealleles[x]=0 }
+                        else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
                           thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
                           if ( FST ) {
                             if ( FST=="HUD" ) { 
@@ -302,7 +305,6 @@ function process_sites() {
                             } 
                             if ( !MULT ) { break } # no need to increment twice for biallelic comparisons
                           }
-                        }
                       }
                       if ( RHO ) {
                         if (!thisden[g2]) {
