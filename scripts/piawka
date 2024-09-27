@@ -25,6 +25,7 @@ function main() {
   argparse::add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
   argparse::add_argument("h", "help", 1, "show this help message")
   argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
+  argparse::add_argument("j", "jobs", 1, "number of parallel jobs to run")
   argparse::add_argument("l", "locus", 0, "custom name for the analyzed region")
   argparse::add_argument("m", "mult", 1, "use multiallelic sites")
   argparse::add_argument("M", "miss", 1, "max share of missing GT per group at site")
@@ -64,15 +65,15 @@ function main() {
 
   if (args["bed"] != "") {
     while ( getline < args["bed"] > 0) {
-      # if ( active_jobs >= args["jobs"] ) { wait(); active_jobs-- }
-      # if(pid==""||pid>0){
-      #   pid=fork()
-      #   active_jobs++
-      # }
+      if ( pid>0 && active_jobs >= args["jobs"] ) { wait(); active_jobs-- }
+      if(pid==""||pid>0){
+        pid=fork()
+        active_jobs++
+      }
       NSITES=$3-$2
       reg = $1":"$2+1"-"$3
       name = ( $4 == "" ? reg : $4 )
-      process_sites(reg, name)
+      if (pid==0) { process_sites(reg, name); return 0 }
       # spawn children here
     }
     close(args["bed"])
@@ -418,6 +419,9 @@ END {
   if (_assert_exit) { exit 1 }
   # assert( DATALINES, "no VCF header provided")
   # if (NR==DATALINES) { print "Warning: no data read for locus "LOCUS > "/dev/stderr" }
+  if (pid>0) {
+    while(wait()>0){}
+  }
 }
 
 ### FUNCTIONS
