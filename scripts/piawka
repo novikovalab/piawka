@@ -2,68 +2,44 @@
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
 @include "getopt.awk"
+@include "argparse.awk"
 
 BEGIN{ 
   OFS="\t"
-  help="piawka v0.8.0\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]\nOptions:"
-  help_col1_width=20
-  parsecmd=""
+  usage="piawka v0.8.0\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]\nOptions:"
   exit main()
 }
 
 # TODO: play with variable scope?
 
-function add_argument(short, long, is_flag, desc,
-                  help_col1) {
-  narg++
-  args_short[narg] = short
-  args_long[narg] = long
-  args_isflag[narg] = is_flag
-  shortopts = shortopts short (is_flag ? "" : ":")
-  longopts = longopts long (is_flag ? "" : ":") ","
-
-  help_col1 = "-"short", --"long (is_flag ? "" : " <arg>")
-  help = help "\n" sprintf("%-"help_col1_width"s", help_col1) desc
-  # TODO: collect arg values into args[long] elements through awkcmd?
-  }
-
-function parse_args() {
-  while ((c=getopt::getopt(ARGC,ARGV,shortopts,longopts)) != -1) {
-    if (c == "?") { return 1 }
-    for (i=1;i<=narg;i++) {
-      if (getopt::Optopt == args_short[i] || getopt::Optopt == args_long[i]) {
-        args[args_long[i]]=(args_isflag[i] ? 1 : getopt::Optarg)
-        break
-        }
-      }
-  }
-  return 0
-}
-
 function main() {
-  add_argument("1", "persite", 1, "output values for each site")
-  add_argument("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
-  add_argument("b", "bed", 0, "BED file with regions to be analyzed (optional)")
-  add_argument("D", "nodxy", 1, "do not output Dxy")
-  add_argument("f", "fst", 1, "output Hudson Fst")
-  add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst")
-  add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
-  add_argument("h", "help", 1, "show this help message")
-  add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
-  add_argument("l", "locus", 0, "custom name for the analyzed region")
-  add_argument("m", "mult", 1, "use multiallelic sites")
-  add_argument("M", "miss", 1, "max share of missing GT per group at site")
-  add_argument("n", "nsites", 0, "custom value for nSites field (rarely needed)")
-  add_argument("P", "nopixy", 1, "do not use pixy weighting of sites")
-  add_argument("r", "rho", 1, "output Ronfort's rho")
-  add_argument("t", "tajima", 1, "output Tajima's D")
-  add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
+  # add_argument args: shortopt, longopt, is_flag, description
+  argparse::add_argument("1", "persite", 1, "output values for each site")
+  argparse::add_argument("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
+  argparse::add_argument("b", "bed", 0, "BED file with regions to be analyzed (optional)")
+  argparse::add_argument("D", "nodxy", 1, "do not output Dxy")
+  argparse::add_argument("f", "fst", 1, "output Hudson Fst")
+  argparse::add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst")
+  argparse::add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
+  argparse::add_argument("h", "help", 1, "show this help message")
+  argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
+  argparse::add_argument("l", "locus", 0, "custom name for the analyzed region")
+  argparse::add_argument("m", "mult", 1, "use multiallelic sites")
+  argparse::add_argument("M", "miss", 1, "max share of missing GT per group at site")
+  argparse::add_argument("n", "nsites", 0, "custom value for nSites field (rarely needed)")
+  argparse::add_argument("P", "nopixy", 1, "do not use pixy weighting of sites")
+  argparse::add_argument("r", "rho", 1, "output Ronfort's rho")
+  argparse::add_argument("t", "tajima", 1, "output Tajima's D")
+  argparse::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
+  help = usage "\n" argparse::format_help()
   getopt::Optind = 1 # start with 1st opt
   getopt::Opterr = 1 # print getopt errs
-  if ( parse_args() != 0 ) { print help; return 0 }
+  if ( argparse::parse_args() != 0 ) { print help; return 0 }
+  for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
   if (args["help"]) { print help; return 0 }
   vcf_gz=args["vcf"]
   groups_file=args["groups"]
+  # TODO: replace old caps opts with args elements
   PIXY=!args["nopixy"]
   DXY=!args["nodxy"]
   MULT=args["mult"]
