@@ -168,6 +168,7 @@ function process_sites(region, name,
     # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
     # To process SNPs that only have one ALT allele
     if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
+      #TODO: add check for chromosome not to summarize stats across chrs
     
       if ( PERSITE && locus != "" ) { $1=locus"_"$1 }
     
