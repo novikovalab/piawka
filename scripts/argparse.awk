@@ -38,6 +38,7 @@ function format_help(   help) {
     if ( (l=length(help_col1[i])) > help_col1_width ) { help_col1_width=l }
   }
   help_col1_width++
+  help="Options:"
   for (i=1;i<=narg;i++) {
     help = help "\n" sprintf("%-"help_col1_width"s", help_col1[i]) args_desc[i]
   }
