@@ -1,6 +1,8 @@
 #!/bin/sh
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
+@load "fork"
+
 @include "getopt.awk"
 @include "argparse.awk"
 
@@ -56,17 +58,27 @@ function main() {
 
   assert( vcf_gz!="", "missing argument: -v <file.vcf.gz>" )
   assert( groups_file!="", "missing argument: -g <groups.tsv>" )
-  if (bed_file != "") {
-    while ( getline < bed_file > 0) {
-      reg = $1":"$2+1"-"$3
-      bed[$4 == "" ? reg : $4] = reg
-      # spawn children here
-      }
-    }
-  # TODO: use bed as target if asked 
 
   get_groups()
   get_header()
+
+  if (args["bed"] != "") {
+    while ( getline < args["bed"] > 0) {
+      # if ( active_jobs >= args["jobs"] ) { wait(); active_jobs-- }
+      # if(pid==""||pid>0){
+      #   pid=fork()
+      #   active_jobs++
+      # }
+      NSITES=$3-$2
+      reg = $1":"$2+1"-"$3
+      name = ( $4 == "" ? reg : $4 )
+      process_sites(reg, name)
+      # spawn children here
+    }
+    close(args["bed"])
+    return 0
+  }
+  # TODO: use bed as target if asked 
   process_sites()
   return 0
 }
@@ -93,7 +105,6 @@ function get_header() {
       if ( !HET && DXY == "" ) { DXY=1 }
       if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
       if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
-      if ( NSITES!="" ) { nSites=NSITES }
       if ( MULT ) { RHO=0 }
     
       # Assign sample positions to groups
@@ -133,14 +144,23 @@ function get_header() {
 }
 
 # Process VCF lines
-function process_sites() {
-  cmd = ( region=="" ? "bgzip -dc " vcf_gz : "tabix "vcf_gz" "region )
+function process_sites(region, name,   
+                       nUsed, nSites, minpos, maxpos, locus, lines_seen,
+                       numerator, denominator, pi, dxy, 
+                       allgeno, allmiss,
+                       fst_numerator, fst_denominator,
+                       segr, truesegr,
+                       Hsnum, Hsden, Htnum, Htden, Hspnum) {
+  if ( LOCUS != "" ) { locus=LOCUS }
+  if ( locus == "" ) { locus=name }
+  cmd = ( region=="" ? "bgzip -dc " vcf_gz : "tabix -h "vcf_gz" "region )
   while ( cmd | getline > 0 ) {
     lines_seen++
     if ( lines_seen > header_length ) {
   
       # Increment nSites
-      if ( NSITES=="" || LOCUS=="" ) {
+      if ( NSITES!="" ) { nSites=NSITES }
+      if ( NSITES=="" || locus=="" ) {
         if ( !minpos[$1] ) { minpos[$1]=$2 }
         maxpos[$1]=$2
       }
@@ -150,7 +170,7 @@ function process_sites() {
       # To process SNPs that only have one ALT allele
       if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
       
-        if ( PERSITE && LOCUS != "" ) { $1=LOCUS"_"$1 }
+        if ( PERSITE && locus != "" ) { $1=locus"_"$1 }
       
       	# Reset site-specific parameters
       	for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
@@ -333,23 +353,18 @@ function process_sites() {
       # next
     }
   }
-}
-
-END {
-  if (_assert_exit) { exit 1 }
-  # assert( DATALINES, "no VCF header provided")
-  # if (NR==DATALINES) { print "Warning: no data read for locus "LOCUS > "/dev/stderr" }
+  close(cmd)
   if ( !PERSITE ) {
     
     # Prepare "metric" field for output
     PIXY ? metric="pixy" : metric="w"
     if ( HET ) { metric="het_" metric }
 
-    if ( LOCUS=="" ) {
+    if ( locus=="" ) {
       for ( i in minpos ) { 
-          LOCUS = i"_"minpos[i]"_"maxpos[i]"_"LOCUS
+          locus = i"_"minpos[i]"_"maxpos[i]"_"locus
       }
-      LOCUS=substr(LOCUS,1,length(LOCUS)-1)
+      locus=substr(locus,1,length(locus)-1)
     }
     if ( NSITES=="" ) { 
       for ( i in minpos ) {
@@ -361,14 +376,14 @@ END {
       if ( nUsed[g] ) {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
         } else { pinum[g] = pi[g]; piden[g] = nUsed[g] }
-        print LOCUS, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
+        print locus, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
         if ( TAJLIKE && segr[g] ) {
           tP[g]=pinum[g]/piden[g]*nUsed[g]
           a1[g]/=truesegr[g]
           a2[g]/=truesegr[g]
           tajnum[g]= tP[g] - segr[g]/a1[g]
           tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] ) # could as well replace by nalleles[g]+miss[g]
-          print LOCUS, L, g, ".", nUsed[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
+          print locus, L, g, ".", nUsed[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
         }
       }
     }
@@ -377,9 +392,9 @@ END {
         if ( PIXY ) { dxynum[i] = numerator[i]; dxyden[i]=denominator[i] 
         } else { dxynum[i] = dxy[i]; dxyden[i]=nUsed[i] }
         split(i, ii, SUBSEP)
-        print LOCUS, nSites, ii[1], ii[2], nUsed[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+        print locus, nSites, ii[1], ii[2], nUsed[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
         if ( fst_denominator[i] ) { 
-          print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+          print locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
         if ( RHO && Hsden[i] && Htden[i] ) { 
           Hs = Hsnum[i]/Hsden[i]
@@ -388,11 +403,22 @@ END {
           Hpt = Hs + 2 * (Ht - Hs)
           rho_numerator=Hpt-Hs
           rho_denominator=Hpt-Hsp
-          print LOCUS, nSites, ii[1], ii[2], nUsed[i], "Rho", formatOutput( rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+          print locus, nSites, ii[1], ii[2], nUsed[i], "Rho", formatOutput( rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
       }
     }
   }
+
+  # print_output()
+}
+
+# function print_output() {
+# }
+
+END {
+  if (_assert_exit) { exit 1 }
+  # assert( DATALINES, "no VCF header provided")
+  # if (NR==DATALINES) { print "Warning: no data read for locus "LOCUS > "/dev/stderr" }
 }
 
 ### FUNCTIONS
