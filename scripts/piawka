@@ -146,7 +146,7 @@ function get_header() {
 
 # Process VCF lines
 function process_sites(region, name,   
-                       nUsed, nSites, minpos, maxpos, locus, lines_seen,
+                       nUsed, nSites, minpos, maxpos, locus, skip_header,
                        numerator, denominator, pi, dxy, 
                        allgeno, allmiss,
                        fst_numerator, fst_denominator,
@@ -154,9 +154,11 @@ function process_sites(region, name,
                        Hsnum, Hsden, Htnum, Htden, Hspnum) {
   if ( LOCUS != "" ) { locus=LOCUS }
   if ( locus == "" ) { locus=name }
-  cmd = ( region=="" ? "bgzip -dc " vcf_gz : "tabix -h "vcf_gz" "region )
+  cmd = ( region=="" ? "bgzip -dc " vcf_gz : "tabix "vcf_gz" "region )
+  # Skip header in case of bgzip stream
+  if ( region != "" ) { skip_header=header_length }
+  while ( ++skip_header < header_length ) { cmd | getline }
   while ( cmd | getline > 0 ) {
-    if ( ++lines_seen <= header_length ) { continue }
 
     # Increment nSites
     if ( NSITES!="" ) { nSites=NSITES }
