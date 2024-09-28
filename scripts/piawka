@@ -157,7 +157,7 @@ function process_sites(region, name,
   cmd = ( region=="" ? "bgzip -dc " vcf_gz : "tabix "vcf_gz" "region )
   # Skip header in case of bgzip stream
   if ( region != "" ) { skip_header=header_length }
-  while ( ++skip_header < header_length ) { cmd | getline }
+  while ( ++skip_header <= header_length ) { cmd | getline }
   while ( cmd | getline > 0 ) {
 
     # Increment nSites
