@@ -1,0 +1,149 @@
+ARGC: 7
+ARGIND: 0
+ARGV: array, 8 elements
+BINMODE: 0
+CONVFMT: "%.6g"
+DXY: 1
+ENVIRON: array, 75 elements
+ERRNO: "No child processes"
+FIELDWIDTHS: ""
+FILENAME: ""
+FNR: 0
+FPAT: "[^[:space:]]+"
+FS: " "
+FST: uninitialized scalar
+FUNCTAB: array, 59 elements
+HET: uninitialized scalar
+Hpt: untyped variable
+Hs: untyped variable
+Hsp: untyped variable
+Ht: untyped variable
+IGNORECASE: 0
+L: untyped variable
+LINT: 0
+LOCUS: uninitialized scalar
+MIS: 1
+MULT: uninitialized scalar
+NF: 46
+NR: 0
+NSITES: uninitialized scalar
+OFMT: "%.6g"
+OFS: "\t"
+ORS: "\n"
+PERSITE: uninitialized scalar
+PIXY: 1
+PREC: 53
+PROCINFO: array, 26 elements
+RHO: uninitialized scalar
+RLENGTH: 8
+ROUNDMODE: "N"
+RS: "\n"
+RSTART: 33
+RT: "\n"
+SUBSEP: "\034"
+SYMTAB: array, 147 elements
+TAJLIKE: uninitialized scalar
+TEXTDOMAIN: "messages"
+VERBOSE: 1
+_assert_exit: uninitialized scalar
+a1: untyped variable
+a2: untyped variable
+active_jobs: untyped variable
+al: untyped variable
+alleles: untyped variable
+args: array, 18 elements
+b1: untyped variable
+b2: untyped variable
+bothalleles: untyped variable
+buffer_size: 10000
+c: untyped variable
+c1: untyped variable
+c2: untyped variable
+checked_groups: 1
+cmd: "bgzip -dc minitest.vcf.gz"
+combs: array, 6 elements
+den: untyped variable
+dxyden: untyped variable
+dxynum: untyped variable
+e1: untyped variable
+e2: untyped variable
+f: untyped variable
+frac: untyped variable
+g: "CESiberia_2n"
+g2: "CESiberia_2n"
+groupindex: array, 37 elements
+groupmem: array, 584 elements
+groups: array, 4 elements
+groups_file: "groups.tsv"
+grp: untyped variable
+gtend: untyped variable
+hb: untyped variable
+header_length: 1059
+help: "piawka v0.8.0\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]\nOptions:\n-1, --persite      output values for each site\n-a, --all          output more cols: numerator, denominator, nGeno, nMiss\n-b, --bed <arg>    BED file with regions to be analyzed (optional)\n-D, --nodxy        do not output Dxy\n-f, --fst          output Hudson Fst\n-F, --fstwc        output Weir and Cockerham Fst\n-g, --groups <arg> 2-columns sample ID / group ID TSV file\n-h, --help         show this help message\n-H, --het          output only per-sample pi = heterozygosity\n-j, --jobs <arg>   number of parallel jobs to run\n-l, --locus <arg>  custom name for the analyzed region\n-m, --mult         use multiallelic sites\n-M, --miss         max share of missing GT per group at site\n-n, --nsites <arg> custom value for nSites field (rarely needed)\n-P, --nopixy       do not use pixy weighting of sites\n-r, --rho          output Ronfort's rho\n-t, --tajima       output Tajima's D\n-v, --vcf <arg>    gzipped and tabixed VCF file"
+hw: untyped variable
+i: 47
+ii: untyped variable
+jobnum: 6
+linenum: untyped variable
+metric: untyped variable
+misind: untyped variable
+mism: untyped variable
+miss: untyped variable
+nalleles: untyped variable
+name: untyped variable
+nseen: untyped variable
+out: untyped variable
+pi1: untyped variable
+pi2: untyped variable
+pid: 1441175
+piden: untyped variable
+pinum: untyped variable
+ploidy: untyped variable
+poolsize: untyped variable
+reg: untyped variable
+rho_denominator: untyped variable
+rho_numerator: untyped variable
+seen: untyped variable
+seenlist: untyped variable
+sizes: untyped variable
+tP: untyped variable
+tajden: untyped variable
+tajnum: untyped variable
+thesealleles: untyped variable
+thisHsden: untyped variable
+thisHsnum: untyped variable
+thisHspnum: untyped variable
+thisHtden: untyped variable
+thisHtnum: untyped variable
+thisal: untyped variable
+thisden: untyped variable
+thisfstden: untyped variable
+thisfstnum: untyped variable
+thisnum: untyped variable
+thisrhoden: untyped variable
+thisrhonum: untyped variable
+thosealleles: untyped variable
+usage: "piawka v0.8.0\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
+vcf_gz: "minitest.vcf.gz"
+x: untyped variable
+x2: untyped variable
+xx: untyped variable
+yy: untyped variable
+argparse::args: array, 3 elements
+argparse::args_desc: array, 18 elements
+argparse::args_isflag: array, 18 elements
+argparse::args_long: array, 18 elements
+argparse::args_short: array, 18 elements
+argparse::c: -1
+argparse::help_col1: array, 18 elements
+argparse::help_col1_width: 19
+argparse::i: 10
+argparse::l: 15
+argparse::longopts: "persite,all,bed:,nodxy,fst,fstwc,groups:,help,het,jobs:,locus:,mult,miss,nsites:,nopixy,rho,tajima,vcf:,"
+argparse::narg: 18
+argparse::shortopts: "1ab:DfFg:hHj:l:mMn:Prtv:"
+getopt::Optarg: 5
+getopt::Opterr: 1
+getopt::Optind: 7
+getopt::Optopt: "j"
+getopt::_opti: 0

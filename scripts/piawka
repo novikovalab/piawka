@@ -25,7 +25,7 @@ function main() {
   argparse::add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
   argparse::add_argument("h", "help", 1, "show this help message")
   argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
-  argparse::add_argument("j", "jobs", 1, "number of parallel jobs to run")
+  argparse::add_argument("j", "jobs", 0, "number of parallel jobs to run")
   argparse::add_argument("l", "locus", 0, "custom name for the analyzed region")
   argparse::add_argument("m", "mult", 1, "use multiallelic sites")
   argparse::add_argument("M", "miss", 1, "max share of missing GT per group at site")
@@ -63,24 +63,31 @@ function main() {
   get_groups()
   get_header()
 
+  if ( args["jobs"] > 1 ) {
+    if ( args["bed"] == "" ) {
+      VERBOSE=1
+      printf "" | "summarize_blks.awk" # initialize pipe
+    }
+    for ( jobnum=0; jobnum < args["jobs"]; jobnum++ ) { 
+      pid=fork()
+      if (pid==0) { break }
+    }
+  } else { args["jobs"]=1; jobnum=0 }
   if (args["bed"] != "") {
     while ( getline < args["bed"] > 0) {
-      if ( pid>0 && active_jobs >= args["jobs"] ) { wait(); active_jobs-- }
-      if(pid==""||pid>0){
-        pid=fork()
-        active_jobs++
-      }
+      if ( !( pid == 0 && ( ++bedline % args["jobs"] == jobnum ) ) ) { continue }
       NSITES=$3-$2
       reg = $1":"$2+1"-"$3
       name = ( $4 == "" ? reg : $4 )
-      if (pid==0) { process_sites(reg, name); return 0 }
-      # spawn children here
+      process_sites(reg, name)
     }
     close(args["bed"])
-    return 0
-  }
+  } else {
+    if ( LOCUS == "" ) { LOCUS=vcf_gz }
+    process_sites()
+    close("summarize_blks.awk")
+  } 
   # TODO: use bed as target if asked 
-  process_sites()
   return 0
 }
 
@@ -146,7 +153,7 @@ function get_header() {
 
 # Process VCF lines
 function process_sites(region, name,   
-                       nUsed, nSites, minpos, maxpos, locus, skip_header,
+                       nUsed, nSites, minpos, maxpos, locus, skip_header, vcfline,
                        numerator, denominator, pi, dxy, 
                        allgeno, allmiss,
                        fst_numerator, fst_denominator,
@@ -159,10 +166,14 @@ function process_sites(region, name,
   if ( region != "" ) { skip_header=header_length }
   while ( ++skip_header <= header_length ) { cmd | getline }
   while ( cmd | getline > 0 ) {
+    if ( region == "" && !( pid == 0 && ( ++vcfline % args["jobs"] == jobnum ) ) ) { continue }
 
     # Increment nSites
-    if ( NSITES!="" ) { nSites=NSITES }
-    if ( NSITES=="" || locus=="" ) {
+    if ( NSITES!="" ) { 
+      nSites=NSITES
+    } else if ( pid!="" ) { 
+      nSites++ 
+    } else if ( NSITES=="" || locus=="" ) {
       if ( !minpos[$1] ) { minpos[$1]=$2 }
       maxpos[$1]=$2
     }
@@ -212,7 +223,7 @@ function process_sites(region, name,
                 for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
             }
           }
-          if ( PERSITE ) { print $1"_"$2, 1, g, ".", 1, "het", formatOutput( numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
+          if ( PERSITE ) { printOutput( $1"_"$2, 1, g, ".", 1, "het", numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
           delete thisal
         }
       }
@@ -250,7 +261,7 @@ function process_sites(region, name,
             }
 
             if ( PERSITE ) { 
-              if ( thisden[g] ) { print $1"_"$2, 1, g, ".", 1, "pi", formatOutput( thisnum[g], thisden[g], nalleles[g], miss[g] ) }
+              if ( thisden[g] ) { printiOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
             } else {
                 if ( PIXY ) { 
                   numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
@@ -322,8 +333,8 @@ function process_sites(region, name,
                       thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
                     }
                     if ( PERSITE ) { 
-                      if ( thisden[g,g2] ) { print $1"_"$2, 1, g, g2, 1, "dxy", formatOutput( thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-                      if ( FST && thisfstden ) { print $1"_"$2, 1, g, g2, 1, "Fst_"FST, formatOutput( thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+                      if ( thisden[g,g2] ) { printOutput( $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+                      if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
                       if ( RHO ) { 
                         Hs = thisHsnum/thisHsden
                         Ht = thisHtnum/thisHtden
@@ -331,7 +342,7 @@ function process_sites(region, name,
                         Hpt = Hs + 2 * (Ht - Hs)
                         thisrhonum=Hpt-Hs
                         thisrhoden=Hpt-Hsp
-                        print $1"_"$2, 1, g, g2, 1, "Rho", formatOutput( thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
+                        printOutput( $1"_"$2, 1, g, g2, 1, "Rho", thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
                       }
                     } else {
                         if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
@@ -353,9 +364,9 @@ function process_sites(region, name,
         }
       }
     }
-    # next
   }
   close(cmd)
+  if (pid>0) { return 0 }
   if ( !PERSITE ) {
     
     # Prepare "metric" field for output
@@ -368,7 +379,7 @@ function process_sites(region, name,
       }
       locus=substr(locus,1,length(locus)-1)
     }
-    if ( NSITES=="" ) { 
+    if ( length(minpos)>0 ) { 
       for ( i in minpos ) {
         nSites+=maxpos[i]-minpos[i]+1
       }
@@ -378,14 +389,14 @@ function process_sites(region, name,
       if ( nUsed[g] ) {
         if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
         } else { pinum[g] = pi[g]; piden[g] = nUsed[g] }
-        print locus, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric, formatOutput( pinum[g], piden[g], allgeno[g], allmiss[g] )
+        printOutput( locus, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric, pinum[g], piden[g], allgeno[g], allmiss[g] )
         if ( TAJLIKE && segr[g] ) {
           tP[g]=pinum[g]/piden[g]*nUsed[g]
           a1[g]/=truesegr[g]
           a2[g]/=truesegr[g]
           tajnum[g]= tP[g] - segr[g]/a1[g]
           tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] ) # could as well replace by nalleles[g]+miss[g]
-          print locus, L, g, ".", nUsed[g], "TajD-like", formatOutput( tajnum[g], tajden[g] )
+          printOutput( locus, L, g, ".", nUsed[g], "TajD-like", tajnum[g], tajden[g], allgeno[g], allmiss[g] )
         }
       }
     }
@@ -394,9 +405,9 @@ function process_sites(region, name,
         if ( PIXY ) { dxynum[i] = numerator[i]; dxyden[i]=denominator[i] 
         } else { dxynum[i] = dxy[i]; dxyden[i]=nUsed[i] }
         split(i, ii, SUBSEP)
-        print locus, nSites, ii[1], ii[2], nUsed[i], "dxy_"metric, formatOutput( dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "dxy_"metric, dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
         if ( fst_denominator[i] ) { 
-          print locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, formatOutput( fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+          printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
         if ( RHO && Hsden[i] && Htden[i] ) { 
           Hs = Hsnum[i]/Hsden[i]
@@ -405,17 +416,12 @@ function process_sites(region, name,
           Hpt = Hs + 2 * (Ht - Hs)
           rho_numerator=Hpt-Hs
           rho_denominator=Hpt-Hsp
-          print locus, nSites, ii[1], ii[2], nUsed[i], "Rho", formatOutput( rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+          printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Rho", rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
       }
     }
   }
-
-  # print_output()
 }
-
-# function print_output() {
-# }
 
 END {
   if (_assert_exit) { exit 1 }
@@ -428,13 +434,16 @@ END {
 
 ### FUNCTIONS
 
-# Print just the value or value, numerator, denominator if VERBOSE
-function formatOutput( numerator, denominator, nGeno, nMiss ) {
-  out=numerator/denominator
+function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
+  out=locus"\t"nSites"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator
   if ( VERBOSE ) { 
       out = out"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   }
-  return out
+  if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] == "" ) {
+    print out | "summarize_blks.awk"
+  } else {
+    print out
+  }
 }
 
 function incrementFstHudson( a1, a2, n1, n2 ) {
