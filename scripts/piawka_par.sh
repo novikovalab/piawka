@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 print_help() {
 echo \
@@ -55,7 +55,7 @@ if [[ $piopts != *LOCUS=* ]] && [ -z "$bed" ]; then
 fi
 
 if [ -z "$bed" ]; then
-  zcat $vcf | grep -v '^##' |
+  bgzip -dkc $vcf | grep -v '^##' |
   parallel $paropts --pipe --header : --block 10M --halt now,fail=1 \
   piawka VERBOSE=1 $piopts $grp - |
   { if [[ $piopts == *PERSITE=1* ]]; then cat -; else summarize_blks.awk -; fi; }
