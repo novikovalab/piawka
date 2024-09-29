@@ -1,5 +1,5 @@
 {% set name = "piawka" %}
-{% set version = "0.7.10" %}
+{% set version = "0.8.0" %}
 
 package:
   name: {{ name|lower }}
@@ -17,14 +17,13 @@ build:
 
 requirements:
   run:
-    - gawk =1.3.4
-    - parallel
+    - conda-forge::gawk >=5.0.0
     - bash
     - tabix
     
 test:
   commands:
-    - piawka_par.sh -h 
+    - piawka --help 
 
 about:
   home: https://github.com/novikovalab/piawka
