@@ -241,7 +241,7 @@ function process_sites(region, name,
             delete thesealleles
             delete bothalleles
             delete xx
-            split(seenlist[g], xx, "")
+            split(seenlist[g], xx, "") # this operation crashes on macOS with forks made
             for (al in xx) {
               bothalleles[xx[al]]++
               thesealleles[xx[al]] = alleles[g,xx[al]]
@@ -261,7 +261,7 @@ function process_sites(region, name,
             }
 
             if ( PERSITE ) { 
-              if ( thisden[g] ) { printiOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
+              if ( thisden[g] ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
             } else {
                 if ( PIXY ) { 
                   numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
