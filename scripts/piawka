@@ -12,17 +12,15 @@ BEGIN{
   exit main()
 }
 
-# TODO: play with variable scope?
-
 function main() {
   # add_argument args: shortopt, longopt, is_flag, description
   argparse::add_argument("1", "persite", 1, "output values for each site")
   argparse::add_argument("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
   argparse::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
   argparse::add_argument("B", "targets", 0, "BED file with targets (faster than -b for numerous small regions)")
-  argparse::add_argument("D", "nodxy", 1, "do not output Dxy")
+  argparse::add_argument("D", "nodxy", 1, "do not output Dxy (and other pairwise metrics)")
   argparse::add_argument("f", "fst", 1, "output Hudson Fst")
-  argparse::add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst")
+  argparse::add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst instead")
   argparse::add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
   argparse::add_argument("h", "help", 1, "show this help message")
   argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
@@ -30,10 +28,10 @@ function main() {
   argparse::add_argument("l", "locus", 0, "custom name for the analyzed region")
   argparse::add_argument("m", "mult", 1, "use multiallelic sites")
   argparse::add_argument("M", "miss", 1, "max share of missing GT per group at site")
-  argparse::add_argument("n", "nsites", 0, "custom value for nSites field (rarely needed)")
-  argparse::add_argument("P", "nopixy", 1, "do not use pixy weighting of sites")
+  argparse::add_argument("P", "nopi", 1, "do not output pi values")
   argparse::add_argument("r", "rho", 1, "output Ronfort's rho")
-  argparse::add_argument("t", "tajima", 1, "output Tajima's D")
+  argparse::add_argument("t", "tajimalike", 1, "output Tajima's D-like stat (manages missing data but isn't a test)")
+  argparse::add_argument("T", "tajima", 1, "output vanilla Tajima's D instead (sensitive to missing data)")
   argparse::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
   help = usage "\n" argparse::format_help()
   getopt::Optind = 1 # start with 1st opt
@@ -41,28 +39,27 @@ function main() {
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
   if (args["help"]) { print help; return 0 }
-  vcf_gz=args["vcf"]
-  groups_file=args["groups"]
-  # TODO: replace old caps opts with args elements
-  PIXY=!args["nopixy"]
-  DXY=!args["nodxy"]
-  MULT=args["mult"]
-  PERSITE=args["persite"]
-  LOCUS=args["locus"]
-  HET=args["het"]
-  FST=args["fst"]
-  if (args["fstwc"]) { FST="WC" }
-  MIS=args["miss"]
-  VERBOSE=args["all"]
-  NSITES=args["nsites"]
-  TAJLIKE=args["tajima"]
-  RHO=args["rho"]
 
-  assert( vcf_gz!="", "missing argument: -v <file.vcf.gz>" )
-  assert( groups_file!="", "missing argument: -g <groups.tsv>" )
+  assert( args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
+  assert( ( args["groups"] != "" || args["het"] == 1 ), "required argument: -g <groups.tsv>" )
+  if ( args["bed"] != "" ) { check_file( args["bed"] ) }
+  if ( args["targets"] != "" ) { check_file( args["targets"] ) }
+
+  # Set default variable values
+  if ( args["fst"] == 1 ) { FST = "HUD" }
+  if ( args["fstwc"] == 1 ) { FST="WC" }
+  if ( args["miss"] == "" ) { args["miss"]=1 }
+  if ( args["mult"] == 1 && args["rho"] == 1 ) {
+    print "Warning: rho was not meant for multiallelic sites" > "/dev/stderr"
+  }
+    
+  VERBOSE=args["all"]
+  TAJLIKE=( args["tajima"] || args["tajimalike"] )
 
   get_groups()
   get_header()
+  print_header()
+  print "" > "/dev/stderr" # to separate progress from header
 
   if ( args["jobs"] > 1 ) {
     if ( args["bed"] == "" ) {
@@ -73,10 +70,10 @@ function main() {
       pid=fork()
       if (pid==0) { break }
     }
-  } else { args["jobs"]=1; jobnum=0 }
+  } else { args["jobs"]=1; jobnum=1 }
   if ( !( args["bed"] == "" && args["targets"] == "" ) ) {
     while ( ( args["bed"]=="" ? ( "aggregate_regions.awk "args["targets"] | getline ) : ( getline < args["bed"] ) ) > 0 ) {
-      if ( !( pid == 0 && ( ++bedline % args["jobs"] == jobnum ) ) ) { continue }
+      if ( args["jobs"] > 1 && !( pid == 0 && ( ++bedline % args["jobs"] == jobnum ) ) ) { continue }
       NSITES=$3-$2
       reg = $1":"$2+1"-"$3
       name = ( $4 == "" ? reg : $4 )
@@ -84,38 +81,30 @@ function main() {
     }
     close( ( args["targets"] == "" ? args["bed"] : "aggregate_regions.awk "args["targets"] ) )
   } else {
-    if ( LOCUS == "" ) { LOCUS=vcf_gz }
+    if ( args["locus"] == "" ) { locus=args["vcf"] }
     process_sites()
     close("summarize_blks.awk")
   } 
-  # TODO: use bed as target if asked 
   return 0
 }
 
 # Groups file (first in command line): store lists of group members in `groups` array
 function get_groups() { 
-  while ( getline < groups_file > 0 ) {
+  check_file( args["groups"] )
+  while ( getline < args["groups"] > 0 ) {
     if (!checked_groups) { assert(NF==2, "the groups file must contain two columns"); checked_groups=1 }
-    groupmem[$1]=HET ? $1 : $2
-    # next
+      groupmem[$1]= ( args["het"] == 1 ? $1 : $2 )
   }
-  close( groups_file )
+  close( args["groups"] )
 }
 
 # VCF header: assign samples to groups
 function get_header() {
-  cmd="bgzip -dc " vcf_gz
+  cmd="bgzip -dc " args["vcf"]
   while ( cmd | getline > 0 ) { 
     header_length++
     if ($0 ~ /^#CHROM/ ) {
 
-      # Set default variable values
-      if ( PIXY == "" ) { PIXY=1 }
-      if ( !HET && DXY == "" ) { DXY=1 }
-      if ( FST ) { DXY=1; if ( FST==1 ) { FST = "HUD" } }
-      if ( MIS == "" ) { PIXY ? MIS=1 : MIS=0.5 }
-      if ( MULT ) { RHO=0 }
-    
       # Assign sample positions to groups
       for (i=10; i<=NF; i++) {
         if ( groupmem[$i] != "" ) { 
@@ -124,7 +113,7 @@ function get_header() {
          }
       }
       # Store group combinations
-      if ( DXY && !PERSITE ) {
+      if ( args["nodxy"] != 1 && args["persite"] != 1 ) {
         for (g in groups) {
           for (g2 in groups) {
             if (g2 < g) { combs[g,g2]++ }
@@ -132,7 +121,7 @@ function get_header() {
         }
       }
       # Assign ploidy to groups using variant calls from next line, detect mixed-ploidy groups
-      if ( TAJLIKE || RHO ) {
+      if ( TAJLIKE || args["rho"] == 1 ) {
         cmd | getline
         # Count alleles for each group, then divide by number of samples
         for (i in groupindex) {
@@ -141,8 +130,8 @@ function get_header() {
         for (g in groups) {
           ploidy[g] /= 2*groups[g]
         }
-        if ( ploidy[g] % 1 != 0 && ( TAJLIKE || RHO ) ) {
-          print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "RHO" > "/dev/stderr"
+        if ( ploidy[g] % 1 != 0 && ( TAJLIKE || args["rho"] == 1 ) ) {
+          print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "args["rho"] == 1" > "/dev/stderr"
         }
       }
       # Start processing sites if no need to query by regions?
@@ -155,19 +144,23 @@ function get_header() {
 # Process VCF lines
 function process_sites(region, name,   
                        nUsed, nSites, minpos, maxpos, locus, skip_header, vcfline,
-                       numerator, denominator, pi, dxy, 
+                       numerator, denominator, 
                        allgeno, allmiss,
                        fst_numerator, fst_denominator,
                        segr, truesegr,
                        Hsnum, Hsden, Htnum, Htden, Hspnum) {
-  if ( LOCUS != "" ) { locus=LOCUS }
+  if ( args["locus"] != "" ) { locus=args["locus"] }
   if ( locus == "" ) { locus=name }
-  cmd = ( region=="" ? "bgzip -dc " vcf_gz : "tabix " vcf_gz ( args["targets"] != "" ? " -T "args["targets"] : "" ) " " region )
+  cmd = ( region=="" ? "bgzip -dc " args["vcf"] : "tabix " args["vcf"] ( args["targets"] != "" ? " -T "args["targets"] : "" ) " " region )
   # Skip header in case of bgzip stream
   if ( region != "" ) { skip_header=header_length }
   while ( ++skip_header <= header_length ) { cmd | getline }
   while ( cmd | getline > 0 ) {
-    if ( region == "" && !( pid == 0 && ( ++vcfline % args["jobs"] == jobnum ) ) ) { continue }
+    vcfline++
+    if ( args["jobs"] > 1 && region == "" && !( pid == 0 && ( vcfline % args["jobs"] == jobnum ) ) ) { continue }
+    if ( jobnum == 1 && args["persite"] != 1 && region == "" && vcfline % 10000 < args["jobs"] ) {
+     # print "\033[1Am\rProcessed "vcfline" sites" > "/dev/stderr"
+    }
 
     # Increment nSites
     if ( NSITES!="" ) { 
@@ -185,7 +178,7 @@ function process_sites(region, name,
     if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
       #TODO: add check for chromosome not to summarize stats across chrs
     
-      if ( PERSITE && locus != "" ) { $1=locus"_"$1 }
+      if ( args["persite"] == 1 && locus != "" ) { $1=locus"_"$1 }
     
       # Reset site-specific parameters
       for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
@@ -204,7 +197,7 @@ function process_sites(region, name,
             miss[grp]+=gtend/2
             break
           } else {
-            if ( HET ) { thisal[al]++ }
+            if ( args["het"] == 1 ) { thisal[al]++ }
             alleles[grp,al]++
             nalleles[grp]++
             if ( !seen[grp,al] ) {
@@ -214,26 +207,20 @@ function process_sites(region, name,
             }
           }
         }
-        if ( HET && nalleles[grp] ) {
+        if ( args["het"] == 1 && nalleles[grp] ) {
           nUsed[grp]++
-          if ( MULT || nseen[grp]<=2 ) {
-            if ( PIXY || PERSITE ) { 
-              for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
-              denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
-            } else {
-                for ( x in thisal ) { pi[grp]+=(thisal[x]*(nalleles[grp]-thisal[x])) / (nalleles[grp]*(nalleles[grp]-1)) }
-            }
+          if ( args["mult"] == 1 || nseen[grp]<=2 ) {
+            for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
+            denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
           }
-          if ( PERSITE ) { printOutput( $1"_"$2, 1, g, ".", 1, "het", numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
+          if ( args["persite"] == 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "het", numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
           delete thisal
         }
       }
 
-      # Calculate pi for groups with <50% missing data 
-      # (if PIXY, use all sites with at least one genotype since miss[g]==0 )
-      if ( !HET ) {
+      if ( args["het"] != 1 ) {
         for ( g in seenlist ) {
-          if ( miss[g]/(miss[g]+nalleles[g]) <= MIS && ( MULT || nseen[g]<=2 ) ) {
+          if ( miss[g]/(miss[g]+nalleles[g]) <= args["miss"] && ( args["mult"] == 1 || nseen[g]<=2 ) ) {
     
             # Increment number of sites used for calculation
             nUsed[g]++
@@ -262,14 +249,10 @@ function process_sites(region, name,
               truesegr[g]++
             }
 
-            if ( PERSITE ) { 
-              if ( thisden[g] ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
+            if ( args["persite"] == 1 ) { 
+              if ( thisden[g] && args["nopi"] != 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
             } else {
-                if ( PIXY ) { 
-                  numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
-                } else { 
-                  pi[g]+=thisnum[g]/thisden[g]
-                }
+                numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
                 if ( VERBOSE ) {
                   allmiss[g]+=miss[g]
                   allgeno[g]+=nalleles[g]
@@ -277,88 +260,90 @@ function process_sites(region, name,
               }
     
             # Calculate pi between this group and all other groups with <50% missing data
-            if ( DXY ) {
-              for ( g2 in seenlist ) {
-                if ( g2 < g && miss[g2]/(miss[g2]+nalleles[g2]) <= MIS && ( MULT || nseen[g2]<=2 ) ) {
-                
-                  # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
-                  poolsize=nseen[g]
+            if ( args["nodxy"] == 1 ) { continue }
+            for ( g2 in seenlist ) {
+              if ( g2 < g && miss[g2]/(miss[g2]+nalleles[g2]) <= args["miss"] && ( args["mult"] == 1 || nseen[g2]<=2 ) ) {
+              
+                # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
+                poolsize=nseen[g]
 
-                  # Extract alleles of the group
-                  delete thosealleles
-                  #split(seenlist[g2], yy) replaced to make it work on macOS
-                  for ( i=1;i<=length(seenlist[g2]);i++ ) { yy[i]=substr(seenlist[g2], i, 1) }
-                  for (al in yy) {
-                    bothalleles[yy[al]]++ # so far keeps alleles from comparisons of g with previous groups
-                    thosealleles[yy[al]] = alleles[g2,yy[al]]
-                    if ( !(yy[al] in thesealleles) ) { poolsize++ }
+                # Extract alleles of the group
+                delete thosealleles
+                #split(seenlist[g2], yy) replaced to make it work on macOS
+                for ( i=1;i<=length(seenlist[g2]);i++ ) { yy[i]=substr(seenlist[g2], i, 1) }
+                for (al in yy) {
+                  bothalleles[yy[al]]++ # so far keeps alleles from comparisons of g with previous groups
+                  thosealleles[yy[al]] = alleles[g2,yy[al]]
+                  if ( !(yy[al] in thesealleles) ) { poolsize++ }
+                }
+
+                # If not args["mult"] == 1, proceed only if common allele pool has <=2 alleles
+                if ( args["mult"] == 1 || poolsize <= 2 ) {
+
+                  # Increment number of sites used for dxy
+                  nUsed[g,g2]++
+                  
+                  # Add to dxy: probability that two alleles picked from two groups differ
+                  # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
+                  thisnum[g,g2]=nalleles[g]*nalleles[g2]
+                  thisden[g,g2]=thisnum[g,g2]
+                  if ( FST ) { thisfstnum=""; thisfstden="" }
+                  for ( x in bothalleles ) { 
+                    # gawk breaks here if you don't set uninitialized array elems to 0
+                    if ( !(x in thesealleles) ) { thesealleles[x]=0 }
+                    else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
+                    thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+                    if ( FST ) {
+                      if ( FST=="HUD" ) { 
+                        incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+                      } else if ( FST=="WC" ) { 
+                        incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+                      } 
+                      if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+                    }
                   }
-
-                  # If not MULT, proceed only if common allele pool has <=2 alleles
-                  if ( MULT || poolsize <= 2 ) {
-
-                    # Increment number of sites used for dxy
-                    nUsed[g,g2]++
-                    
-                    # Add to dxy: probability that two alleles picked from two groups differ
-                    # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
-                    thisnum[g,g2]=nalleles[g]*nalleles[g2]
-                    thisden[g,g2]=thisnum[g,g2]
-                    if ( FST ) { thisfstnum=""; thisfstden="" }
-                    for ( x in bothalleles ) { 
-                      # gawk breaks here if you don't set uninitialized array elems to 0
-                      if ( !(x in thesealleles) ) { thesealleles[x]=0 }
-                      else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
-                      thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
-                      if ( FST ) {
-                        if ( FST=="HUD" ) { 
-                          incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
-                        } else if ( FST=="WC" ) { 
-                          incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
-                        } 
-                        if ( !MULT ) { break } # no need to increment twice for biallelic comparisons
-                      }
+                  if ( args["rho"] == 1 ) {
+                    if (!thisden[g2]) {
+                      thisnum[g2]=nalleles[g2]^2
+                      thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
+                      for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x2]^2 }
                     }
-                    if ( RHO ) {
-                      if (!thisden[g2]) {
-                        thisnum[g2]=nalleles[g2]^2
-                        thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
-                        for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x2]^2 }
-                      }
-                      # Here Hs = average of pi values of two populations,
-                      #      Ht = pi of two populations pooled,
-                      #      Hsp = Hs corrected for ploidy
-                      thisHtnum=(nalleles[g] + nalleles[g2])^2
-                      thisHtden=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
-                      for ( x in bothalleles ) { thisHtnum-=(thesealleles[x]+thosealleles[x])^2 }
-                      thisHsnum = ( (thisnum[g]*thisden[g2] ) + (thisnum[g2]*thisden[g]) )
-                      thisHsden = 2 * thisden[g] * thisden[g2] # same as Hspden
-                      thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
+                    # Here Hs = average of pi values of two populations,
+                    #      Ht = pi of two populations pooled,
+                    #      Hsp = Hs corrected for ploidy
+                    thisHtnum=(nalleles[g] + nalleles[g2])^2
+                    thisHtden=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
+                    for ( x in bothalleles ) { thisHtnum-=(thesealleles[x]+thosealleles[x])^2 }
+                    thisHsnum = ( (thisnum[g]*thisden[g2] ) + (thisnum[g2]*thisden[g]) )
+                    thisHsden = 2 * thisden[g] * thisden[g2] # same as Hspden
+                    thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
+                  }
+                  if ( args["persite"] == 1 ) { 
+                    if ( thisden[g,g2] ) { printOutput( $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+                    if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+                    if ( args["rho"] == 1 ) { 
+                      Hs = thisHsnum/thisHsden
+                      Ht = thisHtnum/thisHtden
+                      Hsp = thisHspnum/thisHsden
+                      Hpt = Hs + 2 * (Ht - Hs)
+                      thisrhonum=Hpt-Hs
+                      thisrhoden=Hpt-Hsp
+                      printOutput( $1"_"$2, 1, g, g2, 1, "Rho", thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
                     }
-                    if ( PERSITE ) { 
-                      if ( thisden[g,g2] ) { printOutput( $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-                      if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-                      if ( RHO ) { 
-                        Hs = thisHsnum/thisHsden
-                        Ht = thisHtnum/thisHtden
-                        Hsp = thisHspnum/thisHsden
-                        Hpt = Hs + 2 * (Ht - Hs)
-                        thisrhonum=Hpt-Hs
-                        thisrhoden=Hpt-Hsp
-                        printOutput( $1"_"$2, 1, g, g2, 1, "Rho", thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
+                  } else {
+                      numerator[g,g2]+=thisnum[g,g2]
+                      denominator[g,g2]+=thisden[g,g2] 
+                      if ( FST ) { 
+                        fst_numerator[g,g2]+=thisfstnum
+                        fst_denominator[g,g2]+=thisfstden
                       }
-                    } else {
-                        if ( PIXY ) { numerator[g,g2]+=thisnum[g,g2]; denominator[g,g2]+=thisden[g,g2] 
-                        } else { dxy[g,g2]+=thisnum[g,g2]/thisden[g,g2] }
-                        if ( FST ) { fst_numerator[g,g2]+=thisfstnum; fst_denominator[g,g2]+=thisfstden }
-                        if ( RHO ) {
-                          Htnum[g,g2] += thisHtnum 
-                          Htden[g,g2] += thisHtden 
-                          Hsnum[g,g2] += thisHsnum
-                          Hsden[g,g2] += thisHsden 
-                          Hspnum[g,g2] += thisHspnum
-                        }
-                    }
+                      if ( args["rho"] == 1 ) {
+                        Htnum[g,g2] += thisHtnum 
+                        Htden[g,g2] += thisHtden 
+                        Hsnum[g,g2] += thisHsnum
+                        Hsden[g,g2] += thisHsden 
+                        Hspnum[g,g2] += thisHspnum
+                      }
                   }
                 }
               }
@@ -370,12 +355,8 @@ function process_sites(region, name,
   }
   close(cmd)
   if (pid>0) { return 0 }
-  if ( !PERSITE ) {
+  if ( args["persite"] != 1 ) {
     
-    # Prepare "metric" field for output
-    PIXY ? metric="pixy" : metric="w"
-    if ( HET ) { metric="het_" metric }
-
     if ( locus=="" ) {
       for ( i in minpos ) { 
           locus = i"_"minpos[i]"_"maxpos[i]"_"locus
@@ -390,31 +371,34 @@ function process_sites(region, name,
 
   	for (g in groups) {
       if ( nUsed[g] ) {
-        if ( PIXY ) { pinum[g] = numerator[g]; piden[g] = denominator[g] 
-        } else { pinum[g] = pi[g]; piden[g] = nUsed[g] }
-        printOutput( locus, nSites, g, ".", nUsed[g], HET ? metric : "pi_"metric, pinum[g], piden[g], allgeno[g], allmiss[g] )
+        pinum[g] = numerator[g]
+        piden[g] = denominator[g] 
+        if ( args["nopi"] != 1 ) {
+          printOutput( locus, nSites, g, ".", nUsed[g], args["het"] == 1 ? "het" : "pi", pinum[g], piden[g], allgeno[g], allmiss[g] )
+        }
         if ( TAJLIKE && segr[g] ) {
           tP[g]=pinum[g]/piden[g]*nUsed[g]
           a1[g]/=truesegr[g]
           a2[g]/=truesegr[g]
+          if ( args["tajima"] ) { segr[g]=truesegr[g] }
           tajnum[g]= tP[g] - segr[g]/a1[g]
-          tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] ) # could as well replace by nalleles[g]+miss[g]
-          printOutput( locus, L, g, ".", nUsed[g], "TajD-like", tajnum[g], tajden[g], allgeno[g], allmiss[g] )
+          tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] )
+          printOutput( locus, nSites, g, ".", nUsed[g], args["tajima"] ? "TajD" : "TajD-like", tajnum[g], tajden[g], allgeno[g], allmiss[g] )
         }
       }
     }
   	for (i in combs) {
       if ( nUsed[i] ) { 
-        if ( PIXY ) { dxynum[i] = numerator[i]; dxyden[i]=denominator[i] 
-        } else { dxynum[i] = dxy[i]; dxyden[i]=nUsed[i] }
+        dxynum[i] = numerator[i]
+        dxyden[i] = denominator[i] 
         #split(i, ii, SUBSEP)`replaced to make it work on macOS`
         ii[1]=substr(i, 1, match(i, SUBSEP)-1)
         ii[2]=substr(i, match(i, SUBSEP)+1)
-        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "dxy_"metric, dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
         if ( fst_denominator[i] ) { 
           printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
         }
-        if ( RHO && Hsden[i] && Htden[i] ) { 
+        if ( args["rho"] == 1 && Hsden[i] && Htden[i] ) { 
           Hs = Hsnum[i]/Hsden[i]
           Ht = Htnum[i]/Htden[i]
           Hsp = Hspnum[i]/Hsden[i]
@@ -431,7 +415,7 @@ function process_sites(region, name,
 END {
   if (_assert_exit) { exit 1 }
   # assert( DATALINES, "no VCF header provided")
-  # if (NR==DATALINES) { print "Warning: no data read for locus "LOCUS > "/dev/stderr" }
+  # if (NR==DATALINES) { print "Warning: no data read for locus "args["locus"] > "/dev/stderr" }
   if (pid>0) {
     while(wait()>0){}
   }
@@ -444,7 +428,7 @@ function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denom
   if ( VERBOSE ) { 
       out = out"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   }
-  if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] == "" ) {
+  if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] != 1 ) {
     print out | "summarize_blks.awk"
   } else {
     print out
@@ -500,3 +484,18 @@ function assert(condition, explanation) {
   }
 }
 
+function print_header() {
+  if ( args["all"] != 1 ) {
+    print "locus", "nSites", "pop1", "pop2", "nUsed", "metric", "value"
+  } else {
+    print "locus", "nSites", "pop1", "pop2", "nUsed", "metric", "value", "numerator", "denominator", "nGeno", "nMiss"
+  }
+}
+
+function check_file(file,   cmd) {
+   cmd = "stat "file" > /dev/null 2>&1"
+   if (system(cmd) != 0) {
+        print "Error: file does not exist -- "file > "/dev/stderr"
+        exit 1
+    }
+}
