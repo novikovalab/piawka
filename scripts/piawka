@@ -59,7 +59,6 @@ function main() {
 
   get_groups()
   get_header()
-  print_header()
 
   if ( args["jobs"] > 1 ) {
     if ( args["bed"] == "" ) {
@@ -70,6 +69,9 @@ function main() {
       if ( pid==0 ) { break }
     }
   } else { args["jobs"]=1; jobnum=1 }
+
+  if ( jobnum==1 ) { print_header() }
+
   if ( !( args["bed"] == "" && args["targets"] == "" ) ) {
     while ( ( args["bed"]=="" ? ( "aggregate_regions.awk "args["targets"] | getline ) : ( getline < args["bed"] ) ) > 0 ) {
       bedline++
