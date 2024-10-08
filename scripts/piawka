@@ -274,6 +274,7 @@ function process_sites(region, locus,
 
                 # Extract alleles of the group
                 delete thosealleles
+                delete yy
                 #split(seenlist[g2], yy) replaced to make it work on macOS
                 for ( i=1;i<=length(seenlist[g2]);i++ ) { yy[i]=substr(seenlist[g2], i, 1) }
                 for (al in yy) {
