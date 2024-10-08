@@ -1,6 +1,6 @@
 #!/bin/sh
-"export" "AWKPATH=$( dirname $( which piawka ) )"
-"export" "AWKLIBPATH=$( realpath $( which gawk )/../../lib/gawk)"
+"export" "AWKPATH=$( dirname $( which piawka ) ):$AWKPATH"
+"export" "AWKLIBPATH=$( realpath $( which gawk )/../../lib/gawk):$AWKLIBPATH"
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
 @load "fork"
