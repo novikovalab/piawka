@@ -28,7 +28,6 @@ function main() {
   argparse::add_argument("h", "help", 1, "show this help message")
   argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
   argparse::add_argument("j", "jobs", 0, "number of parallel jobs to run")
-  argparse::add_argument("l", "locus", 0, "custom name for the analyzed region")
   argparse::add_argument("m", "mult", 1, "use multiallelic sites")
   argparse::add_argument("M", "miss", 1, "max share of missing GT per group at site")
   argparse::add_argument("P", "nopi", 1, "do not output pi values")
@@ -88,8 +87,7 @@ function main() {
     }
     close( ( args["targets"] == "" ? args["bed"] : "aggregate_regions.awk "args["targets"] ) )
   } else {
-    if ( args["locus"] == "" ) { args["locus"]=args["vcf"] }
-    process_sites()
+    process_sites("", args["vcf"])
     close("summarize_blks.awk")
   } 
   return 0
@@ -149,15 +147,13 @@ function get_header() {
 }
 
 # Process VCF lines
-function process_sites(region, name,   
+function process_sites(region, locus,   
                        nUsed, nSites, minpos, maxpos, skip_header, vcfline,
                        numerator, denominator, 
                        allgeno, allmiss,
                        fst_numerator, fst_denominator,
                        segr, truesegr,
                        Hsnum, Hsden, Htnum, Htden, Hspnum) {
-  if ( args["locus"] != "" ) { locus=args["locus"] }
-  if ( locus == "" ) { locus=name }
   if ( locus == "" ) { locus="_" } # empty locus breaks summarize_blks.awk
   cmd = ( region=="" ? "bgzip -dc " args["vcf"] : "tabix " args["vcf"] ( args["targets"] != "" ? " -T "args["targets"] : "" ) " " region )
   # Skip header in case of bgzip stream
@@ -176,7 +172,7 @@ function process_sites(region, name,
       nSites=NSITES
     } else if ( pid!="" ) { 
       nSites++ 
-    } else if ( NSITES=="" || locus=="" ) {
+    } else {
       if ( !minpos[$1] ) { minpos[$1]=$2 }
       maxpos[$1]=$2
     }
@@ -187,7 +183,7 @@ function process_sites(region, name,
     if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
       #TODO: add check for chromosome not to summarize stats across chrs
     
-      if ( args["persite"] == 1 && locus != "" ) { $1=locus"_"$1 }
+      if ( args["persite"] == 1 ) { $1=locus"_"$1 }
     
       # Reset site-specific parameters
       for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
@@ -366,12 +362,6 @@ function process_sites(region, name,
   if ( pid>0 ) { return 0 }
   if ( args["persite"] != 1 ) {
     
-    if ( locus=="" ) {
-      for ( i in minpos ) { 
-          locus = i"_"minpos[i]"_"maxpos[i]"_"locus
-      }
-      locus=substr(locus,1,length(locus)-1)
-    }
     if ( length(minpos)>0 ) { 
       for ( i in minpos ) {
         nSites+=maxpos[i]-minpos[i]+1
@@ -423,8 +413,6 @@ function process_sites(region, name,
 
 END {
   if (_assert_exit) { exit 1 }
-  # assert( DATALINES, "no VCF header provided")
-  # if (NR==DATALINES) { print "Warning: no data read for locus "args["locus"] > "/dev/stderr" }
   if (pid>0) {
     while(wait()>0){}
   }
