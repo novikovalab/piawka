@@ -1,4 +1,5 @@
-#!/usr/bin/env -S gawk -f
+#!/bin/sh
+"exec" "gawk" -f "$0" "--" "$@" && 0 {}
 #
 # This script summarizes piawka results counted over several loci.
 # It guesses if VERBOSE=1 was set by the number of fields.
