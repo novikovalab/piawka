@@ -130,7 +130,7 @@ function get_header() {
         cmd | getline
         # Count alleles for each group, then divide by number of samples
         for (i in groupindex) {
-          ploidy[groupindex[i]] += ( match($i, ":")>0 ? match($i, ":") : length($i)+1 )
+          ploidy[groupindex[i]] += ( index($i, ":")>0 ? index($i, ":") : length($i)+1 )
         }
         for (g in groups) {
           ploidy[g] /= 2*groups[g]
@@ -194,7 +194,7 @@ function process_sites(region, locus,
       # Pool GT values for groups, count each state and missing data
       for (i in groupindex) {
         grp=groupindex[i]
-        gtend=match( $i, ":" )
+        gtend=index( $i, ":" )
         if ( gtend==0 ) { gtend=length($i)+1 }
         for (c=1; c<gtend; c+=2) {
           al=substr($i,c,1)
@@ -391,8 +391,8 @@ function process_sites(region, locus,
         dxynum[i] = numerator[i]
         dxyden[i] = denominator[i] 
         #split(i, ii, SUBSEP)`replaced to make it work on macOS`
-        ii[1]=substr(i, 1, match(i, SUBSEP)-1)
-        ii[2]=substr(i, match(i, SUBSEP)+1)
+        ii[1]=substr(i, 1, index(i, SUBSEP)-1)
+        ii[2]=substr(i, index(i, SUBSEP)+1)
         printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
         if ( fst_denominator[i] ) { 
           printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
