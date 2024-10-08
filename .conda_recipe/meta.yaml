@@ -7,7 +7,7 @@ package:
 
 source:
   url: https://github.com/novikovalab/{{ name }}/archive/refs/tags/{{ version }}.tar.gz
-  sha256: 511859b69525db7dc988ae55556e6fd31e2709f0e3a4de404f87abfadb97a273
+  sha256: 870f83100037a66a68f9e94abd4a36b7575902e37def9976806b3f8e5076f966
 
 build:
   noarch: generic
