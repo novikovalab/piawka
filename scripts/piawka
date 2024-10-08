@@ -10,7 +10,7 @@
 
 BEGIN{ 
   OFS="\t"
-  usage="piawka v0.8.1\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
+  usage="piawka v0.8.2\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   exit main()
 }
 
