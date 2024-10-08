@@ -1,3 +1,5 @@
+(2024-10-08) 0.8.1  : bugfix -- remove AWKLIBPATH declaration
+
 (2024-09-29) 0.8.0  : switch to getopt-style options,
                       switch to gawk (mawk to be kept as a branch),
                       add an option to provide a targets file
