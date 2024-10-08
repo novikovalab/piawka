@@ -1,5 +1,5 @@
 {% set name = "piawka" %}
-{% set version = "0.8.0" %}
+{% set version = "0.8.1" %}
 
 package:
   name: {{ name|lower }}
@@ -7,7 +7,7 @@ package:
 
 source:
   url: https://github.com/novikovalab/{{ name }}/archive/refs/tags/{{ version }}.tar.gz
-  sha256: 870f83100037a66a68f9e94abd4a36b7575902e37def9976806b3f8e5076f966
+  sha256: c280b0669724410be64e9db6c61680d38ba89a263eb2d75efef1beb79d43a8c2
 
 build:
   noarch: generic
