@@ -55,15 +55,15 @@ function main() {
     print "Warning: rho was not meant for multiallelic sites" > "/dev/stderr"
   }
     
-  VERBOSE=args["all"]
+  VERBOSE=( args["all"] || ( args["jobs"]>1 && args["bed"]=="" ) )
   TAJLIKE=( args["tajima"] || args["tajimalike"] )
 
   get_groups()
   get_header()
+  print_header()
 
   if ( args["jobs"] > 1 ) {
     if ( args["bed"] == "" ) {
-      VERBOSE=1
       printf "" | "summarize_blks.awk" # initialize pipe
     }
     for ( jobnum=0; jobnum < args["jobs"]; jobnum++ ) { 
@@ -71,9 +71,6 @@ function main() {
       if ( pid==0 ) { break }
     }
   } else { args["jobs"]=1; jobnum=1 }
-
-  if (jobnum==1) { print_header() }
-
   if ( !( args["bed"] == "" && args["targets"] == "" ) ) {
     while ( ( args["bed"]=="" ? ( "aggregate_regions.awk "args["targets"] | getline ) : ( getline < args["bed"] ) ) > 0 ) {
       bedline++
@@ -414,9 +411,9 @@ function process_sites(region, locus,
 }
 
 END {
+  if (jobnum==1) { print "" > "/dev/stderr" } # to start next prompt on new line
   if (pid>0) {
     while(wait()>0){}
-    print "" > "/dev/stderr" # to start next prompt on new line
   }
 }
 
