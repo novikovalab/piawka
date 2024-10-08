@@ -28,7 +28,7 @@ function main() {
   argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
   argparse::add_argument("j", "jobs", 0, "number of parallel jobs to run")
   argparse::add_argument("m", "mult", 1, "use multiallelic sites")
-  argparse::add_argument("M", "miss", 1, "max share of missing GT per group at site")
+  argparse::add_argument("M", "miss", 0, "max share of missing GT per group at site, 0.0-1.0")
   argparse::add_argument("P", "nopi", 1, "do not output pi values")
   argparse::add_argument("r", "rho", 1, "output Ronfort's rho")
   argparse::add_argument("t", "tajimalike", 1, "output Tajima's D-like stat (manages missing data but isn't a test)")
