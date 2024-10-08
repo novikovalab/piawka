@@ -412,7 +412,6 @@ function process_sites(region, locus,
 }
 
 END {
-  if (_assert_exit) { exit 1 }
   if (pid>0) {
     while(wait()>0){}
   }
@@ -476,7 +475,6 @@ function assert(condition, explanation) {
     print help
     printf("Error %s:%d: %s\n",
            FILENAME, FNR, explanation) > "/dev/stderr"
-    _assert_exit=1
     exit 1
   }
 }
