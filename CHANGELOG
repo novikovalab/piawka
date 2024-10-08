@@ -1,3 +1,7 @@
+(2024-09-29) 0.8.0  : switch to getopt-style options,
+                      switch to gawk (mawk to be kept as a branch),
+                      add an option to provide a targets file
+
 (2024-03-20) 0.7.10 : add RHO option
 
 (2024-03-18) 0.7.9  : add TAJLIKE option

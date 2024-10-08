@@ -19,9 +19,8 @@ conda install -c bioconda piawka
 
 Make the following programs available in the command line (install and add to `PATH`):
 
- - `awk` (we recommend `mawk` >= 1.3.4)
- - `tabix` (optional, for region-based analyses)
- - `parallel` (optional, for the parallel wrapper `piawka_par.sh`)
+ - `gawk` v5.0.0 and above 
+ - `tabix`
 
 Then, get `piawka` by cloning the repo and add the scripts to `PATH`:
 
@@ -30,28 +29,32 @@ git clone https://github.com/novikovalab/piawka.git
 export PATH="$( realpath ./piawka/scripts ):${PATH}"
 ```
 
-**Note** that the shebang is set to `mawk` in all AWK scripts. If you have another AWK or if your `/usr/bin/env` does not support the `-S` option, change the shebangs.
-
 # Use it!
 
-`piawka` takes following input data:
-
- - **VCF file**
- - **groups file** (two columns: sample ID and group ID, tab or space as separator)
- - (optional) **BED file** to restrict analysis to certain regions (windows/genes etc.)
-
-Most usecases are covered by the wrapper script that runs `piawka` in parallel:
-
-```bash
-piawka_par.sh -a parallel_options -g groups_file -p piawka_options -v vcf_gz [ -b bed_file ]
-```
-
-`parallel_options` include all arguments passed to the `parallel` command, e.g. `-a "-j 16"` to run `piawka` in 16 threads.
-
-`piawka_options` include analysis parameters such as calculated statistics. Run `piawka` with no arguments to get the list of options:
-
-```bash
-piawka
+```console
+$ piawka
+piawka v0.8.0
+Usage:
+piawka -g groups_tsv -v vcf_gz [OPTIONS]
+Options:
+-1, --persite       output values for each site
+-a, --all           output more cols: numerator, denominator, nGeno, nMiss
+-b, --bed <arg>     BED file with regions to be analyzed
+-B, --targets <arg> BED file with targets (faster than -b for numerous small regions)
+-D, --nodxy         do not output Dxy (and other pairwise metrics)
+-f, --fst           output Hudson Fst
+-F, --fstwc         output Weir and Cockerham Fst instead
+-g, --groups <arg>  2-columns sample ID / group ID TSV file
+-h, --help          show this help message
+-H, --het           output only per-sample pi = heterozygosity
+-j, --jobs <arg>    number of parallel jobs to run
+-m, --mult          use multiallelic sites
+-M, --miss          max share of missing GT per group at site
+-P, --nopi          do not output pi values
+-r, --rho           output Ronfort's rho
+-t, --tajimalike    output Tajima's D-like stat (manages missing data but isn't a test)
+-T, --tajima        output vanilla Tajima's D instead (sensitive to missing data)
+-v, --vcf <arg>     gzipped and tabixed VCF file
 ```
 
 See the [wiki](https://github.com/novikovalab/piawka/wiki) for further details.
