@@ -31,7 +31,7 @@ export PATH="$( realpath ./piawka/scripts ):${PATH}"
 
 # Use it!
 
-```bash
+```console
 $ piawka
 piawka v0.8.0
 Usage:
