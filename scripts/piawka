@@ -1,7 +1,10 @@
 #!/bin/sh
+"export" "AWKPATH=$( dirname $( which piawka ) )"
+"export" "AWKLIBPATH=$( realpath $( which gawk )/../../lib/gawk)"
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
 @load "fork"
+@load "filefuncs"
 
 @include "getopt.awk"
 @include "argparse.awk"
@@ -499,9 +502,8 @@ function print_header() {
 }
 
 function check_file(file,   cmd) {
-   cmd = "stat "file" > /dev/null 2>&1"
-   if (system(cmd) != 0) {
-        print "Error: file does not exist -- "file > "/dev/stderr"
+   if (stat(file, _) < 0) {
+        print "Error: could not read file "file > "/dev/stderr"
         exit 1
     }
 }
