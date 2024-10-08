@@ -40,7 +40,7 @@ function main() {
   getopt::Opterr = 1 # print getopt errs
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
-  if (args["help"]) { print help; return 0 }
+  if (args["help"] || ARGC==1 ) { print help; return 0 }
 
   assert( args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
   assert( ( args["groups"] != "" || args["het"] == 1 ), "required argument: -g <groups.tsv>" )
