@@ -10,7 +10,7 @@
 
 BEGIN{ 
   OFS="\t"
-  usage="piawka v0.8.2\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
+  usage="piawka v0.8.3\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
   exit main()
 }
