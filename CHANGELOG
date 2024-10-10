@@ -1,3 +1,5 @@
+(2024-10-10) 0.8.5  : small improvements
+
 (2024-10-10) 0.8.4  : improve multiprocessing (use job-specific region buffers, add make_windows.awk)
 
 (2024-10-08) 0.8.2  : bug fixes (multiple headers, multithreading slightly affecting Dxy values), speedup
