@@ -33,7 +33,7 @@ export PATH="$( realpath ./piawka/scripts ):${PATH}"
 
 ```console
 $ piawka
-piawka v0.8.3
+piawka v0.8.4
 Usage:
 piawka -g groups_tsv -v vcf_gz [OPTIONS]
 Options:
