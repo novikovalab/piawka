@@ -32,7 +32,7 @@ function main() {
   check_file(args["vcf"])
   if ( args["windowsize"] == "" ) { args["windowsize"]=DEFAULT_WINDOWSIZE }
   make_windows(args["windowsize"])
-  return 0
+  exit 0
 }
 
 function check_file(file,   cmd) {
