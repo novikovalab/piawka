@@ -220,172 +220,171 @@ function process_sites(region, locus,
     # Process only SNPs (possibly monomorphic or multiallelic)
     # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
     # To process SNPs that only have one ALT allele
-    if ( $4 ~ /^[ACGT]$/ && $5 !~ /\*|[ACGT][ACGT]/ ) {
-      #TODO: add check for chromosome not to summarize stats across chrs
-    
-      if ( args["persite"] == 1 ) { $1=locus"_"$1 }
-    
-      # Reset site-specific parameters
-      for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
-      delete alleles
-      delete seen
-      delete seenlist
+    if ( $4 !~ /^[ACGT]$/ || $5 ~ /\*|[ACGT][ACGT]/ ) { continue }
+    #TODO: add check for chromosome not to summarize stats across chrs
+  
+    if ( args["persite"] == 1 ) { $1=locus"_"$1 }
+  
+    # Reset site-specific parameters
+    for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
+    delete alleles
+    delete seen
+    delete seenlist
 
-      # Pool GT values for groups, count each state and missing data
-      for (i in groupindex) {
-        grp=groupindex[i]
-        gtend=index( $i, ":" )
-        if ( gtend==0 ) { gtend=length($i)+1 }
-        for (c=1; c<gtend; c+=2) {
-          al=substr($i,c,1)
-          if ( al == "." ) {
-            miss[grp]+=gtend/2
-            break
-          } else {
-            if ( args["het"] == 1 ) { thisal[al]++ }
-            alleles[grp,al]++
-            nalleles[grp]++
-            if ( !seen[grp,al] ) {
-              seen[grp,al]++
-              seenlist[grp]=al seenlist[grp]
-              nseen[grp]++
-            }
+    # Pool GT values for groups, count each state and missing data
+    for (i in groupindex) {
+      grp=groupindex[i]
+      gtend=index( $i, ":" )
+      if ( gtend==0 ) { gtend=length($i)+1 }
+      for (c=1; c<gtend; c+=2) {
+        al=substr($i,c,1)
+        if ( al == "." ) {
+          miss[grp]+=gtend/2
+          break
+        } else {
+          if ( args["het"] == 1 ) { thisal[al]++ }
+          alleles[grp,al]++
+          nalleles[grp]++
+          if ( !seen[grp,al] ) {
+            seen[grp,al]++
+            seenlist[grp]=al seenlist[grp]
+            nseen[grp]++
           }
-        }
-        if ( args["het"] == 1 && nalleles[grp] ) {
-          nUsed[grp]++
-          if ( args["mult"] == 1 || nseen[grp]<=2 ) {
-            for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
-            denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
-          }
-          if ( args["persite"] == 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "het", numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
-          delete thisal
         }
       }
+      if ( args["het"] == 1 && nalleles[grp] ) {
+        nUsed[grp]++
+        if ( args["mult"] == 1 || nseen[grp]<=2 ) {
+          for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
+          denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
+        }
+        if ( args["persite"] == 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "het", numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
+        delete thisal
+      }
+    }
 
-      if ( args["het"] != 1 ) {
-        for ( g in seenlist ) {
-          if ( miss[g]/(miss[g]+nalleles[g]) > args["miss"] || ( args["mult"] != 1 && nseen[g]>2 ) ) { continue }
-  
-          # Increment number of sites used for calculation
-          nUsed[g]++
+    if ( args["het"] != 1 ) {
+      for ( g in seenlist ) {
+        if ( miss[g]/(miss[g]+nalleles[g]) > args["miss"] || ( args["mult"] != 1 && nseen[g]>2 ) ) { continue }
+
+        # Increment number of sites used for calculation
+        nUsed[g]++
+        
+        # Extract allele counts of the group
+        delete thesealleles
+        delete bothalleles
+        for (i=1;i<=length(seenlist[g]);i++) {
+          xx=substr(seenlist[g],i,1)
+          bothalleles[xx]++
+          thesealleles[xx] = alleles[g,xx]
+        }
+
+        # Add to pi: probability that two randomly picked alleles differ
+        # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
+        thisnum[g]=nalleles[g]^2
+        thisden[g]=nalleles[g]*(nalleles[g]-1)
+        for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
+
+        if ( TAJLIKE && nseen[g]==2 ) {
+          for (i=1;i<nalleles[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
+          segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] )
+          truesegr[g]++
+        }
+
+        if ( args["persite"] == 1 ) { 
+          if ( thisden[g] && args["nopi"] != 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
+        } else {
+            numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
+            if ( VERBOSE ) {
+              allmiss[g]+=miss[g]
+              allgeno[g]+=nalleles[g]
+            }
+          }
+
+        # Calculate pi between this group and all other groups with <50% missing data
+        if ( args["nodxy"] == 1 ) { continue }
+        for ( g2 in seenlist ) {
+          if ( g2 >= g || miss[g2]/(miss[g2]+nalleles[g2]) > args["miss"] || ( args["mult"] != 1 && nseen[g2]>2 ) ) { continue }
+        
+          # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
+          poolsize=nseen[g]
+
+          # Extract alleles of the group
+          delete thosealleles
+          for (i=1;i<=length(seenlist[g2]);i++) {
+            yy=substr(seenlist[g2],i,1)
+            bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
+            thosealleles[yy] = alleles[g2,yy]
+            if ( !(yy in thesealleles) ) { poolsize++ }
+          }
+
+          # If not args["mult"] == 1, proceed only if common allele pool has <=2 alleles
+          if ( args["mult"] != 1 && poolsize > 2 ) { continue }
+
+          # Increment number of sites used for dxy
+          nUsed[g,g2]++
           
-          # Extract allele counts of the group
-          delete thesealleles
-          delete bothalleles
-          for (i=1;i<=length(seenlist[g]);i++) {
-            xx=substr(seenlist[g],i,1)
-            bothalleles[xx]++
-            thesealleles[xx] = alleles[g,xx]
+          # Add to dxy: probability that two alleles picked from two groups differ
+          # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
+          thisnum[g,g2]=nalleles[g]*nalleles[g2]
+          thisden[g,g2]=thisnum[g,g2]
+          if ( FST ) { thisfstnum=""; thisfstden="" }
+          for ( x in bothalleles ) { 
+            # gawk breaks here if you don't set uninitialized array elems to 0
+            if ( !(x in thesealleles) ) { thesealleles[x]=0 }
+            else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
+            thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+            if ( FST ) {
+              if ( FST=="HUD" ) { 
+                incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+              } else if ( FST=="WC" ) { 
+                incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+              } 
+              if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+            }
           }
-  
-          # Add to pi: probability that two randomly picked alleles differ
-          # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
-          thisnum[g]=nalleles[g]^2
-          thisden[g]=nalleles[g]*(nalleles[g]-1)
-          for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
-
-          if ( TAJLIKE && nseen[g]==2 ) {
-            for (i=1;i<nalleles[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
-            segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] )
-            truesegr[g]++
+          if ( args["rho"] == 1 ) {
+            if (!thisden[g2]) {
+              thisnum[g2]=nalleles[g2]^2
+              thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
+              for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x2]^2 }
+            }
+            # Here Hs = average of pi values of two populations,
+            #      Ht = pi of two populations pooled,
+            #      Hsp = Hs corrected for ploidy
+            thisHtnum=(nalleles[g] + nalleles[g2])^2
+            thisHtden=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
+            for ( x in bothalleles ) { thisHtnum-=(thesealleles[x]+thosealleles[x])^2 }
+            thisHsnum = ( (thisnum[g]*thisden[g2] ) + (thisnum[g2]*thisden[g]) )
+            thisHsden = 2 * thisden[g] * thisden[g2] # same as Hspden
+            thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
           }
-
           if ( args["persite"] == 1 ) { 
-            if ( thisden[g] && args["nopi"] != 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
+            if ( thisden[g,g2] ) { printOutput( $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( args["rho"] == 1 ) { 
+              Hs = thisHsnum/thisHsden
+              Ht = thisHtnum/thisHtden
+              Hsp = thisHspnum/thisHsden
+              Hpt = Hs + 2 * (Ht - Hs)
+              thisrhonum=Hpt-Hs
+              thisrhoden=Hpt-Hsp
+              printOutput( $1"_"$2, 1, g, g2, 1, "Rho", thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
+            }
           } else {
-              numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
-              if ( VERBOSE ) {
-                allmiss[g]+=miss[g]
-                allgeno[g]+=nalleles[g]
+              numerator[g,g2]+=thisnum[g,g2]
+              denominator[g,g2]+=thisden[g,g2] 
+              if ( FST ) { 
+                fst_numerator[g,g2]+=thisfstnum
+                fst_denominator[g,g2]+=thisfstden
               }
-            }
-  
-          # Calculate pi between this group and all other groups with <50% missing data
-          if ( args["nodxy"] == 1 ) { continue }
-          for ( g2 in seenlist ) {
-            if ( g2 >= g || miss[g2]/(miss[g2]+nalleles[g2]) > args["miss"] || ( args["mult"] != 1 && nseen[g2]>2 ) ) { continue }
-          
-            # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
-            poolsize=nseen[g]
-
-            # Extract alleles of the group
-            delete thosealleles
-            for (i=1;i<=length(seenlist[g2]);i++) {
-              yy=substr(seenlist[g2],i,1)
-              bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
-              thosealleles[yy] = alleles[g2,yy]
-              if ( !(yy in thesealleles) ) { poolsize++ }
-            }
-
-            # If not args["mult"] == 1, proceed only if common allele pool has <=2 alleles
-            if ( args["mult"] != 1 && poolsize > 2 ) { continue }
-
-            # Increment number of sites used for dxy
-            nUsed[g,g2]++
-            
-            # Add to dxy: probability that two alleles picked from two groups differ
-            # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
-            thisnum[g,g2]=nalleles[g]*nalleles[g2]
-            thisden[g,g2]=thisnum[g,g2]
-            if ( FST ) { thisfstnum=""; thisfstden="" }
-            for ( x in bothalleles ) { 
-              # gawk breaks here if you don't set uninitialized array elems to 0
-              if ( !(x in thesealleles) ) { thesealleles[x]=0 }
-              else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
-              thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
-              if ( FST ) {
-                if ( FST=="HUD" ) { 
-                  incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
-                } else if ( FST=="WC" ) { 
-                  incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
-                } 
-                if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+              if ( args["rho"] == 1 ) {
+                Htnum[g,g2] += thisHtnum 
+                Htden[g,g2] += thisHtden 
+                Hsnum[g,g2] += thisHsnum
+                Hsden[g,g2] += thisHsden 
+                Hspnum[g,g2] += thisHspnum
               }
-            }
-            if ( args["rho"] == 1 ) {
-              if (!thisden[g2]) {
-                thisnum[g2]=nalleles[g2]^2
-                thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
-                for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x2]^2 }
-              }
-              # Here Hs = average of pi values of two populations,
-              #      Ht = pi of two populations pooled,
-              #      Hsp = Hs corrected for ploidy
-              thisHtnum=(nalleles[g] + nalleles[g2])^2
-              thisHtden=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
-              for ( x in bothalleles ) { thisHtnum-=(thesealleles[x]+thosealleles[x])^2 }
-              thisHsnum = ( (thisnum[g]*thisden[g2] ) + (thisnum[g2]*thisden[g]) )
-              thisHsden = 2 * thisden[g] * thisden[g2] # same as Hspden
-              thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
-            }
-            if ( args["persite"] == 1 ) { 
-              if ( thisden[g,g2] ) { printOutput( $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-              if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-              if ( args["rho"] == 1 ) { 
-                Hs = thisHsnum/thisHsden
-                Ht = thisHtnum/thisHtden
-                Hsp = thisHspnum/thisHsden
-                Hpt = Hs + 2 * (Ht - Hs)
-                thisrhonum=Hpt-Hs
-                thisrhoden=Hpt-Hsp
-                printOutput( $1"_"$2, 1, g, g2, 1, "Rho", thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
-              }
-            } else {
-                numerator[g,g2]+=thisnum[g,g2]
-                denominator[g,g2]+=thisden[g,g2] 
-                if ( FST ) { 
-                  fst_numerator[g,g2]+=thisfstnum
-                  fst_denominator[g,g2]+=thisfstden
-                }
-                if ( args["rho"] == 1 ) {
-                  Htnum[g,g2] += thisHtnum 
-                  Htden[g,g2] += thisHtden 
-                  Hsnum[g,g2] += thisHsnum
-                  Hsden[g,g2] += thisHsden 
-                  Hspnum[g,g2] += thisHspnum
-                }
-            }
           }
         }
       }
