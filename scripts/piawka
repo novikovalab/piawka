@@ -56,6 +56,7 @@ function main() {
     print "Warning: rho was not meant for multiallelic sites" > "/dev/stderr"
   }
     
+  PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] )
   VERBOSE=( args["all"] || ( args["jobs"]>1 && args["bed"]=="" ) )
   TAJLIKE=( args["tajima"] || args["tajimalike"] )
 
@@ -230,6 +231,8 @@ function process_sites(region, locus,
     delete alleles
     delete seen
     delete seenlist
+    delete thisnum
+    delete thisden
 
     # Pool GT values for groups, count each state and missing data
     for (i in groupindex) {
@@ -302,7 +305,7 @@ function process_sites(region, locus,
           }
 
         # Calculate pi between this group and all other groups with <50% missing data
-        if ( args["nodxy"] == 1 ) { continue }
+        if ( !PAIRWISE ) { continue }
         for ( g2 in seenlist ) {
           if ( g2 >= g || miss[g2]/(miss[g2]+nalleles[g2]) > args["miss"] || ( args["mult"] != 1 && nseen[g2]>2 ) ) { continue }
         
@@ -360,7 +363,7 @@ function process_sites(region, locus,
             thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
           }
           if ( args["persite"] == 1 ) { 
-            if ( thisden[g,g2] ) { printOutput( $1"_"$2, 1, g, g2, 1, "dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( thisden[g,g2] && args["nodxy"] != 1 ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( args["rho"] == 1 ) { 
               Hs = thisHsnum/thisHsden
@@ -422,7 +425,9 @@ function process_sites(region, locus,
     dxynum[i] = numerator[i]
     dxyden[i] = denominator[i] 
     split(i, ii, SUBSEP)
+    if ( args["nodxy"] != 1 ) {
     printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+    }
     if ( fst_denominator[i] ) { 
       printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
     }
@@ -471,7 +476,7 @@ function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
   # Formula from Bhatia et al. 2013, eq. (6)
   sizes = n1 * n2 / ( n1 + n2 )
   frac = 1 / ( n1 + n2 - 2 )
-  mism = n1 * ( a1 / n1 ) * ( 1 - a1 / n1 ) + n2 * ( a2 / n2 ) * ( 1 - a2 / n2 )
+  mism = a1 * ( 1 - a1 / n1 ) + a2 * ( 1 - a2 / n2 )
 
   den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
   if ( ! den ) { return } # WC Fst is NaN at uniform sites
