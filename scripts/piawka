@@ -270,10 +270,10 @@ function process_sites(region, locus,
             # Extract allele counts of the group
             delete thesealleles
             delete bothalleles
-            split(seenlist[g], xx, "") #crashes on macOS in children without LC_ALL=C
-            for (al in xx) {
-              bothalleles[xx[al]]++
-              thesealleles[xx[al]] = alleles[g,xx[al]]
+            for (i=1;i<=length(seenlist[g]);i++) {
+              xx=substr(seenlist[g],i,1)
+              bothalleles[xx]++
+              thesealleles[xx] = alleles[g,xx]
             }
     
             # Add to pi: probability that two randomly picked alleles differ
@@ -309,11 +309,11 @@ function process_sites(region, locus,
 
                 # Extract alleles of the group
                 delete thosealleles
-                split(seenlist[g2], yy, "")
-                for (al in yy) {
-                  bothalleles[yy[al]]++ # so far keeps alleles from comparisons of g with previous groups
-                  thosealleles[yy[al]] = alleles[g2,yy[al]]
-                  if ( !(yy[al] in thesealleles) ) { poolsize++ }
+                for (i=1;i<=length(seenlist[g2]);i++) {
+                  yy=substr(seenlist[g2],i,1)
+                  bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
+                  thosealleles[yy] = alleles[g2,yy]
+                  if ( !(yy in thesealleles) ) { poolsize++ }
                 }
 
                 # If not args["mult"] == 1, proceed only if common allele pool has <=2 alleles
