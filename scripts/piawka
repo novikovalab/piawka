@@ -174,7 +174,7 @@ function get_header() {
           ploidy[g] /= 2*groups[g]
         }
         if ( ploidy[g] % 1 != 0 && ( TAJLIKE || args["rho"] == 1 ) ) {
-          print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "TAJLIKE" : "args["rho"] == 1" > "/dev/stderr"
+          print "Warning: mixed ploidy population "g" will give unreliable results with " TAJLIKE ? "Tajima's D" : "Ronfort's rho" > "/dev/stderr"
         }
       }
       # Start processing sites if no need to query by regions?
