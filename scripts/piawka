@@ -25,7 +25,7 @@ function main() {
   argparse::add_argument("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
   argparse::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
   argparse::add_argument("B", "targets", 0, "BED file with targets (faster than -b for numerous small regions)")
-  argparse::add_argument("D", "nodxy", 1, "do not output Dxy (and other pairwise metrics)")
+  argparse::add_argument("D", "nodxy", 1, "do not output Dxy")
   argparse::add_argument("f", "fst", 1, "output Hudson Fst")
   argparse::add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst instead")
   argparse::add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
@@ -34,7 +34,7 @@ function main() {
   argparse::add_argument("j", "jobs", 0, "number of parallel jobs to run")
   argparse::add_argument("m", "mult", 1, "use multiallelic sites")
   argparse::add_argument("M", "miss", 0, "max share of missing GT per group at site, 0.0-1.0")
-  argparse::add_argument("P", "nopi", 1, "do not output pi values")
+  argparse::add_argument("P", "nopi", 1, "do not output pi")
   argparse::add_argument("r", "rho", 1, "output Ronfort's rho")
   argparse::add_argument("t", "tajimalike", 1, "output Tajima's D-like stat (manages missing data but isn't a test)")
   argparse::add_argument("T", "tajima", 1, "output vanilla Tajima's D instead (sensitive to missing data)")
@@ -160,7 +160,7 @@ function get_header() {
          }
       }
       # Store group combinations
-      if ( args["nodxy"] != 1 && args["persite"] != 1 ) {
+      if ( PAIRWISE && args["persite"] != 1 ) {
         for (g in groups) {
           for (g2 in groups) {
             if (g2 < g) { combs[g,g2]++ }
