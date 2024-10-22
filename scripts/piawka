@@ -1,5 +1,5 @@
 #!/bin/sh
-"export" "AWKPATH=$( dirname $( which piawka ) ):$AWKPATH"
+"export" "AWKPATH=$( dirname $0 ):$AWKPATH"
 "export" "LC_ALL=C"
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
