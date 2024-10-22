@@ -1,8 +1,7 @@
 #!/bin/sh
-"export" "PIAWKADIR=$( dirname $0 )"
-"export" "AWKPATH=$PIAWKADIR:$AWKPATH"
+"export" "AWKPATH=$( dirname $0 ):$AWKPATH"
 "export" "LC_ALL=C"
-"exec" "gawk" -f "$0" "--" "$@" && 0 {}
+"exec" "gawk" "-v" "PIAWKADIR=$( dirname $0 )" -f "$0" "--" "$@" && 0 {}
 
 @load "fork"
 @load "filefuncs"
@@ -14,9 +13,9 @@ BEGIN{
   OFS="\t"
   usage="piawka v0.8.6\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
-  summarize_blks=ENVIRON["PIAWKADIR"] "/summarize_blks.awk"
-  make_windows=ENVIRON["PIAWKADIR"] "/make_windows.awk"
-  aggregate_regions=ENVIRON["PIAWKADIR"] "/aggregate_regions.awk"
+  summarize_blks=PIAWKADIR"/summarize_blks.awk"
+  make_windows=PIAWKADIR"/make_windows.awk"
+  aggregate_regions=PIAWKADIR"/aggregate_regions.awk"
   exit main()
 }
 
