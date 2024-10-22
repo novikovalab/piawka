@@ -1,5 +1,6 @@
 #!/bin/sh
-"export" "AWKPATH=$( dirname $0 ):$AWKPATH"
+"export" "PIAWKADIR=$( dirname $0 )"
+"export" "AWKPATH=$PIAWKADIR:$AWKPATH"
 "export" "LC_ALL=C"
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
@@ -13,6 +14,9 @@ BEGIN{
   OFS="\t"
   usage="piawka v0.8.5\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
+  summarize_blks=ENVIRON["PIAWKADIR"] "/summarize_blks.awk"
+  make_windows=ENVIRON["PIAWKADIR"] "/make_windows.awk"
+  aggregate_regions=ENVIRON["PIAWKADIR"] "/aggregate_regions.awk"
   exit main()
 }
 
@@ -66,7 +70,7 @@ function main() {
 
   if ( args["jobs"] > 1 ) {
     if ( args["bed"] == "" ) {
-      printf "" | "summarize_blks.awk" # initialize pipe
+      printf "" | summarize_blks # initialize pipe
     }
   } else { 
     args["jobs"]=1 
@@ -126,9 +130,9 @@ function get_bedcmd() {
   if ( args["bed"] != "" ) {
     return "gawk 1 "args["bed"]
   } else if (args["targets"] != "") {
-    return "aggregate_regions.awk "args["targets"] 
+    return aggregate_regions" "args["targets"] 
   } else {
-    return "make_windows.awk -v "args["vcf"]" -s "header_length
+    return make_windows" -v "args["vcf"]" -s "header_length
   }
 }
 
@@ -445,7 +449,7 @@ function process_sites(region, locus,
 
 END {
   if (pid>0) {
-    close("summarize_blks.awk")
+    close(summarize_blks)
     while(wait()>0){}
   }
   if (pid>0) { print "" > "/dev/stderr" } # to start next prompt on new line
@@ -457,7 +461,7 @@ function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denom
       out = out"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   }
   if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] != 1 ) {
-    print out | "summarize_blks.awk"
+    print out | summarize_blks
   } else {
     print out
   }

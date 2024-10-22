@@ -1,5 +1,5 @@
 #!/bin/sh
-"export" "AWKPATH=$( dirname $( which piawka ) ):$AWKPATH"
+"export" "AWKPATH=$( dirname $0 ):$AWKPATH"
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 #
 # Convert VCF to BED, each region has a certain #lines 
