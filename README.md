@@ -41,7 +41,7 @@ Options:
 -a, --all           output more cols: numerator, denominator, nGeno, nMiss
 -b, --bed <arg>     BED file with regions to be analyzed
 -B, --targets <arg> BED file with targets (faster than -b for numerous small regions)
--D, --nodxy         do not output Dxy (and other pairwise metrics)
+-D, --nodxy         do not output Dxy
 -f, --fst           output Hudson Fst
 -F, --fstwc         output Weir and Cockerham Fst instead
 -g, --groups <arg>  2-columns sample ID / group ID TSV file
