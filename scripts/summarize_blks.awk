@@ -23,6 +23,7 @@ BEGIN{ OFS="\t" }
 }
 
 END{
+  printf "\033[2K\r" > "/dev/stderr" # empty stderr line
   for (i in nSites) {
     split(i, pops, SUBSEP)
     if ( denominator[i] ) {

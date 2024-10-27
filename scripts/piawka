@@ -97,8 +97,8 @@ function main() {
       NSITES=$3-$2
       reg = $1":"$2+1"-"$3
       name = ( $4 == "" ? reg : $4 )
-      process_sites(reg, name)
       say("Job " jobnum " window/region " ++bufline, 1)
+      process_sites(reg, name)
     }
     close(buffer)
     return 0
