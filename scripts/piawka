@@ -533,8 +533,7 @@ function check_file(file,   cmd) {
 function say(string, same_line) {
   if (args["quiet"]) { return }
   if (same_line) {
-    printf "\033[2K\r" > "/dev/stderr"
-    printf string > "/dev/stderr"
+    printf "\033[2K\r" string > "/dev/stderr"
   } else {
     print string > "/dev/stderr"
   }
