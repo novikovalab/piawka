@@ -460,7 +460,7 @@ function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denom
   if ( VERBOSE ) { 
       out = out"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   }
-  out = "\033[2K\r"out # write over error messages
+  printf "\033[2K\r" > "/dev/stderr" # write over error messages
   if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] != 1 ) {
     print out | summarize_blks
   } else {
