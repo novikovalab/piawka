@@ -5,6 +5,8 @@
 
 The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and some more simple stats (Fst, Tajima's D, Ronfort's rho) in VCF files in the command line. Developed to analyze arbitrary-ploidy groups with substantial amounts of missing data.
 
+> :warning: `piawka` is under development. If something does not seem to work well, check for updates and do not hesitate to file an issue!
+
 [wiki](https://github.com/novikovalab/piawka/wiki)
 
 # Install it!
@@ -33,7 +35,7 @@ export PATH="$( realpath ./piawka/scripts ):${PATH}"
 
 ```console
 $ piawka
-piawka v0.8.6
+piawka v0.8.7
 Usage:
 piawka -g groups_tsv -v vcf_gz [OPTIONS]
 Options:
@@ -49,8 +51,9 @@ Options:
 -H, --het           output only per-sample pi = heterozygosity
 -j, --jobs <arg>    number of parallel jobs to run
 -m, --mult          use multiallelic sites
--M, --miss          max share of missing GT per group at site
--P, --nopi          do not output pi values
+-M, --miss <arg>    max share of missing GT per group at site, 0.0-1.0
+-P, --nopi          do not output pi
+-q, --quiet         do not output progress and warning messages
 -r, --rho           output Ronfort's rho
 -t, --tajimalike    output Tajima's D-like stat (manages missing data but isn't a test)
 -T, --tajima        output vanilla Tajima's D instead (sensitive to missing data)
