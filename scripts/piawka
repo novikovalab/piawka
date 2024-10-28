@@ -1,6 +1,5 @@
 #!/bin/sh
 "export" "AWKPATH=$( dirname $0 ):$AWKPATH"
-"export" "AWK_HASH=fnv1a"
 "export" "LC_ALL=C"
 "exec" "gawk" "-v" "PIAWKADIR=$( dirname $0 )" -f "$0" "--" "$@" && 0 {}
 
