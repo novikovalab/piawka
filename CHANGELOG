@@ -1,5 +1,6 @@
 (2024-10-31) 0.8.8  : add "unite" and "divide" keywords for --groups,
-                      improve argparse behavior
+                      improve argparse behavior,
+                      add piawka2nexus script
 
 (2024-10-27) 0.8.7  : fixed v0.8.6 introducing special characters to output,
                       add --quiet option
