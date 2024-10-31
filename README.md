@@ -35,18 +35,19 @@ export PATH="$( realpath ./piawka/scripts ):${PATH}"
 
 ```console
 $ piawka
-piawka v0.8.7
+piawka v0.8.8
 Usage:
 piawka -g groups_tsv -v vcf_gz [OPTIONS]
 Options:
 -1, --persite       output values for each site
 -a, --all           output more cols: numerator, denominator, nGeno, nMiss
 -b, --bed <arg>     BED file with regions to be analyzed
--B, --targets <arg> BED file with targets (faster than -b for numerous small regions)
+-B, --targets <arg> BED file with targets (faster for numerous small regions)
 -D, --nodxy         do not output Dxy
 -f, --fst           output Hudson Fst
 -F, --fstwc         output Weir and Cockerham Fst instead
--g, --groups <arg>  2-columns sample ID / group ID TSV file
+-g, --groups <arg>  either 2-columns sample / group table or 
+                    keywords "unite" (1 group) or "divide" (n_samples groups)
 -h, --help          show this help message
 -H, --het           output only per-sample pi = heterozygosity
 -j, --jobs <arg>    number of parallel jobs to run
@@ -55,8 +56,8 @@ Options:
 -P, --nopi          do not output pi
 -q, --quiet         do not output progress and warning messages
 -r, --rho           output Ronfort's rho
--t, --tajimalike    output Tajima's D-like stat (manages missing data but isn't a test)
--T, --tajima        output vanilla Tajima's D instead (sensitive to missing data)
+-t, --tajimalike    output TajimaD-like stat (manages missing data but untested)
+-T, --tajima        output classic TajimaD instead (affected by missing data)
 -v, --vcf <arg>     gzipped and tabixed VCF file
 ```
 
