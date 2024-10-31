@@ -28,7 +28,7 @@ function main() {
   argparse::add_argument("D", "nodxy", 1, "do not output Dxy")
   argparse::add_argument("f", "fst", 1, "output Hudson Fst")
   argparse::add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst instead")
-  argparse::add_argument("g", "groups", 0, "2-columns sample ID / group ID TSV file")
+  argparse::add_argument("g", "groups", 0, "either \"unite\", \"divide\" or 2-columns sample / group table")
   argparse::add_argument("h", "help", 1, "show this help message")
   argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
   argparse::add_argument("j", "jobs", 0, "number of parallel jobs to run")
@@ -64,7 +64,9 @@ function main() {
   VERBOSE=( args["all"] || ( args["jobs"]>1 && args["bed"]=="" ) )
   TAJLIKE=( args["tajima"] || args["tajimalike"] )
 
-  get_groups()
+  if ( ( args["groups"] != "unite" ) && ( args["groups"] != "divide" ) ) {
+    get_groups()
+  }
   get_header()
   print_header()
 
@@ -154,10 +156,16 @@ function get_header() {
 
       # Assign sample positions to groups
       for (i=10; i<=NF; i++) {
-        if ( groupmem[$i] != "" ) { 
-           groupindex[i]=groupmem[$i]
-           groups[groupmem[$i]]++
-         }
+        if ( args["groups"]=="unite" ) {
+          groupindex[i]="all_samples"
+          groups["all_samples"]++
+        } else if ( args["groups"]=="divide" ) {
+          groupindex[i]=$i
+          groups[$i]++
+        } else if ( groupmem[$i] != "" ) { 
+          groupindex[i]=groupmem[$i]
+          groups[groupmem[$i]]++
+        }
       }
       # Store group combinations
       if ( PAIRWISE && args["persite"] != 1 ) {
