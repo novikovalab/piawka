@@ -2,56 +2,57 @@
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 
 # Convert piawka Dxy values into NEXUS distance matrix.
-# Input is piawka output (only lines with Dxy).
+# Input is piawka output.
 # If loci are many, weighted average is taken.
 # This version produces output compatible with:
 #   R function phangorn::write.nexus.dist()
 #   SplitsTree
 #   spectre netmake
 #
-# Assumptions about input data:
-#  - only rows with Dxy present (either `piawka --nopi` or `grep Dxy piawka_output`)
-#  - each comparison of groups has some data in the output
+# By default, Dxy is used. Can be changed to other metric like
+# piawka2nexus.awk METRIC=Fst_HUD file.tsv
 
 BEGIN{
   OFS="\t"
+  METRIC="Dxy"
 }
 
-$2 != "nSites" {
+$6 == METRIC {
+  samples[$3]++
+  samples[$4]++
   dist[$3,$4]+=( $9 ? $8 : ($7*$5) )
   scal[$3,$4]+=( $9 ? $9 : $5 )
 }
 
 END {
-  for (i in dist) {
-    s=index(i, SUBSEP)
-    s1=substr(i,1,s-1)
-    s2=substr(i,s+1)
-    if (!(s1 in wasfirst)) { nsamples++; wasfirst[s1]=0 }
-    if (!(s2 in wasfirst)) { nsamples++; wasfirst[s2]=0 }
-    wasfirst[s1]++
-  }
-  for (i in wasfirst) { sortfirst[wasfirst[i]]=i }
   print "#NEXUS"
   print ""
   print "BEGIN TAXA;"
-  print "\tDIMENSIONS ntax="nsamples";"
+  print "\tDIMENSIONS ntax="length(samples)";"
   printf "\tTAXLABELS";
-  for (i=0;i<nsamples;i++) { printf " %s", sortfirst[i] }
+  for (i in samples) { printf " %s", i }
   print " ;"
   print "END;"
   print ""
   print "BEGIN DISTANCES;"
-  print "\tDIMENSIONS ntax="nsamples";" # needed for spectre to work
-  print "\tFORMAT TRIANGLE = LOWER LABELS = LEFT;" # labels=left needed for spectre to work
+  print "\tDIMENSIONS ntax="length(samples)";" # needed for spectre to work
+  print "\tFORMAT TRIANGLE = BOTH LABELS = LEFT;" # labels=left needed for spectre to work
   print "\tMatrix"
-  for(i=0;i<nsamples;i++) {
-    printf("\t%s", sortfirst[i])
-    for(j=0;j<i;j++) { 
-      printf(" %.6f", dist[sortfirst[i],sortfirst[i-j-1]] / scal[sortfirst[i],sortfirst[i-j-1]]) 
+  for(i in samples) {
+    dist[i,i]=0
+    scal[i,i]=1
+    printf("\t%s", i)
+    for(j in samples) { 
+      if (i SUBSEP j in scal) {
+        printf(" %.6f", dist[i,j] / scal[i,j] )
+      } else if (j SUBSEP i in scal) {
+        printf(" %.6f", dist[j,i] / scal[j,i] )
+      } else {
+        printf(" NaN")
+      }
     }
-    print " 0.000000"
   }
+  printf "\n"
   print "\t;"
   print "END;"
 }
