@@ -19,7 +19,7 @@ BEGIN{
   aggregate_regions=PIAWKADIR"/aggregate_regions.awk"
 
   parse_arguments()
-  print_header()
+  configure_run()
   exit main()
 }
 
@@ -57,7 +57,7 @@ function parse_arguments() {
   getopt::Opterr = 1 # print getopt errs
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
-  if (args["help"] || ARGC==1 ) { print help; exit 0 }
+  if ( args["help"] || ARGC==1 ) { print help; exit 0 }
 
   # Some arg checks
   assert( args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
@@ -66,9 +66,9 @@ function parse_arguments() {
   if ( args["targets"] != "" ) { check_file( args["targets"] ) }
 }
 
-function main() {
-    
-  # Set default variable values
+function configure_run() {
+# Set default variable values, prepare index arrays and pipes
+
   if ( args["fst"] == 1 ) { FST="HUD" }
   if ( args["fstwc"] == 1 ) { FST="WC" }
   if ( args["miss"] == "" ) { args["miss"]=1 }
@@ -92,10 +92,16 @@ function main() {
     args["jobs"]=1 
   }
 
-  # The lines below are only executed if many jobs are invoked
+  print_header()
+}
 
+function main() {
+
+  input_from_regions=( args["bed"]!="" || args["targets"]!="" )
+
+  # Children: listen to query regions dispenser
   for ( jobnum=0; jobnum < args["jobs"]; jobnum++ ) { 
-    if ( args["jobs"]==1 && args["bed"]=="" && args["targets"]=="" ) {break}
+    if ( args["jobs"]==1 && !(input_from_regions) ) { break }
     buffer = "cat #"jobnum
     buffers[buffer]++
     printf "" |& buffer # initialize pipe
@@ -119,9 +125,8 @@ function main() {
     return 0
   }
   
-  # The lines below are executed by the parent
-
-  if ( args["jobs"]>1 || args["bed"] != "" || args["targets"] != "" ) {
+  # Parent process: dispense query regions or just scan the whole file
+  if ( args["jobs"]>1 || input_from_regions ) {
     bedcmd = get_bedcmd()
     while ( bedcmd | getline > 0 ) {
       jobnum=bedline++ % args["jobs"]
@@ -139,7 +144,6 @@ function main() {
   } 
   return 0
 }
-
 
 function get_bedcmd() {
   if ( args["bed"] != "" ) {
