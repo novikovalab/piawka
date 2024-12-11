@@ -17,6 +17,9 @@ BEGIN{
   summarize_blks=PIAWKADIR"/summarize_blks.awk"
   make_windows=PIAWKADIR"/make_windows.awk"
   aggregate_regions=PIAWKADIR"/aggregate_regions.awk"
+
+  parse_arguments()
+  print_header()
   exit main()
 }
 
@@ -28,7 +31,7 @@ function check_gawk_version(    gawk_version) {
   }
 }
 
-function main() {
+function parse_arguments() {
   # add_argument args: shortopt, longopt, is_flag, description
   argparse::add_argument("1", "persite", 1, "output values for each site")
   argparse::add_argument("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
@@ -54,13 +57,17 @@ function main() {
   getopt::Opterr = 1 # print getopt errs
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
-  if (args["help"] || ARGC==1 ) { print help; return 0 }
+  if (args["help"] || ARGC==1 ) { print help; exit 0 }
 
+  # Some arg checks
   assert( args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
   assert( ( args["groups"] != "" || args["het"] == 1 ), "required argument: -g <groups.tsv>" )
   if ( args["bed"] != "" ) { check_file( args["bed"] ) }
   if ( args["targets"] != "" ) { check_file( args["targets"] ) }
+}
 
+function main() {
+    
   # Set default variable values
   if ( args["fst"] == 1 ) { FST="HUD" }
   if ( args["fstwc"] == 1 ) { FST="WC" }
@@ -68,7 +75,6 @@ function main() {
   if ( args["mult"] == 1 && args["rho"] == 1 ) {
     say("Warning: rho was not meant for multiallelic sites")
   }
-    
   PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] )
   VERBOSE=( args["all"] || ( args["jobs"]>1 && args["bed"]=="" ) )
   TAJLIKE=( args["tajima"] || args["tajimalike"] )
@@ -77,7 +83,6 @@ function main() {
     get_groups()
   }
   get_header()
-  print_header()
 
   if ( args["jobs"] > 1 ) {
     if ( args["bed"] == "" ) {
