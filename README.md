@@ -1,7 +1,7 @@
 ``piawka`` <img src="logo/logo.svg" align="right" width="25%">
 ==========
 
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/piawka/README.html)
+[![Conda Downloads](https://img.shields.io/conda/dn/bioconda/piawka?style=for-the-badge&label=bioconda%20downloads&color=FA9E89)](http://bioconda.github.io/recipes/piawka/README.html)
 
 The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and some more simple stats (Fst, Tajima's D, Ronfort's rho) in VCF files in the command line. Developed to analyze arbitrary-ploidy groups with substantial amounts of missing data.
 
