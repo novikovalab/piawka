@@ -11,6 +11,7 @@
 
 BEGIN{ 
   check_gawk_version()
+  check_htslib()
   OFS="\t"
   usage="piawka v0.8.10\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
@@ -23,10 +24,18 @@ BEGIN{
   exit main()
 }
 
+function check_htslib(    bgzip_status, tabix_status) {
+  bgzip_status = system("bgzip --version > /dev/null")
+  tabix_status = system("tabix --version > /dev/null")
+  if ( bgzip_status || tabix_status ) {
+    print "Error: could not access dependencies: " ( bgzip_status ? "bgzip" : "" ) " " ( tabix_status ? "tabix" : "" )> "/dev/stderr"
+    exit 1
+  }
+}
 function check_gawk_version(    gawk_version) {
   gawk_version = substr(PROCINFO["version"],1,index(PROCINFO["version"],".")-1)
   if ( gawk_version < 5 ) {
-    print "Error: GNU AWK v5.0.0 or above is needed to run piawka"
+    print "Error: GNU AWK v5.0.0 or above is needed to run piawka" > "/dev/stderr"
     exit 1
   }
 }
