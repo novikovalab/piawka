@@ -59,6 +59,7 @@ Options:
 -t, --tajimalike    output TajimaD-like stat (manages missing data but untested)
 -T, --tajima        output classic TajimaD instead (affected by missing data)
 -v, --vcf <arg>     gzipped and tabixed VCF file
+-w, --watterson     output Watterson's theta
 ```
 
 See the [wiki](https://github.com/novikovalab/piawka/wiki) for further details.
