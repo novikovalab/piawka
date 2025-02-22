@@ -82,6 +82,9 @@ function configure_run() {
   if ( args["fst"] == 1 ) { FST="HUD" }
   if ( args["fstwc"] == 1 ) { FST="WC" }
   if ( args["miss"] == "" ) { args["miss"]=1 }
+  if ( args["jobs"] > 1 && ( args["tajima"] || args["tajimalike"] ) ) {
+    say("Warning: Tajima's D is (a bit) less precise in multithreaded mode due to averaging across windows")
+  }
   if ( args["mult"] == 1 && args["rho"] == 1 ) {
     say("Warning: rho was not meant for multiallelic sites")
   }
@@ -229,7 +232,7 @@ function process_sites(region, locus,
                        numerator, denominator, 
                        allgeno, allmiss,
                        fst_numerator, fst_denominator,
-                       segr, truesegr,
+                       segr, truesegr, a1, a2,
                        Hsnum, Hsden, Htnum, Htden, Hspnum) {
   if ( locus == "" ) { locus="_" } # empty locus breaks summarize_blks.awk
   # Skip header in case of bgzip stream
@@ -327,9 +330,10 @@ function process_sites(region, locus,
         for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
 
         if ( TAJLIKE && nseen[g]==2 ) {
-          for (i=1;i<nalleles[g];i++) { a1[g]+=1/i; a2[g]+=1/i^2 }
-          if ( args["tajimalike"]==1 ) { segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] ) }
           truesegr[g]++
+          a1[g]+=harm(nalleles[g]-1) 
+          a2[g]+=harm2(nalleles[g]-1)
+          if ( args["tajimalike"]==1 ) { segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] ) }
         }
 
         if ( args["persite"] == 1 ) { 
@@ -453,13 +457,13 @@ function process_sites(region, locus,
       a1[g]/=truesegr[g]
       a2[g]/=truesegr[g]
       if ( args["watterson"] ) {
-        printOutput( locus, nSites, g, ".", nUsed[g], "thetaW", truesegr[g], a1[g], allgeno[g], allmiss[g] )
+        printOutput( locus, nSites, g, ".", truesegr[g], "thetaW", truesegr[g], a1[g], allgeno[g], allmiss[g] )
       }
       if ( args["tajima"] || args["tajimalike"] ) {
         if ( args["tajima"] ) { segr[g]=truesegr[g] }
         tajnum[g]= tP[g] - segr[g]/a1[g]
         tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] )
-        printOutput( locus, nSites, g, ".", nUsed[g], args["tajima"] ? "TajD" : "TajD-like", tajnum[g], tajden[g], allgeno[g], allmiss[g] )
+        printOutput( locus, nSites, g, ".", truesegr[g], args["tajima"] ? "TajD" : "TajD-like", tajnum[g], tajden[g], allgeno[g], allmiss[g] )
       }
     }
   }
@@ -505,6 +509,20 @@ function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denom
   } else {
     print out
   }
+}
+
+function harm( n ) {
+ # Return Nth harmonic number
+ if ( n == 0 ) { return 0 }
+ if ( !(n in _harm) ) { _harm[n]= 1/n + harm(n-1) }
+ return _harm[n]
+}
+
+function harm2( n ) {
+ # Return Nth second harmonic number
+ if ( n == 0 ) { return 0 }
+ if ( !(n in _harm2) ) { _harm2[n]= 1/n^2 + harm2(n-1) }
+ return _harm2[n]
 }
 
 function incrementFstHudson( a1, a2, n1, n2 ) {
