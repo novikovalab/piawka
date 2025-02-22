@@ -43,6 +43,6 @@ END{
       finvalue[i]=numerator[i]/denominator[i]"\t"numerator[i]"\t"denominator[i]"\t"nGeno[i]"\t"nMiss[i]
     }
     print pops[1], nSites[i], pops[2], pops[3], allnUsed[i], pops[4], finvalue[i]
-    }
+  }
 }
 

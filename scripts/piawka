@@ -43,7 +43,6 @@ function check_gawk_version(    gawk_version) {
 function parse_arguments() {
   # add_argument args: shortopt, longopt, is_flag, description
   argparse::add_argument("1", "persite", 1, "output values for each site")
-  argparse::add_argument("a", "all", 1, "output more cols: numerator, denominator, nGeno, nMiss")
   argparse::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
   argparse::add_argument("B", "targets", 0, "BED file with targets (faster for numerous small regions)")
   argparse::add_argument("D", "nodxy", 1, "do not output Dxy")
@@ -89,7 +88,6 @@ function configure_run() {
     say("Warning: rho was not meant for multiallelic sites")
   }
   PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] )
-  VERBOSE=( args["all"] || ( args["jobs"]>1 && args["bed"]=="" ) )
   TAJLIKE=( args["tajima"] || args["tajimalike"] || args["watterson"] )
 
   if ( ( args["groups"] != "unite" ) && ( args["groups"] != "divide" ) ) {
@@ -339,11 +337,10 @@ function process_sites(region, locus,
         if ( args["persite"] == 1 ) { 
           if ( thisden[g] && args["nopi"] != 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
         } else {
-            numerator[g]+=thisnum[g]; denominator[g]+=thisden[g] 
-            if ( VERBOSE ) {
-              allmiss[g]+=miss[g]
-              allgeno[g]+=nalleles[g]
-            }
+            numerator[g]+=thisnum[g]
+            denominator[g]+=thisden[g] 
+            allmiss[g]+=miss[g]
+            allgeno[g]+=nalleles[g]
           }
 
         # Calculate pi between this group and all other groups with <50% missing data
@@ -499,10 +496,7 @@ END {
 }
 
 function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
-  out=locus"\t"nSites"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator
-  if ( VERBOSE ) { 
-      out = out"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
-  }
+  out=locus"\t"nSites"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   say("", 1) # overwrite error messages
   if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] != 1 ) {
     print out | summarize_blks
@@ -574,11 +568,7 @@ function assert(condition, explanation) {
 }
 
 function print_header() {
-  if ( VERBOSE != 1 ) {
-    print "locus", "nSites", "pop1", "pop2", "nUsed", "metric", "value"
-  } else {
     print "locus", "nSites", "pop1", "pop2", "nUsed", "metric", "value", "numerator", "denominator", "nGeno", "nMiss"
-  }
 }
 
 function check_file(file,   cmd) {
