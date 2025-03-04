@@ -18,6 +18,7 @@ BEGIN{
   summarize_blks=PIAWKADIR"/summarize_blks.awk"
   make_windows=PIAWKADIR"/make_windows.awk"
   aggregate_regions=PIAWKADIR"/aggregate_regions.awk"
+  tmpcmd="mktemp --tmpdir piawka.XXXXXXXX"
 
   parse_arguments()
   print_header()
@@ -116,6 +117,14 @@ function main() {
     buffer = "cat #"jobnum
     buffers[buffer]++
     printf "" |& buffer # initialize pipe
+
+    if (tmpcmd | getline outbuffer <= 0 ) {
+      say("failed to create tempfile for job "jobnum)
+      return 1
+    }
+    close(tmpcmd)
+    outbuffers[outbuffer]++
+
     pid=fork()
     if ( pid>0 ) { continue } 
     close(buffer, "to") # children don't print to buffer
@@ -491,8 +500,14 @@ END {
   if (pid>0) {
     close(summarize_blks)
     while(wait()>0){}
+    for (o in outbuffers) {
+      while ( getline < o > 0 ) {
+        print
+      }
+      close(o)
+      system("rm "o)
+    }
   }
-  if (pid>0) { say("") } # to start next prompt on new line
 }
 
 function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
@@ -500,6 +515,8 @@ function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denom
   say("", 1) # overwrite error messages
   if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] != 1 ) {
     print out | summarize_blks
+  } else if ( args["jobs"] > 1 ) {
+    print out > outbuffer
   } else {
     print out
   }
