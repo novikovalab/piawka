@@ -97,11 +97,7 @@ function configure_run() {
   }
   get_header()
 
-  if ( args["jobs"] > 1 ) {
-    if ( args["bed"] == "" ) {
-      printf "" | summarize_blks # initialize pipe
-    }
-  } else { 
+  if ( args["jobs"] <= 1 ) {
     args["jobs"]=1 
   }
 
@@ -498,24 +494,26 @@ function process_sites(region, locus,
 
 END {
   if (pid>0) {
-    close(summarize_blks)
     while(wait()>0){}
     for (o in outbuffers) {
       while ( getline < o > 0 ) {
-        print
+        if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] != 1 ) {
+          print | summarize_blks
+        } else {
+          print
+        }
       }
       close(o)
       system("rm "o)
     }
+    close(summarize_blks)
   }
 }
 
 function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
   out=locus"\t"nSites"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   say("", 1) # overwrite error messages
-  if ( args["bed"] == "" && args["jobs"] > 1 && args["persite"] != 1 ) {
-    print out | summarize_blks
-  } else if ( args["jobs"] > 1 ) {
+  if ( args["jobs"] > 1 ) {
     print out > outbuffer
   } else {
     print out
