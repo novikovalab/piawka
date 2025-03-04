@@ -40,7 +40,6 @@ Usage:
 piawka -g groups_tsv -v vcf_gz [OPTIONS]
 Options:
 -1, --persite       output values for each site
--a, --all           output more cols: numerator, denominator, nGeno, nMiss
 -b, --bed <arg>     BED file with regions to be analyzed
 -B, --targets <arg> BED file with targets (faster for numerous small regions)
 -D, --nodxy         do not output Dxy
