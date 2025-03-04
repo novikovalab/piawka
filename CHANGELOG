@@ -1,6 +1,6 @@
 (2025-02-09) 0.8.10 : fix multiple headers when multiple jobs redirect to file,
-                      small code cleanup,
-                      add Watterson's theta
+                      add Watterson's theta,
+                      small code improvements
 
 (2024-12-01) 0.8.9  : add GAWK version test,
                       improve piawka2nexus
