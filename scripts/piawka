@@ -463,7 +463,7 @@ function process_sites(region, locus,
       a1[g]/=truesegr[g]
       a2[g]/=truesegr[g]
       if ( args["watterson"] ) {
-        printOutput( locus, nSites, g, ".", truesegr[g], "thetaW", truesegr[g], a1[g], allgeno[g], allmiss[g] )
+        printOutput( locus, nSites, g, ".", truesegr[g], "thetaW", truesegr[g]/nUsed[g], a1[g], allgeno[g], allmiss[g] )
       }
       if ( args["tajima"] || args["tajimalike"] ) {
         if ( args["tajima"] ) { segr[g]=truesegr[g] }
