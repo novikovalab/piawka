@@ -1,3 +1,8 @@
+(2025-03-04) 0.8.11 : report Watterson's theta per site,
+                      improve piawka2dist (former piawka2nexus),
+                      improve output handling by multiple processes through tempfiles,
+                      further fight the multiple headers bug
+
 (2025-02-09) 0.8.10 : fix multiple headers when multiple jobs redirect to file,
                       add Watterson's theta,
                       small code improvements

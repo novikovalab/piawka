@@ -13,7 +13,7 @@ BEGIN{
   check_gawk_version()
   check_htslib()
   OFS="\t"
-  usage="piawka v0.8.10\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
+  usage="piawka v0.8.11\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
   summarize_blks=PIAWKADIR"/summarize_blks.awk"
   make_windows=PIAWKADIR"/make_windows.awk"
