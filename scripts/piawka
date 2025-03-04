@@ -20,6 +20,7 @@ BEGIN{
   aggregate_regions=PIAWKADIR"/aggregate_regions.awk"
 
   parse_arguments()
+  print_header()
   configure_run()
   exit main()
 }
@@ -103,7 +104,6 @@ function configure_run() {
     args["jobs"]=1 
   }
 
-  print_header()
 }
 
 function main() {
