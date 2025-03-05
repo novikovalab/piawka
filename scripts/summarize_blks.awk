@@ -2,9 +2,7 @@
 "exec" "gawk" -f "$0" "--" "$@" && 0 {}
 #
 # This script summarizes piawka results counted over several loci.
-# It guesses if VERBOSE=1 was set by the number of fields.
-# If not, it takes mean value weighted by nUsed across all lines with same locus, pop1, pop2 and metric.
-# If yes, it divides sum of numerators by sum of denominators.
+# It simply divides sum of numerators by sum of denominators.
 
 BEGIN{ OFS="\t" }
 
@@ -14,7 +12,7 @@ NR==1 {
     exit 1
   } 
 }
-{ 
+$7 != "value" && $7==$7 { # exclude header and NaNs 
   nSites[$1,$3,$4,$6]+=$2
   allnUsed[$1,$3,$4,$6]+=$5
   denominator[$1,$3,$4,$6]+=$9
