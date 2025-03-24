@@ -394,7 +394,7 @@ function process_sites(region, locus,
             if (!thisden[g2]) {
               thisnum[g2]=nalleles[g2]^2
               thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
-              for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x2]^2 }
+              for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x]^2 }
             }
             # Here Hs = average of pi values of two populations,
             #      Ht = pi of two populations pooled,
