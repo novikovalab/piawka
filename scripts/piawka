@@ -387,8 +387,9 @@ function process_sites(region, locus,
             else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
             thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
             if ( diddiff==0 ) { 
-              thisdiff=thesealleles[x]*nalleles[g2]-thosealleles[x]*nalleles[g]
-              diffn[g,g2]+=(thisdiff >= 0 ? thisdiff : -thisdiff )
+              thisdiff[g,g2]=thesealleles[x]*nalleles[g2]-thosealleles[x]*nalleles[g]
+              thisdiff[g,g2]=(thisdiff[g,g2] >= 0 ? thisdiff[g,g2] : -thisdiff[g,g2] )
+              diffn[g,g2]+=thisdiff[g,g2]
               diddiff=1
             }
             if ( FST ) {
@@ -418,6 +419,7 @@ function process_sites(region, locus,
           }
           if ( args["persite"] == 1 ) { 
             if ( thisden[g,g2] && args["nodxy"] != 1 ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( thisden[g,g2] && args["diff"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "AFdiff", thisdiff[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( args["rho"] == 1 ) { 
               Hs = thisHsnum/thisHsden
