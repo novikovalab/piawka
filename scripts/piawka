@@ -18,7 +18,6 @@ BEGIN{
   summarize_blks=PIAWKADIR"/summarize_blks.awk"
   make_windows=PIAWKADIR"/make_windows.awk"
   aggregate_regions=PIAWKADIR"/aggregate_regions.awk"
-  tmpcmd="mktemp --tmpdir piawka.XXXXXXXX"
 
   parse_arguments()
   print_header()
@@ -97,7 +96,14 @@ function configure_run() {
   }
   get_header()
 
-  if ( args["jobs"] <= 1 ) {
+  if ( args["jobs"] > 1 ) {
+    tmpcmd="mktemp -d piawkatmp.XXXXXXXX"
+    if ( tmpcmd | getline tmpdir <= 0 ) {
+      say("Error: failed to create temporary directory!")
+      exit 1
+    }
+    close(tmpcmd)
+  } else {
     args["jobs"]=1 
   }
 
@@ -113,14 +119,8 @@ function main() {
     buffer = "cat #"jobnum
     buffers[buffer]++
     printf "" |& buffer # initialize pipe
-
-    if (tmpcmd | getline outbuffer <= 0 ) {
-      say("failed to create tempfile for job "jobnum)
-      return 1
-    }
-    close(tmpcmd)
+    outbuffer=tmpdir "/" jobnum ".tmp"
     outbuffers[outbuffer]++
-
     pid=fork()
     if ( pid>0 ) { continue } 
     close(buffer, "to") # children don't print to buffer
@@ -504,9 +504,10 @@ END {
         }
       }
       close(o)
-      system("rm "o)
+      system("rm -f "o)
     }
     close(summarize_blks)
+    system("rm -r "tmpdir)
   }
 }
 
