@@ -46,6 +46,7 @@ function parse_arguments() {
   argparse::add_argument("1", "persite", 1, "output values for each site")
   argparse::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
   argparse::add_argument("B", "targets", 0, "BED file with targets (faster for numerous small regions)")
+  argparse::add_argument("d", "diff", 1, "output allele frequency difference (biallelic only)")
   argparse::add_argument("D", "nodxy", 1, "do not output Dxy")
   argparse::add_argument("f", "fst", 1, "output Hudson Fst")
   argparse::add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst instead")
@@ -84,6 +85,9 @@ function configure_run() {
   if ( args["miss"] == "" ) { args["miss"]=1 }
   if ( args["jobs"] > 1 && ( args["tajima"] || args["tajimalike"] ) ) {
     say("Warning: Tajima's D is (a bit) less precise in multithreaded mode due to averaging across windows")
+  }
+  if ( args["mult"] == 1 && args["diff"] == 1 ) {
+    say("Warning: AFdiff is not meaningful for multiallelic sites")
   }
   if ( args["mult"] == 1 && args["rho"] == 1 ) {
     say("Warning: rho was not meant for multiallelic sites")
@@ -376,11 +380,17 @@ function process_sites(region, locus,
           thisnum[g,g2]=nalleles[g]*nalleles[g2]
           thisden[g,g2]=thisnum[g,g2]
           if ( FST ) { thisfstnum=""; thisfstden="" }
+          if ( args["diff"] ) { diddiff=0 }
           for ( x in bothalleles ) { 
             # gawk breaks here if you don't set uninitialized array elems to 0
             if ( !(x in thesealleles) ) { thesealleles[x]=0 }
             else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
             thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+            if ( diddiff==0 ) { 
+              thisdiff=thesealleles[x]*nalleles[g2]-thosealleles[x]*nalleles[g]
+              diffn[g,g2]+=(thisdiff >= 0 ? thisdiff : -thisdiff )
+              diddiff=1
+            }
             if ( FST ) {
               if ( FST=="HUD" ) { 
                 incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
@@ -476,6 +486,9 @@ function process_sites(region, locus,
     split(i, ii, SUBSEP)
     if ( args["nodxy"] != 1 ) {
     printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+    }
+    if ( args["diff"] ) {
+      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
     }
     if ( fst_denominator[i] ) { 
       printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
