@@ -312,7 +312,10 @@ function process_sites(region, locus,
 
     if ( args["het"] != 1 ) {
       for ( g in seenlist ) {
-        if ( miss[g]/(miss[g]+nalleles[g]) > args["miss"] || ( args["mult"] != 1 && nseen[g]>2 ) ) { continue }
+        if ( miss[g]/(miss[g]+nalleles[g]) > args["miss"] || ( args["mult"] != 1 && nseen[g]>2 ) ) { 
+          delete seenlist[g]
+          continue 
+        }
 
         # Increment number of sites used for calculation
         nUsed[g]++
@@ -325,6 +328,8 @@ function process_sites(region, locus,
           bothalleles[xx]++
           thesealleles[xx] = alleles[g,xx]
         }
+
+        delete seenlist[g]
 
         # Add to pi: probability that two randomly picked alleles differ
         # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
@@ -351,7 +356,6 @@ function process_sites(region, locus,
         # Calculate pi between this group and all other groups with <50% missing data
         if ( !PAIRWISE ) { continue }
         for ( g2 in seenlist ) {
-          if ( g2 >= g || miss[g2]/(miss[g2]+nalleles[g2]) > args["miss"] || ( args["mult"] != 1 && nseen[g2]>2 ) ) { continue }
         
           # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
           poolsize=nseen[g]
