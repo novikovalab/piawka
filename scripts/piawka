@@ -201,14 +201,6 @@ function get_header() {
           groups[groupmem[$i]]++
         }
       }
-      # Store group combinations
-      if ( PAIRWISE && args["persite"] != 1 ) {
-        for (g in groups) {
-          for (g2 in groups) {
-            if (g2 < g) { combs[g,g2]++ }
-          }
-        }
-      }
       # Assign ploidy to groups using variant calls from next line, detect mixed-ploidy groups
       if ( TAJLIKE || args["rho"] == 1 ) {
         cmd | getline
@@ -451,47 +443,46 @@ function process_sites(region, locus,
     }
   }
 
-  for (g in groups) {
-    if ( nUsed[g] <= 0 ) { continue }
-    pinum[g] = numerator[g]
-    piden[g] = denominator[g] 
-    if ( args["nopi"] != 1 ) {
-      printOutput( locus, nSites, g, ".", nUsed[g], args["het"] == 1 ? "het" : "pi", pinum[g], piden[g], allgeno[g], allmiss[g] )
-    }
-    if ( TAJLIKE && truesegr[g] ) {
-      tP[g]=pinum[g]/piden[g]*nUsed[g]
-      a1[g]/=truesegr[g]
-      a2[g]/=truesegr[g]
-      if ( args["watterson"] ) {
-        printOutput( locus, nSites, g, ".", truesegr[g], "thetaW", truesegr[g]/nUsed[g], a1[g], allgeno[g], allmiss[g] )
+  for (i in nUsed) {
+    if ( index(i, SUBSEP) == 0 ) {
+      pinum[i] = numerator[i]
+      piden[i] = denominator[i] 
+      if ( args["nopi"] != 1 ) {
+        printOutput( locus, nSites, g, ".", nUsed[i], args["het"] == 1 ? "het" : "pi", pinum[i], piden[i], allgeno[i], allmiss[i] )
       }
-      if ( args["tajima"] || args["tajimalike"] ) {
-        if ( args["tajima"] ) { segr[g]=truesegr[g] }
-        tajnum[g]= tP[g] - segr[g]/a1[g]
-        tajden[g]=calcTajimaVar( segr[g], a1[g], a2[g], nalleles[g]+miss[g] )
-        printOutput( locus, nSites, g, ".", truesegr[g], args["tajima"] ? "TajD" : "TajD-like", tajnum[g], tajden[g], allgeno[g], allmiss[g] )
+      if ( TAJLIKE && truesegr[i] ) {
+        tP[i]=pinum[i]/piden[i]*nUsed[i]
+        a1[i]/=truesegr[i]
+        a2[i]/=truesegr[i]
+        if ( args["watterson"] ) {
+          printOutput( locus, nSites, g, ".", truesegr[i], "thetaW", truesegr[i]/nUsed[i], a1[i], allgeno[i], allmiss[i] )
+        }
+        if ( args["tajima"] || args["tajimalike"] ) {
+          if ( args["tajima"] ) { segr[i]=truesegr[i] }
+          tajnum[i]= tP[i] - segr[i]/a1[i]
+          tajden[i]=calcTajimaVar( segr[i], a1[i], a2[i], nalleles[i]+miss[i] )
+          printOutput( locus, nSites, g, ".", truesegr[i], args["tajima"] ? "TajD" : "TajD-like", tajnum[i], tajden[i], allgeno[i], allmiss[i] )
+        }
       }
-    }
-  }
-  for (i in combs) {
-    if ( nUsed[i] <= 0 ) { continue } 
-    dxynum[i] = numerator[i]
-    dxyden[i] = denominator[i] 
-    split(i, ii, SUBSEP)
-    if ( args["nodxy"] != 1 ) {
-    printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
-    }
-    if ( fst_denominator[i] ) { 
-      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
-    }
-    if ( args["rho"] == 1 && Hsden[i] && Htden[i] ) { 
-      Hs= Hsnum[i]/Hsden[i]
-      Ht= Htnum[i]/Htden[i]
-      Hsp= Hspnum[i]/Hsden[i]
-      Hpt= Hs + 2 * (Ht - Hs)
-      rho_numerator=Hpt-Hs
-      rho_denominator=Hpt-Hsp
-      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Rho", rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+    } else {
+      dxynum[i] = numerator[i]
+      dxyden[i] = denominator[i] 
+      split(i, ii, SUBSEP)
+      if ( args["nodxy"] != 1 ) {
+      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+      }
+      if ( fst_denominator[i] ) { 
+        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+      }
+      if ( args["rho"] == 1 && Hsden[i] && Htden[i] ) { 
+        Hs= Hsnum[i]/Hsden[i]
+        Ht= Htnum[i]/Htden[i]
+        Hsp= Hspnum[i]/Hsden[i]
+        Hpt= Hs + 2 * (Ht - Hs)
+        rho_numerator=Hpt-Hs
+        rho_denominator=Hpt-Hsp
+        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Rho", rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+      }
     }
   }
 }
