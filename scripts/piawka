@@ -86,13 +86,10 @@ function configure_run() {
   if ( args["jobs"] > 1 && ( args["tajima"] || args["tajimalike"] ) ) {
     say("Warning: Tajima's D is (a bit) less precise in multithreaded mode due to averaging across windows")
   }
-  if ( args["mult"] == 1 && args["diff"] == 1 ) {
-    say("Warning: AFdiff is not meaningful for multiallelic sites")
-  }
   if ( args["mult"] == 1 && args["rho"] == 1 ) {
     say("Warning: rho was not meant for multiallelic sites")
   }
-  PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] )
+  PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] || args["diff"] )
   TAJLIKE=( args["tajima"] || args["tajimalike"] || args["watterson"] )
 
   if ( ( args["groups"] != "unite" ) && ( args["groups"] != "divide" ) ) {
@@ -380,17 +377,16 @@ function process_sites(region, locus,
           thisnum[g,g2]=nalleles[g]*nalleles[g2]
           thisden[g,g2]=thisnum[g,g2]
           if ( FST ) { thisfstnum=""; thisfstden="" }
-          if ( args["diff"] ) { diddiff=0 }
           for ( x in bothalleles ) { 
             # gawk breaks here if you don't set uninitialized array elems to 0
             if ( !(x in thesealleles) ) { thesealleles[x]=0 }
             else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
             thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
-            if ( diddiff==0 ) { 
-              thisdiff[g,g2]=thesealleles[x]*nalleles[g2]-thosealleles[x]*nalleles[g]
+            if ( args["diff"] ) { 
+              thisdiff[g,g2]=thesealleles[x]*nalleles[g2] - thosealleles[x]*nalleles[g]
               thisdiff[g,g2]=(thisdiff[g,g2] >= 0 ? thisdiff[g,g2] : -thisdiff[g,g2] )
               diffn[g,g2]+=thisdiff[g,g2]
-              diddiff=1
+              diffd[g,g2]+=thisden[g,g2]
             }
             if ( FST ) {
               if ( FST=="HUD" ) { 
@@ -419,7 +415,7 @@ function process_sites(region, locus,
           }
           if ( args["persite"] == 1 ) { 
             if ( thisden[g,g2] && args["nodxy"] != 1 ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-            if ( thisden[g,g2] && args["diff"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "AFdiff", thisdiff[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+              if ( thisden[g,g2] && args["diff"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "AFdiff", thisdiff[g,g2], length(bothalleles) * thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( args["rho"] == 1 ) { 
               Hs = thisHsnum/thisHsden
@@ -490,7 +486,7 @@ function process_sites(region, locus,
     printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
     }
     if ( args["diff"] ) {
-      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], diffd[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
     }
     if ( fst_denominator[i] ) { 
       printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
