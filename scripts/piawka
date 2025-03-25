@@ -387,9 +387,8 @@ function process_sites(region, locus,
             thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
             if ( args["diff"] ) { 
               thisdiff[g,g2]=thesealleles[x]*nalleles[g2] - thosealleles[x]*nalleles[g]
-              thisdiff[g,g2]=(thisdiff[g,g2] >= 0 ? thisdiff[g,g2] : -thisdiff[g,g2] )
+              thisdiff[g,g2]*=(thisdiff[g,g2] >= 0 ? 0.5 : -0.5 )
               diffn[g,g2]+=thisdiff[g,g2]
-              diffd[g,g2]+=thisden[g,g2]
             }
             if ( FST ) {
               if ( FST=="HUD" ) { 
@@ -418,7 +417,7 @@ function process_sites(region, locus,
           }
           if ( args["persite"] == 1 ) { 
             if ( thisden[g,g2] && args["nodxy"] != 1 ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-              if ( thisden[g,g2] && args["diff"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "AFdiff", thisdiff[g,g2], length(bothalleles) * thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+              if ( thisden[g,g2] && args["diff"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "AFdiff", thisdiff[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( args["rho"] == 1 ) { 
               Hs = thisHsnum/thisHsden
@@ -489,7 +488,7 @@ function process_sites(region, locus,
     printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
     }
     if ( args["diff"] ) {
-      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], diffd[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
     }
     if ( fst_denominator[i] ) { 
       printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
