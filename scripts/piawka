@@ -86,6 +86,9 @@ function configure_run() {
   if ( args["jobs"] > 1 && ( args["tajima"] || args["tajimalike"] ) ) {
     say("Warning: Tajima's D is (a bit) less precise in multithreaded mode due to averaging across windows")
   }
+  if ( args["diff"] == 1 && args["rho"] == 1 ) {
+    say("Warning: AFdiff is not reliable in multiallelic sites")
+  }
   if ( args["mult"] == 1 && args["rho"] == 1 ) {
     say("Warning: rho was not meant for multiallelic sites")
   }
