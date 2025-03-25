@@ -304,10 +304,11 @@ function process_sites(region, locus,
 
     if ( args["het"] != 1 ) {
       for ( g in seenlist ) {
-        if ( miss[g]/(miss[g]+nalleles[g]) > args["miss"] || ( args["mult"] != 1 && nseen[g]>2 ) ) { 
+        if ( ( args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > args["miss"] ) || ( args["mult"] != 1 && nseen[g]>2 ) ) { 
           delete seenlist[g]
-          continue 
         }
+      }
+      for ( g in seenlist ) {
 
         # Increment number of sites used for calculation
         nUsed[g]++
@@ -448,20 +449,20 @@ function process_sites(region, locus,
       pinum[i] = numerator[i]
       piden[i] = denominator[i] 
       if ( args["nopi"] != 1 ) {
-        printOutput( locus, nSites, g, ".", nUsed[i], args["het"] == 1 ? "het" : "pi", pinum[i], piden[i], allgeno[i], allmiss[i] )
+        printOutput( locus, nSites, i, ".", nUsed[i], args["het"] == 1 ? "het" : "pi", pinum[i], piden[i], allgeno[i], allmiss[i] )
       }
       if ( TAJLIKE && truesegr[i] ) {
         tP[i]=pinum[i]/piden[i]*nUsed[i]
         a1[i]/=truesegr[i]
         a2[i]/=truesegr[i]
         if ( args["watterson"] ) {
-          printOutput( locus, nSites, g, ".", truesegr[i], "thetaW", truesegr[i]/nUsed[i], a1[i], allgeno[i], allmiss[i] )
+          printOutput( locus, nSites, i, ".", truesegr[i], "thetaW", truesegr[i]/nUsed[i], a1[i], allgeno[i], allmiss[i] )
         }
         if ( args["tajima"] || args["tajimalike"] ) {
           if ( args["tajima"] ) { segr[i]=truesegr[i] }
           tajnum[i]= tP[i] - segr[i]/a1[i]
           tajden[i]=calcTajimaVar( segr[i], a1[i], a2[i], nalleles[i]+miss[i] )
-          printOutput( locus, nSites, g, ".", truesegr[i], args["tajima"] ? "TajD" : "TajD-like", tajnum[i], tajden[i], allgeno[i], allmiss[i] )
+          printOutput( locus, nSites, i, ".", truesegr[i], args["tajima"] ? "TajD" : "TajD-like", tajnum[i], tajden[i], allgeno[i], allmiss[i] )
         }
       }
     } else {
