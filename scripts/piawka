@@ -233,7 +233,7 @@ function process_sites(region, locus,
   # Skip header in case of bgzip stream
   if ( region != "" ) { 
     skip_header=header_length
-    cmd="tabix "args["vcf"]( args["targets"]!=""?" -T "args["targets"]:"" )" "region 
+    cmd = "tabix "args["vcf"]( args["targets"]!=""?" -T "args["targets"]:"" )" "region 
   } else {
     cmd="bgzip -dc "args["vcf"]
 }
@@ -255,9 +255,27 @@ function process_sites(region, locus,
     }
 
     # Process only SNPs (possibly monomorphic or multiallelic)
-    # To obtain results identical to ksamuk/pixy, set $5 !~ /\*|,|[ACGT][ACGT]/
-    # To process SNPs that only have one ALT allele
-    if ( $4 !~ /^[ACGT]$/ || $5 ~ /\*|[ACGT][ACGT]/ ) { continue }
+    # To obtain results identical to ksamuk/pixy, set $4 !~ /^[ACGT]$/ && $5 !~ /\*|,|[ACGT][ACGT]/
+    if (length($4)>1) { continue } # if REF is multi-nucleotide, skip
+    if ( $5 == "*" ) { continue }
+    delete ALT
+    ALT[a=0]=1
+
+    # only consider single-char ALT that are not *
+    if ( length($5)>1 ) {
+      while (x=index($5,",")) {
+        a++
+        if (x == 2 && substr($5,1,1)!="*") {
+          ALT[a]=1
+        }
+        $5=substr($5,x+1)
+      }
+      if ($5 != "*" && length($5)==1) { ALT[++a]=1 }
+      if ( length(ALT)==1 ) { continue } # if no ALT alleles pass, skip
+    } else {
+      ALT[1]=1
+    }
+
     #TODO: add check for chromosome not to summarize stats across chrs
   
     if ( args["persite"] == 1 ) { $1=locus"_"$1 }
@@ -281,6 +299,10 @@ function process_sites(region, locus,
           miss[grp]+=gtend/2
           break
         } else {
+          if ( !(al in ALT) ) { 
+            miss[grp]++
+            continue
+          }
           if ( args["het"] == 1 ) { thisal[al]++ }
           alleles[grp,al]++
           nalleles[grp]++
