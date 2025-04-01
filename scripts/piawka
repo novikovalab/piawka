@@ -257,7 +257,6 @@ function process_sites(region, locus,
     # Process only SNPs (possibly monomorphic or multiallelic)
     # To obtain results identical to ksamuk/pixy, set $4 !~ /^[ACGT]$/ && $5 !~ /\*|,|[ACGT][ACGT]/
     if (length($4)>1) { continue } # if REF is multi-nucleotide, skip
-    if ( $5 == "*" ) { continue }
     delete ALT
     ALT[a=0]=1
 
@@ -272,7 +271,7 @@ function process_sites(region, locus,
       }
       if ($5 != "*" && length($5)==1) { ALT[++a]=1 }
       if ( length(ALT)==1 ) { continue } # if no ALT alleles pass, skip
-    } else {
+    } else if ( $5 != "*" ) {
       ALT[1]=1
     }
 
@@ -281,7 +280,7 @@ function process_sites(region, locus,
     if ( args["persite"] == 1 ) { $1=locus"_"$1 }
   
     # Reset site-specific parameters
-    for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0 }
+    for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0; exclude[g]=0 }
     delete alleles
     delete seen
     delete seenlist
@@ -291,6 +290,7 @@ function process_sites(region, locus,
     # Pool GT values for groups, count each state and missing data
     for (i in groupindex) {
       grp=groupindex[i]
+      if ( exclude[grp] ) { continue }
       gtend=index( $i, ":" )
       if ( gtend==0 ) { gtend=length($i)+1 }
       for (c=1; c<gtend; c+=2) {
@@ -300,8 +300,8 @@ function process_sites(region, locus,
           break
         } else {
           if ( !(al in ALT) ) { 
-            miss[grp]++
-            continue
+            exclude[grp]=1
+            break
           }
           if ( args["het"] == 1 ) { thisal[al]++ }
           alleles[grp,al]++
@@ -326,7 +326,7 @@ function process_sites(region, locus,
 
     if ( args["het"] != 1 ) {
       for ( g in seenlist ) {
-        if ( ( args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > args["miss"] ) || ( args["mult"] != 1 && nseen[g]>2 ) ) { 
+        if ( exclude[g] || ( args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > args["miss"] ) || ( args["mult"] != 1 && nseen[g]>2 ) ) { 
           delete seenlist[g]
         }
       }
