@@ -270,7 +270,6 @@ function process_sites(region, locus,
         $5=substr($5,x+1)
       }
       if ($5 != "*" && length($5)==1) { ALT[++a]=1 }
-      if ( length(ALT)==1 ) { continue } # if no ALT alleles pass, skip
     } else if ( $5 != "*" ) {
       ALT[1]=1
     }
