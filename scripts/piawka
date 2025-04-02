@@ -58,6 +58,7 @@ function parse_arguments() {
   argparse::add_argument("P", "nopi", 1, "do not output pi")
   argparse::add_argument("q", "quiet", 1, "do not output progress and warning messages")
   argparse::add_argument("r", "rho", 1, "output Ronfort's rho")
+  argparse::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
   argparse::add_argument("t", "tajimalike", 1, "output TajimaD-like stat (manages missing data but untested)")
   argparse::add_argument("T", "tajima", 1, "output classic TajimaD instead (affected by missing data)")
   argparse::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
@@ -115,6 +116,7 @@ function main() {
 
   # Children: listen to query regions dispenser
   for ( jobnum=0; jobnum < args["jobs"]; jobnum++ ) { 
+    if ( args["rand"] ) { srand( xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
     if ( args["jobs"]==1 && !(input_from_regions) ) { break }
     buffer = "cat #"jobnum
     buffers[buffer]++
@@ -253,6 +255,9 @@ function process_sites(region, locus,
       if ( !minpos[$1] ) { minpos[$1]=$2 }
       maxpos[$1]=$2
     }
+
+    # Randomly excluded sites are added to nSites
+    if ( args["rand"] && ( rand() > args["rand"] ) ) { continue }
 
     # Process only SNPs (possibly monomorphic or multiallelic)
     # To obtain results identical to ksamuk/pixy, set $4 !~ /^[ACGT]$/ && $5 !~ /\*|,|[ACGT][ACGT]/
