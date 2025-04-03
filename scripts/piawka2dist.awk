@@ -3,18 +3,18 @@
 
 BEGIN{
 help="\
-    Convert piawka Dxy values into NEXUS distance matrix.\n\
-    Input is piawka output.\n\
+    Convert piawka Dxy values into a distance matrix.\n\
+    Input is piawka output with some pairwise statistic in.\n\
+    By default, Dxy is used. Can be changed to other metric (Fst, rho etc.)\n\
     If loci are many, weighted average is taken.\n\
-    By default, Dxy is used. Can be changed to other metric like\n\
     EXAMPLE: \n\tpiawka2dist.awk [OPTIONS] file.tsv > distance_file\n\
     OPTIONS:\n\
     METRIC=Dxy   -- piawka metric to use as distance\n\
-    OUT=nexus    -- output format (nexus or phylip)"
+    OUT=phylip    -- output format (nexus or phylip)"
   if (ARGC == 1) {print help; quiet_exit=1; exit 1}
   OFS="\t"
   METRIC="Dxy"
-  OUT="nexus"
+  OUT="phylip"
 }
 
 $6 == METRIC {
