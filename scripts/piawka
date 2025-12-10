@@ -121,6 +121,8 @@ function configure_run() {
       exit 1
     }
     close(tmpcmd)
+    # We can't trap an exec'ed script but we can do this:
+    system( "{ while kill -0 "PROCINFO["pid"]" 2>/dev/null; do sleep 1; done; rm -r "tmpdir"; } &" )
   } else {
     args["jobs"]=1 
   }
