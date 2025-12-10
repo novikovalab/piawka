@@ -62,7 +62,7 @@ function parse_arguments() {
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
   if ( args["help"] || ARGC==1 ) { print help; exit 0 }
-  split("dxy het fst fstwc pi tajima tajimalike rho watterson", _statslist, " ")
+  split("diff dxy het fst fstwc pi tajima tajimalike rho watterson", _statslist, " ")
   for (i in _statslist) {
     statslist[_statslist[i]]=1
   } 
@@ -100,10 +100,13 @@ function configure_run() {
   if ( args["jobs"] > 1 && ( args["tajima"] || args["tajimalike"] ) ) {
     say("Warning: Tajima's D is (a bit) less precise in multithreaded mode due to averaging across windows")
   }
+  if ( args["diff"] == 1 && args["rho"] == 1 ) {
+    say("Warning: AFdiff is not reliable in multiallelic sites")
+  }
   if ( args["mult"] == 1 && args["rho"] == 1 ) {
     say("Warning: rho was not meant for multiallelic sites")
   }
-  PAIRWISE=( args["dxy"] || args["fst"] || args["fstwc"] || args["rho"] )
+  PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] || args["diff"] )
   TAJLIKE=( args["tajima"] || args["tajimalike"] || args["watterson"] )
 
   if ( ( args["groups"] != "unite" ) && ( args["groups"] != "divide" ) ) {
@@ -416,6 +419,11 @@ function process_sites(region, locus,
             if ( !(x in thesealleles) ) { thesealleles[x]=0 }
             else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
             thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+            if ( args["diff"] ) { 
+              thisdiff[g,g2]=thesealleles[x]*nalleles[g2] - thosealleles[x]*nalleles[g]
+              thisdiff[g,g2]*=(thisdiff[g,g2] >= 0 ? 0.5 : -0.5 )
+              diffn[g,g2]+=thisdiff[g,g2]
+            }
             if ( FST ) {
               if ( FST=="HUD" ) { 
                 incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
@@ -443,6 +451,7 @@ function process_sites(region, locus,
           }
           if ( args["persite"] == 1 ) { 
             if ( thisden[g,g2] && args["dxy"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( thisden[g,g2] && args["diff"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "AFdiff", thisdiff[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( args["rho"] == 1 ) { 
               Hs = thisHsnum/thisHsden
@@ -509,6 +518,9 @@ function process_sites(region, locus,
       split(i, ii, SUBSEP)
       if ( args["dxy"] ) {
       printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+      }
+      if ( args["diff"] ) {
+        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
       }
       if ( fst_denominator[i] ) { 
         printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
