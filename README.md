@@ -65,5 +65,5 @@ See the [wiki](https://github.com/novikovalab/piawka/wiki) for further details.
 
 # Cite it!
 
-If you want to express your gratitude for having `piawka`, please cite our [Siberian *Arabidopsis* paper](https://www.biorxiv.org/content/10.1101/2024.08.27.609292) where we have introduced and first used it.
+If you want to express your gratitude for having `piawka`, please cite our [Siberian *Arabidopsis* paper](https://doi.org/10.1093/molbev/msaf153) where we have introduced and first used it.
 
