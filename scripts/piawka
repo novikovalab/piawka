@@ -155,7 +155,7 @@ function main() {
       NSITES=$3-$2
       reg = $1":"$2+1"-"$3
       name = ( $4 == "" ? reg : $4 )
-      say("Job " jobnum " window/region " ++bufline, 1)
+      say("Job " sprintf("%*d", length(args["jobs"]), jobnum) " window/region " ++bufline, 1)
       process_sites(reg, name)
     }
     close(buffer)
@@ -555,7 +555,6 @@ END {
       system("rm -f "o)
     }
     close(summarize_blks)
-    system("rm -r "tmpdir)
   }
 }
 
