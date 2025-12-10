@@ -46,29 +46,43 @@ function parse_arguments() {
   argparse::add_argument("1", "persite", 1, "output values for each site")
   argparse::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
   argparse::add_argument("B", "targets", 0, "BED file with targets (faster for numerous small regions)")
-  argparse::add_argument("D", "nodxy", 1, "do not output Dxy")
-  argparse::add_argument("f", "fst", 1, "output Hudson Fst")
-  argparse::add_argument("F", "fstwc", 1, "output Weir and Cockerham Fst instead")
   argparse::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (1 group) or \"divide\" (n_samples groups)")
   argparse::add_argument("h", "help", 1, "show this help message")
-  argparse::add_argument("H", "het", 1, "output only per-sample pi = heterozygosity")
   argparse::add_argument("j", "jobs", 0, "number of parallel jobs to run")
-  argparse::add_argument("m", "mult", 1, "use multiallelic sites")
+  argparse::add_argument("l", "list", 1, "list all available statistics and exit")
+  argparse::add_argument("m", "mult", 1, "use populations with multiple alleles at a site")
   argparse::add_argument("M", "miss", 0, "max share of missing GT per group at site, 0.0-1.0")
-  argparse::add_argument("P", "nopi", 1, "do not output pi")
   argparse::add_argument("q", "quiet", 1, "do not output progress and warning messages")
-  argparse::add_argument("r", "rho", 1, "output Ronfort's rho")
   argparse::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
-  argparse::add_argument("t", "tajimalike", 1, "output TajimaD-like stat (manages missing data but untested)")
-  argparse::add_argument("T", "tajima", 1, "output classic TajimaD instead (affected by missing data)")
+  argparse::add_argument("s", "stats", 0, "stats to calculate, comma-separated, e.g. \"pi,dxy,fst\"; full list under `piawka -l`")
   argparse::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
-  argparse::add_argument("w", "watterson", 1, "output Watterson's theta")
   help = usage "\n" argparse::format_help()
   getopt::Optind = 1 # start with 1st opt
   getopt::Opterr = 1 # print getopt errs
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
   if ( args["help"] || ARGC==1 ) { print help; exit 0 }
+  split("dxy het fst fstwc pi tajima tajimalike rho watterson", _statslist, " ")
+  for (i in _statslist) {
+    statslist[_statslist[i]]=1
+  } 
+  if ( args["list"] ) {
+    for (i in statslist) {
+      print statslist[i]
+    }
+    exit 0
+  }
+  if ( args["stats"] ) {
+    split( tolower(args["stats"]), statargs, "," )
+    for (i in statargs) { 
+      assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
+      stats[statargs[i]]=1 # make a separate stats array later to have fewer arguments 
+      args[statargs[i]]=1
+    }
+    if ("het" in stats) {
+      assert( length(stats)==1, "het cannot be combined with other statistics")
+    }
+  }
 
   # Some arg checks
   assert( args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
@@ -89,7 +103,7 @@ function configure_run() {
   if ( args["mult"] == 1 && args["rho"] == 1 ) {
     say("Warning: rho was not meant for multiallelic sites")
   }
-  PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] )
+  PAIRWISE=( args["dxy"] || args["fst"] || args["fstwc"] || args["rho"] )
   TAJLIKE=( args["tajima"] || args["tajimalike"] || args["watterson"] )
 
   if ( ( args["groups"] != "unite" ) && ( args["groups"] != "divide" ) ) {
@@ -235,7 +249,7 @@ function process_sites(region, locus,
   # Skip header in case of bgzip stream
   if ( region != "" ) { 
     skip_header=header_length
-    cmd = "tabix "args["vcf"]( args["targets"]!=""?" -T "args["targets"]:"" )" "region 
+    cmd = "tabix " args["vcf"] ( args["targets"]!="" ? " -T " args["targets"]:"" ) " " region 
   } else {
     cmd="bgzip -dc "args["vcf"]
 }
@@ -362,7 +376,7 @@ function process_sites(region, locus,
         }
 
         if ( args["persite"] == 1 ) { 
-          if ( thisden[g] && args["nopi"] != 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
+          if ( thisden[g] && args["pi"] ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
         } else {
             numerator[g]+=thisnum[g]
             denominator[g]+=thisden[g] 
@@ -428,7 +442,7 @@ function process_sites(region, locus,
             thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
           }
           if ( args["persite"] == 1 ) { 
-            if ( thisden[g,g2] && args["nodxy"] != 1 ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( thisden[g,g2] && args["dxy"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( args["rho"] == 1 ) { 
               Hs = thisHsnum/thisHsden
@@ -472,7 +486,7 @@ function process_sites(region, locus,
     if ( index(i, SUBSEP) == 0 ) {
       pinum[i] = numerator[i]
       piden[i] = denominator[i] 
-      if ( args["nopi"] != 1 ) {
+      if ( args["pi"] || args["het"] ) {
         printOutput( locus, nSites, i, ".", nUsed[i], args["het"] == 1 ? "het" : "pi", pinum[i], piden[i], allgeno[i], allmiss[i] )
       }
       if ( TAJLIKE && truesegr[i] ) {
@@ -493,7 +507,7 @@ function process_sites(region, locus,
       dxynum[i] = numerator[i]
       dxyden[i] = denominator[i] 
       split(i, ii, SUBSEP)
-      if ( args["nodxy"] != 1 ) {
+      if ( args["dxy"] ) {
       printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
       }
       if ( fst_denominator[i] ) { 
