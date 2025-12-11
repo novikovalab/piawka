@@ -156,7 +156,7 @@ function main() {
       NSITES=$3-$2
       reg = $1":"$2+1"-"$3
       name = ( $4 == "" ? reg : $4 )
-      say("Processing window/region " curr, 1)
+      say("Running job " curr, 1)
       process_sites(reg, name)
       # in case tmpf is empty, add a few bytes
       print SIGNAL_END_OF_BUFFER > tmpf
@@ -548,7 +548,7 @@ function process_sites(region, locus,
 
 END {
   if (pid>0) {
-    say("\nTotal regions/windows to process: "bufl + (bufl % args["jobs"] > 0 ? args["jobs"] : 0)-1 )
+    say("\nTotal jobs to run: "bufl + (bufl % args["jobs"] > 0 ? args["jobs"] : 0)-1 )
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
       while ( stat(tmpf, _) < 0 || _["size"]==0 ) {
