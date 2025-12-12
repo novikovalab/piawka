@@ -330,7 +330,7 @@ function process_sites() {
   if ( args["persite"] == 1 ) { return 0 }
 
   for (i in nUsed) {
-    if ( index(i, SUBSEP) == 0 ) {
+    if ( split(i, ii, SUBSEP) == 1 ) {
       pinum[i] = numerator[i]
       piden[i] = denominator[i] 
       if ( args["pi"] ) {
@@ -353,7 +353,6 @@ function process_sites() {
     } else {
       dxynum[i] = numerator[i]
       dxyden[i] = denominator[i] 
-      split(i, ii, SUBSEP)
       if ( args["dxy"] ) {
       printOutput( ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
       }
