@@ -120,7 +120,7 @@ function configure_run() {
     exit 1
   }
   close(tmpcmd)
-  # We can't trap an exec'ed script but we can do this:
+  # We can't trap an exec'ed script but we can employ a process to clean the tmpdir after it's done:
   system( "{ while kill -0 "PROCINFO["pid"]" 2>/dev/null; do sleep 1; done; rm -r "tmpdir"; } &" )
   if ( args["jobs"]==0 ) {
     args["jobs"]=1 
@@ -128,8 +128,6 @@ function configure_run() {
 }
 
 function main() {
-
-  input_from_regions=( args["bed"]!="" || args["targets"]!="" )
 
   # Children: listen to query regions dispenser
   for ( jobnum=0; jobnum < args["jobs"]; jobnum++ ) { 
@@ -150,11 +148,12 @@ function main() {
         print $0 > "/dev/stderr"
         return getl
       }
-      NSITES=$3-$2
-      reg = $1":"$2+1"-"$3
-      name = ( $4 == "" ? reg : $4 )
       say("Running job " curr, 1)
-      process_sites(reg, name)
+      chr=$1
+      start=$2
+      end=$3
+      locus=$4
+      process_sites()
       # in case tmpf is empty, add a few bytes
       print SIGNAL_END_OF_BUFFER > tmpf
       close(tmpf)
@@ -202,7 +201,7 @@ function get_groups() {
 
 # VCF header: assign samples to groups
 function get_header() {
-  cmd="bgzip -dc " args["vcf"]
+  cmd="tabix -H " args["vcf"]
   while ( cmd | getline > 0 ) { 
     header_length++
     if ($0 ~ /^#CHROM/ ) {
@@ -241,33 +240,17 @@ function get_header() {
 }
 
 # Process VCF lines
-function process_sites(region, locus,   
-                       nUsed, nSites, minpos, maxpos, vcfline,
+function process_sites(    nUsed, minpos, maxpos, vcfline,
                        numerator, denominator, 
                        allgeno, allmiss,
                        fst_numerator, fst_denominator,
                        segr, truesegr, a1, a2,
                        Hsnum, Hsden, Htnum, Htden, Hspnum) {
   if ( locus == "" ) { locus="_" } # empty locus breaks summarize_blks.awk
-  if ( region != "" ) { 
-    cmd = "tabix " args["vcf"] ( args["targets"]!="" ? " -T " args["targets"]:"" ) " " region 
-  } else {
-    cmd="tabix " args["vcf"] " $( tabix -l " args["vcf"] " )"
-  }
+  cmd = "tabix " args["vcf"] ( args["targets"]!="" ? " -T " args["targets"]:"" ) " "chr":"start+1"-"end  
   while ( cmd | getline > 0 ) {
     vcfline++
 
-    # Increment nSites
-    if ( NSITES!="" ) { 
-      nSites=NSITES
-    } else if ( pid!="" ) { 
-      nSites++ 
-    } else {
-      if ( !minpos[$1] ) { minpos[$1]=$2 }
-      maxpos[$1]=$2
-    }
-
-    # Randomly excluded sites are added to nSites
     if ( args["rand"] && ( rand() > args["rand"] ) ) { continue }
 
     # Process only SNPs (possibly monomorphic or multiallelic)
@@ -288,9 +271,10 @@ function process_sites(region, locus,
       ALT[++a]=1
     }
 
-    #TODO: add check for chromosome not to summarize stats across chrs
-  
-    if ( args["persite"] == 1 ) { $1=locus"_"$1 }
+    if ( args["persite"] == 1 ) { 
+      start=$2-1
+      end=$2
+    }
   
     # Reset site-specific parameters
     for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; exclude[g]=0 }
@@ -325,7 +309,7 @@ function process_sites(region, locus,
           for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
           denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
         }
-        if ( args["persite"] == 1 ) { printOutput( $1"_"$2, 1, g, ".", 1, "het", numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
+        if ( args["persite"] == 1 ) { printOutput( g, ".", 1, "het", numerator[grp], denominator[grp], nalleles[grp], miss[g] ) }
         delete thisal
       }
     }
@@ -363,7 +347,7 @@ function process_sites(region, locus,
         }
 
         if ( args["persite"] == 1 ) { 
-          if ( thisden[g] && args["pi"] ) { printOutput( $1"_"$2, 1, g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
+          if ( thisden[g] && args["pi"] ) { printOutput( g, ".", 1, "pi", thisnum[g], thisden[g], nalleles[g], miss[g] ) }
         } else {
             numerator[g]+=thisnum[g]
             denominator[g]+=thisden[g] 
@@ -436,9 +420,9 @@ function process_sites(region, locus,
             thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
           }
           if ( args["persite"] == 1 ) { 
-            if ( thisden[g,g2] && args["dxy"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-            if ( thisden[g,g2] && args["diff"] ) { printOutput( $1"_"$2, 1, g, g2, 1, "AFdiff", thisdiff[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-            if ( FST && thisfstden ) { printOutput( $1"_"$2, 1, g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( thisden[g,g2] && args["dxy"] ) { printOutput( g, g2, 1, "Dxy", thisnum[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( thisden[g,g2] && args["diff"] ) { printOutput( g, g2, 1, "AFdiff", thisdiff[g,g2], thisden[g,g2], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+            if ( FST && thisfstden ) { printOutput( g, g2, 1, "Fst_"FST, thisfstnum, thisfstden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
             if ( args["rho"] == 1 ) { 
               Hs = thisHsnum/thisHsden
               Ht = thisHtnum/thisHtden
@@ -446,7 +430,7 @@ function process_sites(region, locus,
               Hpt = Hs + 2 * (Ht - Hs)
               thisrhonum=Hpt-Hs
               thisrhoden=Hpt-Hsp
-              printOutput( $1"_"$2, 1, g, g2, 1, "Rho", thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
+              printOutput( g, g2, 1, "Rho", thisrhonum, thisrhoden, nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
             }
           } else {
               numerator[g,g2]+=thisnum[g,g2]
@@ -470,32 +454,26 @@ function process_sites(region, locus,
   close(cmd)
   if ( pid>0 ) { return 0 }
   if ( args["persite"] == 1 ) { return 0 }
-    
-  if ( length(minpos)>0 ) { 
-    for ( i in minpos ) {
-      nSites+=maxpos[i]-minpos[i]+1
-    }
-  }
 
   for (i in nUsed) {
     if ( index(i, SUBSEP) == 0 ) {
       pinum[i] = numerator[i]
       piden[i] = denominator[i] 
       if ( args["pi"] || args["het"] ) {
-        printOutput( locus, nSites, i, ".", nUsed[i], args["het"] == 1 ? "het" : "pi", pinum[i], piden[i], allgeno[i], allmiss[i] )
+        printOutput( i, ".", nUsed[i], args["het"] == 1 ? "het" : "pi", pinum[i], piden[i], allgeno[i], allmiss[i] )
       }
       if ( TAJLIKE && truesegr[i] ) {
         tP[i]=pinum[i]/piden[i]*nUsed[i]
         a1[i]/=truesegr[i]
         a2[i]/=truesegr[i]
         if ( args["watterson"] ) {
-          printOutput( locus, nSites, i, ".", truesegr[i], "thetaW", truesegr[i]/nUsed[i], a1[i], allgeno[i], allmiss[i] )
+          printOutput( i, ".", truesegr[i], "thetaW", truesegr[i]/nUsed[i], a1[i], allgeno[i], allmiss[i] )
         }
         if ( args["tajima"] || args["tajimalike"] ) {
           if ( args["tajima"] ) { segr[i]=truesegr[i] }
           tajnum[i]= tP[i] - segr[i]/a1[i]
           tajden[i]=calcTajimaVar( segr[i], a1[i], a2[i], nalleles[i]+miss[i] )
-          printOutput( locus, nSites, i, ".", truesegr[i], args["tajima"] ? "TajD" : "TajD-like", tajnum[i], tajden[i], allgeno[i], allmiss[i] )
+          printOutput( i, ".", truesegr[i], args["tajima"] ? "TajD" : "TajD-like", tajnum[i], tajden[i], allgeno[i], allmiss[i] )
         }
       }
     } else {
@@ -503,13 +481,13 @@ function process_sites(region, locus,
       dxyden[i] = denominator[i] 
       split(i, ii, SUBSEP)
       if ( args["dxy"] ) {
-      printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+      printOutput( ii[1], ii[2], nUsed[i], "Dxy", dxynum[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
       }
       if ( args["diff"] ) {
-        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
+        printOutput( ii[1], ii[2], nUsed[i], "AFdiff", diffn[i], dxyden[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] )
       }
       if ( fst_denominator[i] ) { 
-        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+        printOutput( ii[1], ii[2], nUsed[i], "Fst_"FST, fst_numerator[i], fst_denominator[i], allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
       }
       if ( args["rho"] == 1 && Hsden[i] && Htden[i] ) { 
         Hs= Hsnum[i]/Hsden[i]
@@ -518,7 +496,7 @@ function process_sites(region, locus,
         Hpt= Hs + 2 * (Ht - Hs)
         rho_numerator=Hpt-Hs
         rho_denominator=Hpt-Hsp
-        printOutput( locus, nSites, ii[1], ii[2], nUsed[i], "Rho", rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
+        printOutput( ii[1], ii[2], nUsed[i], "Rho", rho_numerator, rho_denominator, allgeno[ii[1]]+allgeno[ii[2]], allmiss[ii[1]]+allmiss[ii[2]] ) 
       }
     }
   }
@@ -529,7 +507,9 @@ END {
     say("Total jobs to run: "bufl + (bufl % args["jobs"] > 0 ? args["jobs"] : 0)-1"\n", 1 )
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
-      while ( stat(tmpf, _) < 0 || _["size"]==0 ) {
+      # to avoid race condition given persite, wait until the child writes to next region
+      tmpfn=tmpdir"/"f+args["jobs"]".tmp"
+      while ( stat(tmpfn, _) < 0 || _["size"]==0 ) {
         system("sleep 1")
       }
       while ( getline < tmpf > 0 ) {
@@ -550,8 +530,8 @@ END {
   }
 }
 
-function printOutput( locus, nSites, pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
-  out=locus"\t"nSites"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
+function printOutput( pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
+  out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   say("", 1) # overwrite error messages
   print out > tmpf
 }
@@ -619,7 +599,7 @@ function assert(condition, explanation) {
 }
 
 function print_header() {
-    print "locus", "nSites", "pop1", "pop2", "nUsed", "metric", "value", "numerator", "denominator", "nGeno", "nMiss"
+    print "#chr", "start", "end", "locus", "pop1", "pop2", "nUsed", "metric", "value", "numerator", "denominator", "nGeno", "nMiss"
 }
 
 function check_file(file,   cmd) {

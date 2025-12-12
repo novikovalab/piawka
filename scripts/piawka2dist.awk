@@ -17,11 +17,11 @@ help="\
   OUT="phylip"
 }
 
-$6 == METRIC {
-  samples[$3]++
-  samples[$4]++
-  dist[$3,$4]+=( $9 ? $8 : ($7*$5) )
-  scal[$3,$4]+=( $9 ? $9 : $5 )
+$8 == METRIC {
+  samples[$5]++
+  samples[$6]++
+  dist[$5,$6]+=$10
+  scal[$5,$6]+=$11
 }
 
 END {
