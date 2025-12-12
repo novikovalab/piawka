@@ -425,18 +425,12 @@ function calculate_within(g) {
   nUsed[g]++
   
   # Extract allele counts of the group
-  delete thesealleles
-  delete bothalleles
-  for (xx in alleles[g]) {
-    bothalleles[xx]++
-    thesealleles[xx] = alleles[g][xx]
-  }
 
   # Add to pi: probability that two randomly picked alleles differ
   # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
   thisnum[g]=nalleles[g]^2
   thisden[g]=nalleles[g]*(nalleles[g]-1)
-  for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
+  for ( x in alleles[g] ) { thisnum[g]-=alleles[g][x]^2 }
 
   if ( TAJLIKE && length(alleles[g])==2 ) {
     truesegr[g]++
@@ -460,11 +454,15 @@ function calculate_between(g,g2) {
   poolsize=length(alleles[g])
 
   # Extract alleles of the group
-  delete thosealleles
+  delete bothalleles
+  for (xx in alleles[g]) {
+    bothalleles[xx]++
+  }
   for (yy in alleles[g2]) {
-    bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
-    thosealleles[yy] = alleles[g2][yy]
-    if ( !(yy in thesealleles) ) { poolsize++ }
+    if ( !(yy in bothalleles) ) { 
+      poolsize++
+      bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
+    }
   }
 
   # If not args["mult"] == 1, proceed only if common allele pool has <=2 alleles
@@ -480,19 +478,19 @@ function calculate_between(g,g2) {
   if ( FST ) { thisfstnum=""; thisfstden="" }
   for ( x in bothalleles ) { 
     # gawk breaks here if you don't set uninitialized array elems to 0
-    if ( !(x in thesealleles) ) { thesealleles[x]=0 }
-    else if ( !(x in thosealleles) ) { thosealleles[x]=0 }
-    thisnum[g,g2]-=thesealleles[x]*thosealleles[x]
+    if ( !(x in alleles[g]) ) { alleles[g][x]=0 }
+    else if ( !(x in alleles[g2]) ) { alleles[g2][x]=0 }
+    thisnum[g,g2]-=alleles[g][x]*alleles[g2][x]
     if ( args["diff"] ) { 
-      thisdiff[g,g2]=thesealleles[x]*nalleles[g2] - thosealleles[x]*nalleles[g]
+      thisdiff[g,g2]=alleles[g][x]*nalleles[g2] - alleles[g2][x]*nalleles[g]
       thisdiff[g,g2]*=(thisdiff[g,g2] >= 0 ? 0.5 : -0.5 )
       diffn[g,g2]+=thisdiff[g,g2]
     }
     if ( FST ) {
       if ( FST=="HUD" ) { 
-        incrementFstHudson( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+        incrementFstHudson( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
       } else if ( FST=="WC" ) { 
-        incrementFstWeirCockerham( thesealleles[x], thosealleles[x], nalleles[g], nalleles[g2] )
+        incrementFstWeirCockerham( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
       } 
       if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
     }
@@ -501,14 +499,14 @@ function calculate_between(g,g2) {
     if (!thisden[g2]) {
       thisnum[g2]=nalleles[g2]^2
       thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
-      for ( x in thosealleles ) { thisnum[g2]-=thesealleles[x]^2 }
+      for ( x in alleles[g2] ) { thisnum[g2]-=alleles[g][x]^2 }
     }
     # Here Hs = average of pi values of two populations,
     #      Ht = pi of two populations pooled,
     #      Hsp = Hs corrected for ploidy
     thisHtnum=(nalleles[g] + nalleles[g2])^2
     thisHtden=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
-    for ( x in bothalleles ) { thisHtnum-=(thesealleles[x]+thosealleles[x])^2 }
+    for ( x in bothalleles ) { thisHtnum-=(alleles[g][x]+alleles[g2][x])^2 }
     thisHsnum = ( (thisnum[g]*thisden[g2] ) + (thisnum[g2]*thisden[g]) )
     thisHsden = 2 * thisden[g] * thisden[g2] # same as Hspden
     thisHspnum = ( (thisnum[g]*thisden[g2]*(ploidy[g]-1)/ploidy[g] ) + (thisnum[g2]*thisden[g]*(ploidy[g2]-1)/ploidy[g2]) )
