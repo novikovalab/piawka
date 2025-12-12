@@ -220,7 +220,7 @@ function get_header() {
         cmd | getline
         # Count alleles for each group, then divide by number of samples
         for (i in groupindex) {
-          ploidy[groupindex[i]] += ( index($i, ":")>0 ? index($i, ":") : length($i)+1 )
+          ploidy[groupindex[i]] += ( ( p = index($i, ":") ) > 0 ? p : length($i)+1 )
         }
         for (g in groups) {
           ploidy[g] /= 2*groups[g]
