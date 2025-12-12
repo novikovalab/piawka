@@ -307,10 +307,8 @@ function process_sites(region, locus,
     if ( args["persite"] == 1 ) { $1=locus"_"$1 }
   
     # Reset site-specific parameters
-    for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; nseen[g]=0; exclude[g]=0 }
+    for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; exclude[g]=0 }
     delete alleles
-    delete seen
-    delete seenlist
     delete thisnum
     delete thisden
 
@@ -331,18 +329,13 @@ function process_sites(region, locus,
             break
           }
           if ( args["het"] == 1 ) { thisal[al]++ }
-          alleles[grp,al]++
+          alleles[grp][al]++
           nalleles[grp]++
-          if ( !seen[grp,al] ) {
-            seen[grp,al]++
-            seenlist[grp]=al seenlist[grp]
-            nseen[grp]++
-          }
         }
       }
       if ( args["het"] == 1 && nalleles[grp] ) {
         nUsed[grp]++
-        if ( args["mult"] == 1 || nseen[grp]<=2 ) {
+        if ( args["mult"] == 1 || length(alleles[grp]) <= 2 ) {
           for ( x in thisal ) { numerator[grp]+=thisal[x]*(nalleles[grp]-thisal[x]) }
           denominator[grp]+=nalleles[grp]*(nalleles[grp]-1)
         }
@@ -352,12 +345,12 @@ function process_sites(region, locus,
     }
 
     if ( args["het"] != 1 ) {
-      for ( g in seenlist ) {
-        if ( exclude[g] || ( args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > args["miss"] ) || ( args["mult"] != 1 && nseen[g]>2 ) ) { 
-          delete seenlist[g]
+      for ( g in alleles ) {
+        if ( exclude[g] || ( args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > args["miss"] ) || ( args["mult"] != 1 && length(alleles[g]) > 2 ) ) { 
+          delete alleles[g]
         }
       }
-      for ( g in seenlist ) {
+      for ( g in alleles ) {
 
         # Increment number of sites used for calculation
         nUsed[g]++
@@ -365,13 +358,10 @@ function process_sites(region, locus,
         # Extract allele counts of the group
         delete thesealleles
         delete bothalleles
-        for (i=1;i<=length(seenlist[g]);i++) {
-          xx=substr(seenlist[g],i,1)
+        for (xx in alleles[g]) {
           bothalleles[xx]++
-          thesealleles[xx] = alleles[g,xx]
+          thesealleles[xx] = alleles[g][xx]
         }
-
-        delete seenlist[g]
 
         # Add to pi: probability that two randomly picked alleles differ
         # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
@@ -379,7 +369,7 @@ function process_sites(region, locus,
         thisden[g]=nalleles[g]*(nalleles[g]-1)
         for ( x in thesealleles ) { thisnum[g]-=thesealleles[x]^2 }
 
-        if ( TAJLIKE && nseen[g]==2 ) {
+        if ( TAJLIKE && length(alleles[g])==2 ) {
           truesegr[g]++
           a1[g]+=harm(nalleles[g]-1) 
           a2[g]+=harm2(nalleles[g]-1)
@@ -397,17 +387,19 @@ function process_sites(region, locus,
 
         # Calculate pi between this group and all other groups with <50% missing data
         if ( !PAIRWISE ) { continue }
-        for ( g2 in seenlist ) {
+        for ( g2 in alleles ) {
+
+          # Only making comparisons one way
+          if (g2<=g) { continue }
         
-          # Is the union of allelic states from g1 and g2 bigger than nseen[g1]?
-          poolsize=nseen[g]
+          # Is the union of allelic states from g1 and g2 bigger than length(alleles[g1])?
+          poolsize=length(alleles[g])
 
           # Extract alleles of the group
           delete thosealleles
-          for (i=1;i<=length(seenlist[g2]);i++) {
-            yy=substr(seenlist[g2],i,1)
+          for (yy in alleles[g2]) {
             bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
-            thosealleles[yy] = alleles[g2,yy]
+            thosealleles[yy] = alleles[g2][yy]
             if ( !(yy in thesealleles) ) { poolsize++ }
           }
 
