@@ -313,12 +313,14 @@ function process_sites() {
       }
       for ( g in alleles ) {
         calculate_within( g )
-        # Calculate pi between this group and all other groups with <50% missing data
-        if ( !PAIRWISE ) { continue }
+      }
+      if ( !PAIRWISE ) { continue }
+      for ( g in alleles ) {
         for ( g2 in alleles ) {
           # Only making comparisons one way
-          if (g2<=g) { continue }
-          calculate_between(g,g2)
+          if (g2>g) { 
+            calculate_between(g,g2)
+          }
         }
       }
     }
@@ -496,11 +498,6 @@ function calculate_between(g,g2) {
     }
   }
   if ( args["rho"] == 1 ) {
-    if (!thisden[g2]) {
-      thisnum[g2]=nalleles[g2]^2
-      thisden[g2]=nalleles[g2]*(nalleles[g2]-1)
-      for ( x in alleles[g2] ) { thisnum[g2]-=alleles[g][x]^2 }
-    }
     # Here Hs = average of pi values of two populations,
     #      Ht = pi of two populations pooled,
     #      Hsp = Hs corrected for ploidy
