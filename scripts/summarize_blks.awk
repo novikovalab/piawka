@@ -29,7 +29,6 @@ $9 != "value" && $9==$9 { # exclude header and NaNs
 }
 
 END{
-  printf "\033[2K\r" > "/dev/stderr" # empty stderr line
   for (i in seen) {
     split(i, pops, SUBSEP)
     finvalue[i]=numerator[i]/denominator[i]"\t"numerator[i]"\t"denominator[i]"\t"nGeno[i]"\t"nMiss[i]

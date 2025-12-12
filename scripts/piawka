@@ -145,7 +145,6 @@ function main() {
         print $0 > "/dev/stderr"
         return getl
       }
-      say("Running job " curr, 1)
       chr=$1
       start=$2
       end=$3
@@ -402,6 +401,7 @@ END {
       while ( stat(tmpfn, _) < 0 || _["size"]==0 ) {
         system("sleep 1")
       }
+      say("Completed job " f, 1)
       while ( getline < tmpf > 0 ) {
         if ( $0 == SIGNAL_END_OF_BUFFER ) {
           break
@@ -545,7 +545,6 @@ function calculate_between(g,g2) {
 
 function printOutput( pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
   out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
-  say("", 1) # overwrite error messages
   print out > tmpf
 }
 
