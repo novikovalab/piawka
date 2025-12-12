@@ -58,15 +58,19 @@ function make_windows(chunk_size,
       last_chr=$1
       minpos=$2
       lastpos=$2
+      lines_seen=1
+    }
+    if ( $2!=lastpos ) {
+      lines_seen++
     }
     # If chromosome changes or #lines > size, print a window
-    if ( $1 != last_chr || ++lines_seen == chunk_size ) {
+    if ( $1 != last_chr || lines_seen == chunk_size ) {
       print last_chr, minpos-1, lastpos,
              (args["number"]==1) ? "win"++window_number : args["vcf"]
       fflush()
       last_chr=$1
       minpos=$2
-      lines_seen=0
+      lines_seen=1
     }
     lastpos=$2
   }
