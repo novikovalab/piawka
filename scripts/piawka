@@ -91,8 +91,6 @@ function parse_arguments() {
 function configure_run() {
 # Set default variable values, prepare index arrays and pipes
 
-  if ( args["fst"] == 1 ) { FST="HUD" }
-  if ( args["fstwc"] == 1 ) { FST="WC" }
   if ( args["miss"] == "" ) { args["miss"]=1 }
   if ( args["jobs"] > 1 && ( args["tajima"] || args["tajimalike"] ) ) {
     say("Warning: Tajima's D is (a bit) less precise in multithreaded mode due to averaging across windows")
@@ -358,7 +356,10 @@ function process_sites() {
         printOutput( ii[1], ii[2], nUsed[i], "AFdiff", num[i]["diff"], den[i]["diff"], allgeno[i], allmiss[i] )
       }
       if ( den[i]["fst"] ) { 
-        printOutput( ii[1], ii[2], nUsed[i], "Fst_"FST, num[i]["fst"], den[i]["fst"], allgeno[i], allmiss[i] ) 
+        printOutput( ii[1], ii[2], nUsed[i], "fst", num[i]["fst"], den[i]["fst"], allgeno[i], allmiss[i] ) 
+      }
+      if ( den[i]["fstwc"] ) { 
+        printOutput( ii[1], ii[2], nUsed[i], "fstwc", num[i]["fstwc"], den[i]["fstwc"], allgeno[i], allmiss[i] ) 
       }
       if ( args["rho"] == 1 && den[i]["Hs"] && den[i]["Ht"] ) { 
         Hs= num[i]["Hs"]/den[i]["Hs"]
@@ -467,10 +468,6 @@ function calculate_between(g,g2) {
   # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
   thisnum[g,g2]["dxy"]=nalleles[g]*nalleles[g2]
   thisden[g,g2]["dxy"]=thisnum[g,g2]["dxy"]
-  if ( FST ) { 
-    thisnum[g,g2]["fst"]=""
-    thisden[g,g2]["fst"]="" 
-  }
   for ( x in bothalleles ) { 
     # gawk breaks here if you don't set uninitialized array elems to 0
     if ( !(x in alleles[g]) ) { alleles[g][x]=0 }
@@ -481,14 +478,13 @@ function calculate_between(g,g2) {
       thisnum[g,g2]["diff"]*=(thisnum[g,g2]["diff"] >= 0 ? 0.5 : -0.5 )
       thisden[g,g2]["diff"]=thisden[g,g2]["dxy"]
     }
-    if ( FST ) {
-      if ( FST=="HUD" ) { 
-        incrementFstHudson( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
-      } else if ( FST=="WC" ) { 
-        incrementFstWeirCockerham( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
-      } 
-      if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+    if ( args["fst"] ) {
+      incrementFstHudson( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
     }
+    if ( args["fstwc"] ) { 
+      incrementFstWeirCockerham( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
+    } 
+    if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
   }
   if ( args["rho"] ) {
     # Here Hs = average of pi values of two populations,
@@ -505,9 +501,10 @@ function calculate_between(g,g2) {
     thisden[g,g2]["Hsp"] = thisden[g,g2]["Hs"]
   }
   if ( args["persite"] == 1 ) { 
-    if ( thisden[g,g2] && args["dxy"] ) { printOutput( g, g2, 1, "Dxy", thisnum[g,g2]["dxy"], thisden[g,g2]["dxy"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-    if ( thisden[g,g2] && args["diff"] ) { printOutput( g, g2, 1, "AFdiff", thisnum[g,g2]["diff"], thisden[g,g2]["diff"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-    if ( FST && thisfstden ) { printOutput( g, g2, 1, "Fst_"FST, thisnum[g,g2]["fst"], thisden[g,g2]["fst"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+    if ( thisden[g,g2]["dxy"] && args["dxy"] ) { printOutput( g, g2, 1, "dxy", thisnum[g,g2]["dxy"], thisden[g,g2]["dxy"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+    if ( thisden[g,g2]["diff"] && args["diff"] ) { printOutput( g, g2, 1, "diff", thisnum[g,g2]["diff"], thisden[g,g2]["diff"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+    if ( thisden[g,g2]["fst"] ) { printOutput( g, g2, 1, "fst", thisnum[g,g2]["fst"], thisden[g,g2]["fst"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
+    if ( thisden[g,g2]["fstwc"] ) { printOutput( g, g2, 1, "fst", thisnum[g,g2]["fstwc"], thisden[g,g2]["fstwc"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
     if ( args["rho"] == 1 ) { 
       Hs = thisnum[g,g2]["Hs"]/thisden[g,g2]["Hs"]
       Ht = thisnum[g,g2]["Ht"]/thisden[g,g2]["Ht"]
@@ -515,7 +512,7 @@ function calculate_between(g,g2) {
       Hpt= Hs + 2 * (Ht - Hs)
       thisnum[g,g2]["rho"]=Hpt-Hs
       thisden[g,g2]["rho"]=Hpt-Hsp
-      printOutput( g, g2, 1, "Rho", thisnum[g,g2]["rho"], thisden[g,g2]["rho"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
+      printOutput( g, g2, 1, "rho", thisnum[g,g2]["rho"], thisden[g,g2]["rho"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
     }
   } else {
       num[g,g2]["diff"]+=thisnum[g,g2]["diff"]
@@ -561,8 +558,8 @@ function incrementFstHudson( a1, a2, n1, n2 ) {
   pi2 = a2 * (n2 - a2) / (n2*(n2-1))
   hw = pi1 + pi2
   hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
-  thisfstnum+=hb-hw
-  thisfstden+=hb
+  thisnum[g,g2]["fst"]+=hb-hw
+  thisden[g,g2]["fst"]+=hb
 } 
 
 function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
@@ -573,8 +570,8 @@ function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
 
   den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
   if ( ! den ) { return } # WC Fst is NaN at uniform sites
-  thisfstnum += den - 2 * sizes * frac * mism
-  thisfstden += den
+  thisnum[g,g2]["fstwc"] += den - 2 * sizes * frac * mism
+  thisden[g,g2]["fstwc"] += den
 }
 
 # Tajima's D-like statistic calculation
