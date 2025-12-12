@@ -548,7 +548,7 @@ function process_sites(region, locus,
 
 END {
   if (pid>0) {
-    say("\nTotal jobs to run: "bufl + (bufl % args["jobs"] > 0 ? args["jobs"] : 0)-1 )
+    say("Total jobs to run: "bufl + (bufl % args["jobs"] > 0 ? args["jobs"] : 0)-1"\n", 1 )
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
       while ( stat(tmpf, _) < 0 || _["size"]==0 ) {
