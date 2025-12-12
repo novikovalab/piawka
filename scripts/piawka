@@ -250,21 +250,18 @@ function get_header() {
 
 # Process VCF lines
 function process_sites(region, locus,   
-                       nUsed, nSites, minpos, maxpos, skip_header, vcfline,
+                       nUsed, nSites, minpos, maxpos, vcfline,
                        numerator, denominator, 
                        allgeno, allmiss,
                        fst_numerator, fst_denominator,
                        segr, truesegr, a1, a2,
                        Hsnum, Hsden, Htnum, Htden, Hspnum) {
   if ( locus == "" ) { locus="_" } # empty locus breaks summarize_blks.awk
-  # Skip header in case of bgzip stream
   if ( region != "" ) { 
-    skip_header=header_length
     cmd = "tabix " args["vcf"] ( args["targets"]!="" ? " -T " args["targets"]:"" ) " " region 
   } else {
-    cmd="bgzip -dc "args["vcf"]
-}
-  while ( ++skip_header <= header_length ) { cmd | getline }
+    cmd="tabix " args["vcf"] " $( tabix -l " args["vcf"] " )"
+  }
   while ( cmd | getline > 0 ) {
     vcfline++
     if ( args["jobs"]==1 && args["persite"] != 1 && region == "" && vcfline % 10000 == 0 ) {
