@@ -62,52 +62,117 @@ function parse_arguments() {
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
   if ( args["help"] || ARGC==1 ) { print help; exit 0 }
-  split("diff dxy fst fstwc pi tajima tajimalike rho watterson", _statslist, " ")
-  for (i in _statslist) {
-    statslist[_statslist[i]]=1
-  } 
+
+  add_stat("diff", "average allele frequency difference", "between")
+  add_stat("dxy", "absolute nucleotide divergence", "between")
+  add_stat("fst", "fixation index, Hudson's estimator", "between")
+  add_stat("fstwc", "fixation index, Weir & Cockerham's estimator", "between")
+  add_stat("pi", "expected heterozygosity = nucleotide diversity")
+  add_stat("tajima", "Tajima's D", "a1,a2,truesegr,pi")
+  add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segr,pi")
+  add_stat("rho", "Ronfort's rho", "between", "Hs,Ht,Hsp,pi")
+  add_stat("watterson", "Watterson's theta", 0, "a1,truesegr")
+  # Helper statistics: accumulators for other stats, are not shown with piawka -l
+  add_stat("a1", "helper: 1st harmonic number", 0)
+  add_stat("a2", "helper: 2nd harmonic number", 0)
+  add_stat("truesegr", "helper: count of segregating sites", 0)
+  add_stat("segr", "helper: count of segregating sites adjusted for missingness", 0)
+  add_stat("Hs", "helper: average of pi values of two populations", "between", "pi")
+  add_stat("Ht", "helper: 2nd harmonic number", "between")
+  add_stat("Hsp", "helper: average of pi values, corrected for ploidy", "between", "pi")
+
   if ( args["list"] ) {
-    for (i in statslist) {
-      print statslist[i]
-    }
+    print format_stats()
     exit 0
   }
-  if ( args["stats"] ) {
-    split( tolower(args["stats"]), statargs, "," )
-    for (i in statargs) { 
-      assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
-      stats[statargs[i]]=1 # make a separate stats array later to have fewer arguments 
-      args[statargs[i]]=1
+  if ( args["stats"]=="" ) {
+    args["stats"]="pi,dxy"
+  }
+  split( tolower(args["stats"]), statargs, "," )
+  for (i in statargs) { 
+    assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
+    nr=statslist[statargs[i]]
+    is_between=( stat_isbetween[nr] ? "between" : "within" )
+    stats_print[is_between][statargs[i]]=1 
+    stats[is_between][statargs[i]]=1 
+    if (stat_dep[nr] != "") {
+      ndeps=split(stat_dep[nr], stat_deps, ",")
+      for (j=1;j<=ndeps;j++) {
+        assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]" (check options with piawka -l)" )
+        nr=statslist[stat_deps[j]]
+        is_between=( stat_isbetween[nr] ? "between" : "within" )
+        stats[is_between][stat_deps[j]]=1
+      }
     }
   }
+  any_within="within" in stats
+  any_between="between" in stats
 
   # Some arg checks
   assert( args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
-  assert( ( args["groups"] != "" ), "required argument: -g <groups.tsv>" )
+  assert( args["groups"] != "", "required argument: -g <groups.tsv>" )
   if ( args["bed"] != "" ) { check_file( args["bed"] ) }
   if ( args["targets"] != "" ) { check_file( args["targets"] ) }
+}
+
+function add_stat(name, desc, is_between, dep) {
+  nstat++
+  statslist[name]=nstat
+  stat_name[nstat] = name
+  stat_desc[nstat] = desc (is_between ? " (within population)" : " (between populations)")
+  stat_isbetween[nstat] = is_between
+  stat_dep[nstat] = dep
+}
+
+function format_stats(   help, help_col1, total_width) {
+  total_width=80
+  for (i=1;i<=nstat;i++) {
+    if (stat_desc[i] ~ /^helper:/) { continue }
+    help_col1[i] = stat_name[i] 
+    if ( (l=length(help_col1[i])) > help_col1_width ) { help_col1_width=l }
+  }
+  help_col1_width++
+  remain_width = total_width - help_col1_width
+  help="Available statistics:"
+  for (i=1;i<=nstat;i++) {
+    if (stat_desc[i] ~ /^helper:/) { continue }
+    nlines=1
+    if (length(stat_desc[i]) > remain_width ) {
+      for (j=remain_width+index(stat_desc[i], "\n"); j<length(stat_desc[i]); j+=remain_width+1) {
+        for (k=0; k<remain_width/2; k++) {
+          if (substr(stat_desc[i], j-k, 1) ~ /[ ,)]/) { break }
+        }
+        if (k < remain_width/2-1) { j-=k }
+        stat_desc[i] = substr(stat_desc[i], 1, j) "\n" substr(stat_desc[i],j+1)
+      }
+      nlines=split(stat_desc[i], desclines, "\n")
+    }
+    help = help "\n" sprintf("%-"help_col1_width"s", help_col1[i]) ( nlines > 1 ? desclines[1] : stat_desc[i] )
+    for (j=2;j<=nlines;j++) {
+      help = help "\n" sprintf("%-"help_col1_width"s", " ") desclines[j] 
+    }
+  }
+  return help
 }
 
 function configure_run() {
 # Set default variable values, prepare index arrays and pipes
 
   if ( args["miss"] == "" ) { args["miss"]=1 }
-  if ( args["jobs"] > 1 && ( args["tajima"] || args["tajimalike"] ) ) {
-    say("Warning: Tajima's D is (a bit) less precise in multithreaded mode due to averaging across windows")
-  }
-  if ( args["diff"] == 1 && args["rho"] == 1 ) {
-    say("Warning: AFdiff is not reliable in multiallelic sites")
-  }
-  if ( args["mult"] == 1 && args["rho"] == 1 ) {
-    say("Warning: rho was not meant for multiallelic sites")
-  }
-  PAIRWISE=( !args["nodxy"] || args["fst"] || args["fstwc"] || args["rho"] || args["diff"] )
-  TAJLIKE=( args["tajima"] || args["tajimalike"] || args["watterson"] )
 
   if ( ( args["groups"] != "unite" ) && ( args["groups"] != "divide" ) ) {
     get_groups()
   }
+
   get_header()
+
+  for (i in statargs) {
+    s=statargs[i]
+    init="initiate_"s
+    if ( init in FUNCTAB ) {
+      @init()
+    }
+  }
 
   tmpcmd="mktemp -d piawkatmp.XXXXXXXX"
   if ( tmpcmd | getline tmpdir <= 0 ) {
@@ -214,23 +279,63 @@ function get_header() {
         }
       }
       # Assign ploidy to groups using variant calls from next line, detect mixed-ploidy groups
-      if ( TAJLIKE || args["rho"] == 1 ) {
-        cmd | getline
-        # Count alleles for each group, then divide by number of samples
-        for (i in groupindex) {
-          ploidy[groupindex[i]] += ( ( p = index($i, ":") ) > 0 ? p : length($i)+1 )
-        }
-        for (g in groups) {
-          ploidy[g] /= 2*groups[g]
-        }
-        if ( ploidy[g] % 1 != 0 && ( TAJLIKE || args["rho"] == 1 ) ) {
-          say("Warning: mixed ploidy population "g" will give unreliable results with " ( TAJLIKE ? "Tajima's D" : "Ronfort's rho" ) )
-        }
+      cmd | getline
+      # Count alleles for each group, then divide by number of samples
+      for (i in groupindex) {
+        ploidy[groupindex[i]] += ( ( p = index($i, ":") ) > 0 ? p : length($i)+1 )
+      }
+      for (g in groups) {
+        ploidy[g] /= 2*groups[g]
       }
       break
     }
   }
   close(cmd)
+}
+
+function initiate_diff(){
+  if ( args["mult"] == 1 ) {
+    say("Warning: -s diff is not reliable in multiallelic sites")
+  }
+}
+
+function initiate_tajima(){
+  assert( args["persite"]!=1, "-s tajima cannot be calculated for a single site" )
+  if ( args["jobs"] > 1 ) {
+    say("Warning: -s tajima is a bit less precise in multithreaded mode due to averaging across windows")
+  }
+  for (g in groups) {
+    if ( ploidy[g] % 1 != 0 ) {
+      say("Warning: mixed ploidy population "g" will give unreliable results with -s tajima" )
+    }
+  }
+}
+
+function initiate_watterson(){
+  assert( args["persite"]!=1, "-s watterson at a single site is meaningless" )
+}
+
+function initiate_tajimalike(){
+  assert( args["persite"]!=1, "-s tajimalike cannot be calculated for a single site" )
+  if ( args["jobs"] > 1 ) {
+    say("Warning: -s tajimalike is a bit less precise in multithreaded mode due to averaging across windows")
+  }
+  for (g in groups) {
+    if ( ploidy[g] % 1 != 0 ) {
+      say("Warning: mixed ploidy population "g" will give unreliable results with -s tajimalike" )
+    }
+  }
+}
+
+function initiate_rho(){
+  if ( args["mult"] == 1 ) {
+    say("Warning: -s rho is not reliable in multiallelic sites")
+  }
+  for (g in groups) {
+    if ( ploidy[g] % 1 != 0 ) {
+      say("Warning: mixed ploidy population "g" will give unreliable results with -s rho" )
+    }
+  }
 }
 
 # Process VCF lines
@@ -293,6 +398,8 @@ function process_sites() {
       }
       if ( args["groups"] == "divide" && g in alleles ) {
         calculate_within(g)
+        allmiss[g]+=miss[g]
+        allgeno[g]+=nalleles[g]
         for (g2 in alleles) {
           if ( g2 > g ) {
             calculate_between(g,g2)
@@ -303,16 +410,16 @@ function process_sites() {
       }
     }
 
-    if ( args["groups"]!="divide" ) { 
+    if ( args["groups"] != "divide" ) { 
       for ( g in alleles ) {
         if ( exclude[g] || ( args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > args["miss"] ) || ( args["mult"] != 1 && length(alleles[g]) > 2 ) ) { 
           delete alleles[g]
+          continue
         }
-      }
-      for ( g in alleles ) {
         calculate_within( g )
+        allmiss[g]+=miss[g]
+        allgeno[g]+=nalleles[g]
       }
-      if ( !PAIRWISE ) { continue }
       for ( g in alleles ) {
         for ( g2 in alleles ) {
           # Only making comparisons one way
@@ -329,46 +436,25 @@ function process_sites() {
 
   for (i in nUsed) {
     if ( split(i, ii, SUBSEP) == 1 ) {
-      if ( args["pi"] ) {
-        printOutput( i, ".", nUsed[i], "pi", num[i]["pi"], den[i]["pi"], allgeno[i], allmiss[i] )
+      for ( s in stats_print["within"] ) {
+        fin="finalize_"s
+        if ( fin in FUNCTAB ) {
+          @fin(i)
+        }
+        printOutput( i, ".", nUsed[i], s, num[i][s], den[i][s], allgeno[i], allmiss[i] ) 
       }
-      if ( TAJLIKE && truesegr[i] ) {
-        tP[i]=num[i]["pi"]/den[i]["pi"]*nUsed[i]
-        a1[i]/=truesegr[i]
-        a2[i]/=truesegr[i]
-        if ( args["watterson"] ) {
-          printOutput( i, ".", truesegr[i], "thetaW", truesegr[i]/nUsed[i], a1[i], allgeno[i], allmiss[i] )
-        }
-        if ( args["tajima"] || args["tajimalike"] ) {
-          if ( args["tajima"] ) { segr[i]=truesegr[i] }
-          num[i]["tajima"]= tP[i] - segr[i]/a1[i]
-          den[i]["tajima"]=calcTajimaVar( segr[i], a1[i], a2[i], nalleles[i]+miss[i] )
+      if ( num[i]["truesegr"] ) {
           printOutput( i, ".", truesegr[i], "tajima", num[i]["tajima"], den[i]["tajima"], allgeno[i], allmiss[i] )
-        }
       }
     } else {
       allgeno[i]=allgeno[ii[1]]+allgeno[ii[2]] 
       allmiss[i]=allmiss[ii[1]]+allmiss[ii[2]] 
-      if ( args["dxy"] ) {
-      printOutput( ii[1], ii[2], nUsed[i], "Dxy", num[i]["dxy"], den[i]["dxy"], allgeno[i], allmiss[i])
-      }
-      if ( args["diff"] ) {
-        printOutput( ii[1], ii[2], nUsed[i], "AFdiff", num[i]["diff"], den[i]["diff"], allgeno[i], allmiss[i] )
-      }
-      if ( den[i]["fst"] ) { 
-        printOutput( ii[1], ii[2], nUsed[i], "fst", num[i]["fst"], den[i]["fst"], allgeno[i], allmiss[i] ) 
-      }
-      if ( den[i]["fstwc"] ) { 
-        printOutput( ii[1], ii[2], nUsed[i], "fstwc", num[i]["fstwc"], den[i]["fstwc"], allgeno[i], allmiss[i] ) 
-      }
-      if ( args["rho"] == 1 && den[i]["Hs"] && den[i]["Ht"] ) { 
-        Hs= num[i]["Hs"]/den[i]["Hs"]
-        Ht= num[i]["Ht"]/den[i]["Ht"]
-        Hsp= num[i]["Hsp"]/den[i]["Hsp"]
-        Hpt= Hs + 2 * (Ht - Hs)
-        num[i]["rho"]=Hpt-Hs
-        den[i]["rho"]=Hpt-Hsp
-        printOutput( ii[1], ii[2], nUsed[i], "rho", num[i]["rho"], den[i]["rho"], allgeno[i], allmiss[i] ) 
+      for ( s in stats_print["between"] ) {
+        fin="finalize_"s
+        if ( fin in FUNCTAB ) {
+          @fin(ii[1],ii[2])
+        }
+        printOutput( ii[1], ii[2], nUsed[i], s, num[i][s], den[i][s], allgeno[i], allmiss[i] ) 
       }
     }
   }
@@ -376,12 +462,32 @@ function process_sites() {
   delete allgeno
   delete allmiss
   delete nUsed
-  delete segr
-  delete truesegr
-  delete a1
-  delete a2
   delete num
   delete den
+}
+
+function finalize_watterson(g){
+  if ( num[g]["truesegr"]==0 ) { return 0 }
+  num[g]["watterson"]=num[g]["truesegr"]/nUsed[g]
+  den[g]["watterson"]=num[g]["a1"]/num[g]["truesegr"]
+}
+
+function finalize_tajima(g,     tP, a1, a2){
+  if ( num[g]["truesegr"]==0 ) { return 0 }
+  tP=num[g]["pi"]/den[g]["pi"]*nUsed[g]
+  a1=num[g]["a1"]/num[g]["truesegr"]
+  a2=num[g]["a2"]/num[g]["truesegr"]
+  num[g]["tajima"]= tP - num[g]["truesegr"]/a1
+  den[g]["tajima"]= calcTajimaVar( num[g]["truesegr"], a1, a2, nalleles[g]+miss[g] )
+}
+
+function finalize_tajimalike(g,     tP, a1, a2){
+  if ( num[g]["truesegr"]==0 ) { return 0 }
+  tP=num[g]["pi"]/den[g]["pi"]*nUsed[g]
+  a1=num[g]["a1"]/num[g]["truesegr"]
+  a2=num[g]["a2"]/num[g]["truesegr"]
+  num[g]["tajimalike"]= tP - num[g]["segr"]/a1
+  den[g]["tajimalike"]=calcTajimaVar( num[g]["segr"], a1, a2, nalleles[g]+miss[g] )
 }
 
 END {
@@ -394,7 +500,7 @@ END {
       while ( stat(tmpfn, _) < 0 || _["size"]==0 ) {
         system("sleep 1")
       }
-      say("Completed job " f, 1)
+      say("Finalizing job " f+args["jobs"], 1)
       while ( getline < tmpf > 0 ) {
         if ( $0 == SIGNAL_END_OF_BUFFER ) {
           break
@@ -413,36 +519,151 @@ END {
   }
 }
 
-function calculate_within(g) {
-  # Increment number of sites used for calculation
-  nUsed[g]++
-  
-  # Extract allele counts of the group
-
+function increment_pi(g){
   # Add to pi: probability that two randomly picked alleles differ
   # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
   thisnum[g]["pi"]=nalleles[g]^2
   thisden[g]["pi"]=nalleles[g]*(nalleles[g]-1)
   for ( x in alleles[g] ) { thisnum[g]["pi"]-=alleles[g][x]^2 }
+}
 
-  if ( TAJLIKE && length(alleles[g])==2 ) {
-    truesegr[g]++
-    a1[g]+=harm(nalleles[g]-1) 
-    a2[g]+=harm2(nalleles[g]-1)
-    if ( args["tajimalike"]==1 ) { segr[g]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] ) }
-  }
-
-  if ( args["persite"] == 1 ) { 
-    if ( thisden[g]["pi"] && args["pi"] ) { printOutput( g, ".", 1, "pi", thisnum[g]["pi"], thisden[g]["pi"], nalleles[g], miss[g] ) }
-  } else {
-      num[g]["pi"]+=thisnum[g]["pi"]
-      den[g]["pi"]+=thisden[g]["pi"] 
-      allmiss[g]+=miss[g]
-      allgeno[g]+=nalleles[g]
+function increment_truesegr(g){
+  if ( length(alleles[g])==2 ) { 
+    thisnum[g]["truesegr"]++
+    thisden[g]["truesegr"]=1 
   }
 }
 
+function increment_segr(g){
+  if ( length(alleles[g])==2 ) { 
+    thisnum[g]["segr"]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] )
+    thisden[g]["segr"]=1 
+  }
+}
+
+function increment_a1(g){
+  if ( length(alleles[g])==2 ) { 
+    thisnum[g]["a1"]+=harm(nalleles[g]-1)
+    thisden[g]["a1"]=1 
+  }
+}
+   
+function increment_a2(g){
+  if ( length(alleles[g])==2 ) { 
+    thisnum[g]["a2"]+=harm2(nalleles[g]-1)
+    thisden[g]["a2"]=1 
+  }
+}
+
+function calculate_within(g) {
+
+  if (!any_within) { return 0 }
+
+  nUsed[g]++
+  
+  for ( s in stats["within"] ) {
+    incr="increment_"s
+    if ( incr in FUNCTAB ) {
+      @incr(g)
+    }
+
+    if ( args["persite"] == 1 ) { 
+      num[g][s]=thisnum[g][s]
+      den[g][s]=thisden[g][s] 
+    } else {
+      num[g][s]+=thisnum[g][s]
+      den[g][s]+=thisden[g][s] 
+    }
+  }
+  if (args["persite"] == 1) {
+    allgeno[g]=nalleles[g]+nalleles[g2]
+    allmiss[g]=miss[g]+miss[g2]
+    for ( s in stats["within"] ) {
+      fin="finalize_"s
+      if ( fin in FUNCTAB ) {
+        @fin(g)
+      }
+      if (s in stats_print["within"]) {
+        printOutput( g, ".", 1, s, num[g][s], den[g][s], allgeno[g], allmiss[g] ) 
+      }
+    }
+  }
+}
+
+function increment_dxy(g,g2){
+  # Add to dxy: probability that two alleles picked from two groups differ
+  # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
+  thisnum[g,g2]["dxy"]=nalleles[g]*nalleles[g2]
+  thisden[g,g2]["dxy"]=thisnum[g,g2]["dxy"]
+  for ( x in bothalleles ) { 
+    thisnum[g,g2]["dxy"]-=alleles[g][x]*alleles[g2][x]
+  }
+}
+
+function increment_diff(g,g2,    thisdiff){
+  for ( x in bothalleles ) { 
+    thisdiff=( alleles[g][x]*nalleles[g2] - alleles[g2][x]*nalleles[g] ) / 2
+    thisnum[g,g2]["diff"]+=( thisdiff > 0 ? thisdiff : -thisdiff )
+  }
+  thisden[g,g2]["diff"]=nalleles[g]*nalleles[g2]
+}
+
+function increment_fst(g,g2,    a1, a2, n1, n2, hw, hb){
+  for ( x in bothalleles ) { 
+    a1=alleles[g][x]
+    a2=alleles[g2][x]
+    n1=nalleles[g]
+    n2=nalleles[g2]
+    pi1 = a1 * (n1 - a1) / (n1*(n1-1))
+    pi2 = a2 * (n2 - a2) / (n2*(n2-1))
+    hw = pi1 + pi2
+    hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
+    thisnum[g,g2]["fst"]+=hb-hw
+    thisden[g,g2]["fst"]+=hb
+    if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+  }
+} 
+
+function increment_fstwc(g,g2,    a1, a2, n1, n2, sizes, frac, mism, den){
+  for ( x in bothalleles ) { 
+    a1=alleles[g][x]
+    a2=alleles[g2][x]
+    n1=nalleles[g]
+    n2=nalleles[g2]
+    # Formula from Bhatia et al. 2013, eq. (6)
+    sizes = n1 * n2 / ( n1 + n2 )
+    frac = 1 / ( n1 + n2 - 2 )
+    mism = a1 * ( 1 - a1 / n1 ) + a2 * ( 1 - a2 / n2 )
+
+    den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
+    thisnum[g,g2]["fstwc"] += den - 2 * sizes * frac * mism
+    thisden[g,g2]["fstwc"] += den
+    if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+  }
+}
+
+function increment_Hs(g,g2){
+  thisnum[g,g2]["Hs"] = ( ( thisnum[g]["pi"]*thisden[g2]["pi"] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] ) )
+  thisden[g,g2]["Hs"] = 2 * thisden[g]["pi"] * thisden[g2]["pi"] # same as thisden[g,g2]["Hsp"]
+}
+
+function increment_Hsp(g,g2){
+  thisnum[g,g2]["Hsp"] = ( ( thisnum[g]["pi"] * thisden[g2]["pi"] * ( ploidy[g] - 1 ) / ploidy[g] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] * (ploidy[g2]-1) / ploidy[g2] ) )
+  thisden[g,g2]["Hsp"] = 2 * thisden[g]["pi"] * thisden[g2]["pi"] # same as thisden[g,g2]["Hs"]
+}
+
+function increment_Ht(g,g2){
+  thisnum[g,g2]["Ht"]=(nalleles[g] + nalleles[g2])^2
+  for ( x in bothalleles ) { 
+    thisnum[g,g2]["Ht"]-=(alleles[g][x]+alleles[g2][x])^2 
+  }
+  thisden[g,g2]["Ht"]=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
+}
+
 function calculate_between(g,g2) {
+
+  if (!any_between) { return 0 }
+
   # Is the union of allelic states from g1 and g2 bigger than length(alleles[g1])?
   poolsize=length(alleles[g])
 
@@ -450,91 +671,65 @@ function calculate_between(g,g2) {
   delete bothalleles
   for (xx in alleles[g]) {
     bothalleles[xx]++
+    # gawk breaks if you don't set uninitialized array elems to 0
+    if ( !(xx in alleles[g2]) ) { alleles[g2][xx]=0 }
   }
   for (yy in alleles[g2]) {
     if ( !(yy in bothalleles) ) { 
       poolsize++
       bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
+      alleles[g][yy]=0
     }
   }
 
   # If not args["mult"] == 1, proceed only if common allele pool has <=2 alleles
   if ( args["mult"] != 1 && poolsize > 2 ) { return 1 }
 
-  # Increment number of sites used for dxy
   nUsed[g,g2]++
   
-  # Add to dxy: probability that two alleles picked from two groups differ
-  # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
-  thisnum[g,g2]["dxy"]=nalleles[g]*nalleles[g2]
-  thisden[g,g2]["dxy"]=thisnum[g,g2]["dxy"]
-  for ( x in bothalleles ) { 
-    # gawk breaks here if you don't set uninitialized array elems to 0
-    if ( !(x in alleles[g]) ) { alleles[g][x]=0 }
-    else if ( !(x in alleles[g2]) ) { alleles[g2][x]=0 }
-    thisnum[g,g2]["dxy"]-=alleles[g][x]*alleles[g2][x]
-    if ( args["diff"] ) { 
-      thisnum[g,g2]["diff"]=alleles[g][x]*nalleles[g2] - alleles[g2][x]*nalleles[g]
-      thisnum[g,g2]["diff"]*=(thisnum[g,g2]["diff"] >= 0 ? 0.5 : -0.5 )
-      thisden[g,g2]["diff"]=thisden[g,g2]["dxy"]
+  for ( s in stats["between"] ) {
+    incr="increment_"s
+    if ( incr in FUNCTAB ) {
+      @incr(g,g2)
     }
-    if ( args["fst"] ) {
-      incrementFstHudson( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
+
+    if ( args["persite"] == 1 ) { 
+      num[g,g2][s]=thisnum[g,g2][s]
+      den[g,g2][s]=thisden[g,g2][s] 
+    } else {
+      num[g,g2][s]+=thisnum[g,g2][s]
+      den[g,g2][s]+=thisden[g,g2][s] 
     }
-    if ( args["fstwc"] ) { 
-      incrementFstWeirCockerham( alleles[g][x], alleles[g2][x], nalleles[g], nalleles[g2] )
-    } 
-    if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
   }
-  if ( args["rho"] ) {
-    # Here Hs = average of pi values of two populations,
-    #      Ht = pi of two populations pooled,
-    #      Hsp = Hs corrected for ploidy
-    thisnum[g,g2]["Ht"]=(nalleles[g] + nalleles[g2])^2
-    thisden[g,g2]["Ht"]=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
-    for ( x in bothalleles ) { 
-      thisnum[g,g2]["Ht"]-=(alleles[g][x]+alleles[g2][x])^2 
-    }
-    thisnum[g,g2]["Hs"] = ( ( thisnum[g]["pi"]*thisden[g2]["pi"] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] ) )
-    thisden[g,g2]["Hs"] = 2 * thisden[g]["pi"] * thisden[g2]["pi"] # same as Hspden
-    thisnum[g,g2]["Hsp"] = ( ( thisnum[g]["pi"] * thisden[g2]["pi"] * ( ploidy[g] - 1 ) / ploidy[g] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] * (ploidy[g2]-1) / ploidy[g2] ) )
-    thisden[g,g2]["Hsp"] = thisden[g,g2]["Hs"]
-  }
-  if ( args["persite"] == 1 ) { 
-    if ( thisden[g,g2]["dxy"] && args["dxy"] ) { printOutput( g, g2, 1, "dxy", thisnum[g,g2]["dxy"], thisden[g,g2]["dxy"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-    if ( thisden[g,g2]["diff"] && args["diff"] ) { printOutput( g, g2, 1, "diff", thisnum[g,g2]["diff"], thisden[g,g2]["diff"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-    if ( thisden[g,g2]["fst"] ) { printOutput( g, g2, 1, "fst", thisnum[g,g2]["fst"], thisden[g,g2]["fst"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-    if ( thisden[g,g2]["fstwc"] ) { printOutput( g, g2, 1, "fst", thisnum[g,g2]["fstwc"], thisden[g,g2]["fstwc"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) }
-    if ( args["rho"] == 1 ) { 
-      Hs = thisnum[g,g2]["Hs"]/thisden[g,g2]["Hs"]
-      Ht = thisnum[g,g2]["Ht"]/thisden[g,g2]["Ht"]
-      Hsp= thisnum[g,g2]["Hsp"]/thisden[g,g2]["Hsp"]
-      Hpt= Hs + 2 * (Ht - Hs)
-      thisnum[g,g2]["rho"]=Hpt-Hs
-      thisden[g,g2]["rho"]=Hpt-Hsp
-      printOutput( g, g2, 1, "rho", thisnum[g,g2]["rho"], thisden[g,g2]["rho"], nalleles[g]+nalleles[g2], miss[g]+miss[g2] ) 
-    }
-  } else {
-      num[g,g2]["diff"]+=thisnum[g,g2]["diff"]
-      den[g,g2]["diff"]+=thisden[g,g2]["diff"]
-      num[g,g2]["dxy"]+=thisnum[g,g2]["dxy"]
-      den[g,g2]["dxy"]+=thisden[g,g2]["dxy"] 
-      if ( FST ) { 
-        num[g,g2]["fst"]+=thisnum[g,g2]["fst"]
-        den[g,g2]["fst"]+=thisden[g,g2]["fst"]
+  if (args["persite"] == 1) {
+    allgeno[g,g2]=nalleles[g]+nalleles[g2]
+    allmiss[g,g2]=miss[g]+miss[g2]
+    for ( s in stats["between"] ) {
+      fin="finalize_"s
+      if ( fin in FUNCTAB ) {
+        @fin(g,g2)
       }
-      if ( args["rho"] == 1 ) {
-        num[g,g2]["Ht"] += thisnum[g,g2]["Ht"] 
-        den[g,g2]["Ht"] += thisden[g,g2]["Ht"] 
-        num[g,g2]["Hs"] += thisnum[g,g2]["Hs"] 
-        den[g,g2]["Hs"] += thisden[g,g2]["Hs"] 
-        num[g,g2]["Hsp"] += thisnum[g,g2]["Hsp"] 
-        den[g,g2]["Hsp"] += thisden[g,g2]["Hsp"] 
+      if (s in stats_print["between"]) {
+        printOutput( g, g2, 1, s, num[g,g2][s], den[g,g2][s], allgeno[g,g2], allmiss[g,g2] ) 
       }
+    }
   }
 }
 
+function finalize_rho(g,g2,    Hs, Ht, Hsp, Hpt) {
+  if ( den[g,g2]["Hs"]==0 ) { return 0 }
+  if ( den[g,g2]["Hsp"]==0 ) { return 0 }
+  if ( den[g,g2]["Ht"]==0 ) { return 0 }
+  Hs = num[g,g2]["Hs"]/den[g,g2]["Hs"]
+  Ht = num[g,g2]["Ht"]/den[g,g2]["Ht"]
+  Hsp= num[g,g2]["Hsp"]/den[g,g2]["Hsp"]
+  Hpt= Hs + 2 * (Ht - Hs)
+  num[g,g2]["rho"]=Hpt-Hs
+  den[g,g2]["rho"]=Hpt-Hsp
+}
+
 function printOutput( pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
+  if ( !denominator ) { return 0 }
   out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
   print out > tmpf
 }
@@ -553,30 +748,14 @@ function harm2( n ) {
  return _harm2[n]
 }
 
-function incrementFstHudson( a1, a2, n1, n2 ) {
-  pi1 = a1 * (n1 - a1) / (n1*(n1-1))
-  pi2 = a2 * (n2 - a2) / (n2*(n2-1))
-  hw = pi1 + pi2
-  hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
-  thisnum[g,g2]["fst"]+=hb-hw
-  thisden[g,g2]["fst"]+=hb
-} 
-
-function incrementFstWeirCockerham( a1, a2, n1, n2 ) {
-  # Formula from Bhatia et al. 2013, eq. (6)
-  sizes = n1 * n2 / ( n1 + n2 )
-  frac = 1 / ( n1 + n2 - 2 )
-  mism = a1 * ( 1 - a1 / n1 ) + a2 * ( 1 - a2 / n2 )
-
-  den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
-  if ( ! den ) { return } # WC Fst is NaN at uniform sites
-  thisnum[g,g2]["fstwc"] += den - 2 * sizes * frac * mism
-  thisden[g,g2]["fstwc"] += den
-}
-
 # Tajima's D-like statistic calculation
 # The formula below is classic Tajima's D but with missing data we calculate a1 and a2 in a slightly different way
 function calcTajimaVar( S, a1, a2, n ) {
+  if (n==3) { return 0 }
+  if (n==1) { return 0 }
+  if (n==0) { return 0 }
+  if (a1==0) { return 0 }
+  if (S==0) {return 0}
   b1=(n+1)/(3*n-3)
   b2=(2*(n^2+n+3))/(9*n*(n-1))
   c1=b1-1/a1
