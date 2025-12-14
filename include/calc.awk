@@ -335,51 +335,58 @@ function process_sites() {
             calculate_between(g2,g)
           }
         }
+        if ( arg::args["persite"] ) { yield_output() }
       }
     }
 
-    if ( arg::args["groups"] != "divide" ) { 
-      for ( g in alleles ) {
-        if ( exclude[g] || ( arg::args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > arg::args["miss"] ) || ( arg::args["mult"] != 1 && length(alleles[g]) > 2 ) ) { 
-          delete alleles[g]
-          continue
-        }
-        calculate_within( g )
-        allmiss[g]+=miss[g]
-        allgeno[g]+=nalleles[g]
+    if ( arg::args["groups"] == "divide" ) { continue }
+    for ( g in alleles ) {
+      if ( exclude[g] || ( arg::args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > arg::args["miss"] ) || ( arg::args["mult"] != 1 && length(alleles[g]) > 2 ) ) { 
+        delete alleles[g]
+        continue
       }
-      for ( g in alleles ) {
-        for ( g2 in alleles ) {
-          # Only making comparisons one way
-          if (g2>g) { 
-            calculate_between(g,g2)
-          }
+      calculate_within( g )
+      allmiss[g]+=miss[g]
+      allgeno[g]+=nalleles[g]
+    }
+    for ( g in alleles ) {
+      for ( g2 in alleles ) {
+        # Only making comparisons one way
+        if (g2>g) { 
+          calculate_between(g,g2)
+          allmiss[g,g2]+=miss[g]+miss[g2]
+          allgeno[g,g2]+=nalleles[g]+nalleles[g2]
         }
       }
     }
+    if ( arg::args["persite"] ) { yield_output() }
   }
+  if ( !arg::args["persite"] ) { yield_output() }
   close(cmd)
-  if ( pid>0 ) { return 0 }
-  if ( arg::args["persite"] == 1 ) { return 0 }
+}
 
+function yield_output() {
+  if ( pid>0 ) { return 0 }
   for (i in nUsed) {
     if ( split(i, ii, SUBSEP) == 1 ) {
-      for ( s in stats::stats_print["within"] ) {
+      for ( s in stats::stats["within"] ) {
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(i)
         }
-        printOutput( i, "", s ) 
+        if (s in stats::stats_print["within"]) {
+          printOutput( i, "", s ) 
+        }
       }
     } else {
-      allgeno[i]=allgeno[ii[1]]+allgeno[ii[2]] 
-      allmiss[i]=allmiss[ii[1]]+allmiss[ii[2]] 
-      for ( s in stats::stats_print["between"] ) {
+      for ( s in stats::stats["between"] ) {
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(ii[1],ii[2])
         }
-        printOutput( ii[1], ii[2], s )
+        if (s in stats::stats_print["between"]) {
+          printOutput( ii[1], ii[2], s )
+        }
       }
     }
   }
@@ -481,38 +488,15 @@ function increment_a2(g){
 }
 
 function calculate_within(g) {
-
   if (!any_within) { return 0 }
-
   nUsed[g]++
-  
   for ( s in stats::stats["within"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
       @incr(g)
     }
-
-    if ( arg::args["persite"] == 1 ) { 
-      num[g][s]=thisnum[g][s]
-      den[g][s]=thisden[g][s] 
-    } else {
-      num[g][s]+=thisnum[g][s]
-      den[g][s]+=thisden[g][s] 
-    }
-  }
-  if (arg::args["persite"] == 1) {
-    allgeno[g]=nalleles[g]+nalleles[g2]
-    allmiss[g]=miss[g]+miss[g2]
-    nUsed[g]=1
-    for ( s in stats::stats["within"] ) {
-      fin="calc::finalize_"s
-      if ( fin in FUNCTAB ) {
-        @fin(g)
-      }
-      if (s in stats::stats_print["within"]) {
-        printOutput( g, "", s )
-      }
-    }
+    num[g][s]+=thisnum[g][s]
+    den[g][s]+=thisden[g][s] 
   }
 }
 
@@ -591,12 +575,9 @@ function increment_rho(g,g2){
 }
 
 function calculate_between(g,g2) {
-
   if (!any_between) { return 0 }
-
   # Is the union of allelic states from g1 and g2 bigger than length(alleles[g1])?
   poolsize=length(alleles[g])
-
   # Extract alleles of the group
   delete bothalleles
   for (xx in alleles[g]) {
@@ -611,39 +592,16 @@ function calculate_between(g,g2) {
       alleles[g][yy]=0
     }
   }
-
   # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
   if ( arg::args["mult"] != 1 && poolsize > 2 ) { return 1 }
-
   nUsed[g,g2]++
-  
   for ( s in stats::stats["between"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
       @incr(g,g2)
     }
-
-    if ( arg::args["persite"] == 1 ) { 
-      num[g,g2][s]=thisnum[g,g2][s]
-      den[g,g2][s]=thisden[g,g2][s] 
-    } else {
-      num[g,g2][s]+=thisnum[g,g2][s]
-      den[g,g2][s]+=thisden[g,g2][s] 
-    }
-  }
-  if (arg::args["persite"] == 1) {
-    allgeno[g,g2]=nalleles[g]+nalleles[g2]
-    allmiss[g,g2]=miss[g]+miss[g2]
-    nUsed[g,g2]=1
-    for ( s in stats::stats["between"] ) {
-      fin="calc::finalize_"s
-      if ( fin in FUNCTAB ) {
-        @fin(g,g2)
-      }
-      if (s in stats::stats_print["between"]) {
-        printOutput( g, g2, s )
-      }
-    }
+    num[g,g2][s]+=thisnum[g,g2][s]
+    den[g,g2][s]+=thisden[g,g2][s] 
   }
 }
 
