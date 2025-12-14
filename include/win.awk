@@ -1,15 +1,6 @@
-#!/bin/sh
-"export" "AWKPATH=$( dirname $0 ):$AWKPATH"
-"exec" "gawk" -f "$0" "--" "$@" && 0 {}
-#
-# Convert VCF to BED, each region has a certain #lines 
+@namespace "win"
 
-@load "filefuncs"
-
-@include "getopt.awk"
-@include "argparse.awk"
-
-BEGIN{ 
+function run() { 
   OFS="\t"
   usage="Usage:\nmake_windows.awk -v vcf_gz [OPTIONS]"
   DEFAULT_WINDOWSIZE=10000
@@ -21,25 +12,53 @@ function main() {
   argparse::add_argument("h", "help", 1, "show this help message")
   argparse::add_argument("n", "number", 1, "enumerate windows in 4th column")
   argparse::add_argument("s", "skip", 0, "# lines to skip")
+  argparse::add_argument("T", "targets", 0, "BED file with small regions to aggregate into larger ones")
   argparse::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
   argparse::add_argument("w", "windowsize", 0, "# VCF lines per window")
   help = usage "\n" argparse::format_help()
-  getopt::Optind = 1 # start with 1st opt
+  getopt::Optind = 2 # start with 1st opt
   getopt::Opterr = 1 # print getopt errs
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
   if (args["help"] || ARGC==1 ) { print help; return 0 }
-  check_file(args["vcf"])
   if ( args["windowsize"] == "" ) { args["windowsize"]=DEFAULT_WINDOWSIZE }
-  make_windows(args["windowsize"])
-  exit 0
+  piawka::assert( awk::xor(args["vcf"]!="", args["targets"]!=""), "provide either VCF or BED to generate windows from" )
+  if (args["vcf"]!="") {
+    check_file(args["vcf"])
+    make_windows(args["windowsize"])
+  } else if ( args["targets"]!="" ) {
+    check_file(args["targets"])
+    aggregate_regions()
+  }
 }
 
 function check_file(file,   cmd) {
-   if (stat(file, _) < 0) {
+   if (awk::stat(file, _) < 0) {
         print "Error: could not read file "file > "/dev/stderr"
         exit 1
     }
+}
+
+function aggregate_regions() {
+# This script acts as `bedtools merge -d 1000`, joining BED records closer than 1kb to each other.
+# This is done to reduce the number of tabix queries with numerous, small, adjacent BED regions.
+# The aggregated file is then passed as -R argument and the small regions as -T argument.
+  firstline=1
+  while (getline < args["targets"] > 0) {
+    if (firstline) { 
+      firstline=0
+      printf $1"\t"$2"\t"
+      lastchr=$1
+      lastend=$3
+      continue 
+    }
+    if ( $1!=lastchr || $2 - lastend > 1000 ) { 
+      print lastend
+      printf $1"\t"$2"\t" 
+    }
+    lastchr=$1; lastend=$3
+  }
+  print lastend
 }
 
 function make_windows(chunk_size,    

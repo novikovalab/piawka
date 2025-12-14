@@ -3,12 +3,18 @@
 "export" "LC_ALL=C"
 "exec" "gawk" -f "$0" "--" "$@"
 
+@load "fork"
+@load "filefuncs"
+
 @include "getopt.awk"
 @include "argparse.awk"
 
 # Subcommands
 
 @include "calc.awk"
+@include "win.awk"
+@include "sum.awk"
+@include "dist.awk"
 
 @namespace "piawka"
 
@@ -30,11 +36,9 @@ help="\
     case "win":
       win::run()
     case "sum":
-      header::run()
+      sum::run()
     case "dist":
-      fa2chain::run()
-    case "fstats":
-      lchain::run()
+      dist::run()
     default:
       print help
       if (subcmd != "") {

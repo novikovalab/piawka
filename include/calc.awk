@@ -1,8 +1,5 @@
 @namespace "calc"
 
-@load "fork"
-@load "filefuncs"
-
 function run(){ 
   check_gawk_version()
   check_htslib()
@@ -10,10 +7,10 @@ function run(){
   usage="piawka v0.8.11\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
   piawka=ENVIRON["AWKPATH"]
-  sub(/include:.*$/,"scripts",piawka)
-  summarize_blks=piawka"/summarize_blks.awk"
-  make_windows=piawka"/make_windows.awk"
-  aggregate_regions=piawka"/aggregate_regions.awk"
+  sub(/include:.*$/,"piawka",piawka)
+  summarize_blks=piawka" sum"
+  make_windows=piawka" win"
+  aggregate_regions=piawka" win -T"
 
   parse_arguments()
   print_header()
@@ -187,7 +184,7 @@ function main() {
 
   # Children: listen to query regions dispenser
   for ( jobnum=0; jobnum < args["jobs"]; jobnum++ ) { 
-    if ( args["rand"] ) { srand( xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
+    if ( args["rand"] ) { srand( awk::xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
     buffer = "cat #"jobnum
     buffers[buffer]++
     printf "" |& buffer # initialize pipe
