@@ -1,11 +1,11 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("segrcorr", "helper: count of segregating sites corrected for missingness", 0)
+  stats::add_stat("segrcorr", "helper: count of segregating sites corrected for missingness", 0, "", "sum")
 }
 
 function increment_segrcorr(i){
-  if ( length(a[i])==2 ) { 
+  if ( length(a[i])>1 ) { 
     thisnum[i]["segrcorr"]+=recalcS_expected( 1, n[i], n[i]+miss[i] )
     thisden[i]["segrcorr"]=1 
   }

@@ -20,13 +20,14 @@ function parse_stats(s) {
   }
 }
 
-function add_stat(name, desc, is_between, dep) {
+function add_stat(name, desc, is_between, dep, sum_func) {
   nstat++
   statslist[name]=nstat
   stat_name[nstat] = name
   stat_desc[nstat] = desc (is_between ? " (within population)" : " (between populations)")
   stat_isbetween[nstat] = is_between
   stat_dep[nstat] = dep
+  summary_func[name] = sum_func
 }
 
 function format_stats(   help, help_col1, total_width) {

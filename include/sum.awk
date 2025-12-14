@@ -29,8 +29,13 @@ function summarize_regions(f,    firstline) {
       }
       if ($2 < start[idx]) { start[idx]=$2 }
       if ($3 > end[idx]) { end[idx]=$2 }
-      denominator[idx]+=$10
-      numerator[idx]+=$9
+      if (stats::summary_func[$7]=="sum") {
+        numerator[idx]+=$9/$10
+        denominator[idx]=1
+      } else {
+        denominator[idx]+=$10
+        numerator[idx]+=$9
+      }
     }
   }
   for (i in seen) {

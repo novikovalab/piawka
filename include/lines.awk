@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("lines", "number of lines used in calculation", 0)
+  stats::add_stat("lines", "number of lines used in calculation", 0, "", "sum")
 }
 
 function increment_lines(i){
