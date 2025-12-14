@@ -57,16 +57,13 @@ function parse_arguments() {
   stats::add_stat("pi", "expected heterozygosity = nucleotide diversity")
   stats::add_stat("tajima", "Tajima's D", "a1,a2,truesegr,pi")
   stats::add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segr,pi")
-  stats::add_stat("rho", "Ronfort's rho", "between", "Hs,Ht,Hsp,pi")
+  stats::add_stat("rho", "Ronfort's rho", "between", "pi")
   stats::add_stat("watterson", "Watterson's theta", 0, "a1,truesegr")
   # Helper statistics: accumulators for other stats, are not shown with piawka -l
   stats::add_stat("a1", "helper: 1st harmonic number", 0)
   stats::add_stat("a2", "helper: 2nd harmonic number", 0)
   stats::add_stat("truesegr", "helper: count of segregating sites", 0)
   stats::add_stat("segr", "helper: count of segregating sites adjusted for missingness", 0)
-  stats::add_stat("Hs", "helper: average of pi values of two populations", "between", "pi")
-  stats::add_stat("Ht", "helper: 2nd harmonic number", "between")
-  stats::add_stat("Hsp", "helper: average of pi values, corrected for ploidy", "between", "pi")
 
   if ( arg::args["list"] ) {
     print stats::format_stats()
@@ -571,22 +568,26 @@ function increment_fstwc(g,g2,    a1, a2, n1, n2, sizes, frac, mism, den){
   }
 }
 
-function increment_Hs(g,g2){
+function increment_rho(g,g2){
+  # Here Hs = average of pi values of two populations,
+  #      Ht = pi of two populations pooled,
+  #      Hsp = Hs corrected for ploidy
   thisnum[g,g2]["Hs"] = ( ( thisnum[g]["pi"]*thisden[g2]["pi"] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] ) )
   thisden[g,g2]["Hs"] = 2 * thisden[g]["pi"] * thisden[g2]["pi"] # same as thisden[g,g2]["Hsp"]
-}
-
-function increment_Hsp(g,g2){
   thisnum[g,g2]["Hsp"] = ( ( thisnum[g]["pi"] * thisden[g2]["pi"] * ( ploidy[g] - 1 ) / ploidy[g] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] * (ploidy[g2]-1) / ploidy[g2] ) )
-  thisden[g,g2]["Hsp"] = 2 * thisden[g]["pi"] * thisden[g2]["pi"] # same as thisden[g,g2]["Hs"]
-}
-
-function increment_Ht(g,g2){
+  thisden[g,g2]["Hsp"] = thisden[g,g2]["Hs"]
   thisnum[g,g2]["Ht"]=(nalleles[g] + nalleles[g2])^2
   for ( x in bothalleles ) { 
     thisnum[g,g2]["Ht"]-=(alleles[g][x]+alleles[g2][x])^2 
   }
   thisden[g,g2]["Ht"]=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
+
+  num[g,g2]["Hs"]+=thisnum[g,g2]["Hs"]
+  den[g,g2]["Hs"]+=thisden[g,g2]["Hs"]
+  num[g,g2]["Hsp"]+=thisnum[g,g2]["Hsp"]
+  den[g,g2]["Hsp"]+=thisden[g,g2]["Hsp"]
+  num[g,g2]["Ht"]+=thisnum[g,g2]["Ht"]
+  den[g,g2]["Ht"]+=thisden[g,g2]["Ht"]
 }
 
 function calculate_between(g,g2) {
