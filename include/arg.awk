@@ -1,25 +1,9 @@
-# getopt.awk --- Do C library getopt(3) function in awk
-#                Also supports long options.
-#
-# From: https://www.gnu.org/software/gawk/manual/html_node/Getopt-Function.html
-
-# External variables:
-#    Optind -- index in ARGV of first nonoption argument
-#    Optarg -- string value of argument to current option
-#    Opterr -- if nonzero, print our own diagnostic
-#    Optopt -- current option letter
-
-# Returns:
-#    -1     at end of options
-#    "?"    for unrecognized option
-#    <s>    a string representing the current option
-
-# Private Data:
-#    _opti  -- index in multiflag option, e.g., -abc
+# An interface to getopt.awk to simplify adding args and writing help messages.
+# taprs, 2025-11-24
 
 @include "getopt.awk"
 
-@namespace "argparse"
+@namespace "arg"
 
 function add_argument(short, long, is_flag, desc) {
   narg++
@@ -60,16 +44,37 @@ function format_help(   help, help_col1, total_width) {
   return help
 }
 
-function parse_args() {
+function parse_args(firstopt, helpmsg, helpltr) {
+  if (firstopt=="") { firstopt=1 }
+  getopt::Optind = firstopt # start with 1st opt
+  getopt::Opterr = 1 # print getopt errs
+
+  if (helpltr=="") { helpltr="h" }
+  add_argument(helpltr, "help", 1, "show this help message and exit")
+
   while ((c=getopt::getopt(ARGC,ARGV,shortopts,longopts)) != -1) {
-    if (c == "?") { return 1 }
+    if (c == "?") { 
+      print helpmsg
+      exit 1
+    }
     for (i=1;i<=narg;i++) {
       if (getopt::Optopt == args_short[i] || getopt::Optopt == args_long[i]) {
         args[args_long[i]]=(args_isflag[i] ? 1 : getopt::Optarg)
         break
-        }
       }
+    }
+  }
+  help = helpmsg "\n" format_help()
+  if ( args["help"] || ARGC <= firstopt ) { 
+    print help
+    exit 0 
   }
   return 0
 }
 
+function parse_nonargs(    counter) {
+  for (; getopt::Optind < ARGC; getopt::Optind++) {
+    nonargs[++counter]=ARGV[getopt::Optind]
+  }
+  return counter
+}

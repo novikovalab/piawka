@@ -1,16 +1,14 @@
 @namespace "sum"
 
-# This script summarizes piawka results counted over several loci.
-# It simply divides sum of numerators by sum of denominators.
-
 function run() { 
-  OFS="\t" 
-  if (ARGC<=2) {
-    summarize_regions("/dev/stdin")
-  } else {
-    for (a=2; a<ARGC; a++) {
-      summarize_regions(ARGV[a])
-    }
+  help="\
+    This script summarizes piawka calc results counted over several loci. \n\
+    It simply divides sum of numerators by sum of denominators. \n\
+    The only arguments are the output file(-s) of piawka calc; stdin should be passed as `piawka sum -`."
+  arg::parse_args(2, help)
+  narg=arg::parse_nonargs()
+  for (n=1; n<=narg; n++) {
+    summarize_regions(arg::nonargs[n])
   }
   exit 0
 }
@@ -41,7 +39,7 @@ function summarize_regions(f,    firstline) {
   for (i in seen) {
     split(i, pops, SUBSEP)
     finvalue[i]=numerator[i]/denominator[i]"\t"numerator[i]"\t"denominator[i]"\t"nGeno[i]"\t"nMiss[i]
-    print pops[1], start[i], end[i], pops[2], pops[3], pops[4], allnUsed[i], pops[5], finvalue[i]
+    print pops[1]"\t"start[i]"\t"end[i]"\t"pops[2]"\t"pops[3]"\t"pops[4]"\t"allnUsed[i]"\t"pops[5]"\t"finvalue[i]
   }
 }
 

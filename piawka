@@ -7,7 +7,7 @@
 @load "filefuncs"
 
 @include "getopt.awk"
-@include "argparse.awk"
+@include "arg.awk"
 
 # Subcommands
 
@@ -51,10 +51,15 @@ help="\
 
 function assert(condition, explanation) {
   if (! condition) {
-    print argparse::help
-    printf("Error %s:%d: %s\n",
-           FILENAME, FNR, explanation) > "/dev/stderr"
+    print arg::help
+    printf("Error: %s\n", explanation) > "/dev/stderr"
     exit 1
   }
 }
 
+function check_file(file,   cmd) {
+   if (awk::stat(file, _) < 0) {
+        print "Error: could not read file "file > "/dev/stderr"
+        exit 1
+    }
+}

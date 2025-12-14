@@ -3,15 +3,29 @@
 function run(){ 
   check_gawk_version()
   check_htslib()
-  OFS="\t"
-  usage="piawka v0.8.11\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
+  help="\
+    Calculate statistics within & between groups of samples in a VCF file.\n\
+    Mandatory arguments are VCF file (--vcf) and grouping (--groups).\n\
+    Default --stats are pi,dxy; other can be provided as a spaceless comma-seprarted list.\n\
+    EXAMPLE: \n\tpiawka calc [OPTIONS] -v file.tsv -g  > distance_file"
+  # add_argument args: shortopt, longopt, is_flag, description
+  arg::add_argument("1", "persite", 1, "output values for each site")
+  arg::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
+  arg::add_argument("B", "targets", 0, "BED file with targets (faster for numerous small regions)")
+  arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group)")
+  arg::add_argument("j", "jobs", 0, "number of parallel jobs to run")
+  arg::add_argument("l", "list", 1, "list all available statistics and exit")
+  arg::add_argument("m", "mult", 1, "use populations with multiple alleles at a site")
+  arg::add_argument("M", "miss", 0, "max share of missing GT per group at site, 0.0-1.0")
+  arg::add_argument("q", "quiet", 1, "do not output progress and warning messages")
+  arg::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
+  arg::add_argument("s", "stats", 0, "stats to calculate, comma-separated, e.g. \"pi,dxy,fst\"; full list under `piawka calc -l`")
+  arg::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
+  arg::parse_args(2, help)
+
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
   piawka=ENVIRON["AWKPATH"]
   sub(/include:.*$/,"piawka",piawka)
-  summarize_blks=piawka" sum"
-  make_windows=piawka" win"
-  aggregate_regions=piawka" win -T"
-
   parse_arguments()
   print_header()
   configure_run()
@@ -35,26 +49,6 @@ function check_gawk_version(    gawk_version) {
 }
 
 function parse_arguments() {
-  # add_argument args: shortopt, longopt, is_flag, description
-  argparse::add_argument("1", "persite", 1, "output values for each site")
-  argparse::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
-  argparse::add_argument("B", "targets", 0, "BED file with targets (faster for numerous small regions)")
-  argparse::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (1 group) or \"divide\" (n_samples groups)")
-  argparse::add_argument("h", "help", 1, "show this help message")
-  argparse::add_argument("j", "jobs", 0, "number of parallel jobs to run")
-  argparse::add_argument("l", "list", 1, "list all available statistics and exit")
-  argparse::add_argument("m", "mult", 1, "use populations with multiple alleles at a site")
-  argparse::add_argument("M", "miss", 0, "max share of missing GT per group at site, 0.0-1.0")
-  argparse::add_argument("q", "quiet", 1, "do not output progress and warning messages")
-  argparse::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
-  argparse::add_argument("s", "stats", 0, "stats to calculate, comma-separated, e.g. \"pi,dxy,fst\"; full list under `piawka -l`")
-  argparse::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
-  help = usage "\n" argparse::format_help()
-  getopt::Optind = 2 # start with 2nd opt
-  getopt::Opterr = 1 # print getopt errs
-  if ( argparse::parse_args() != 0 ) { print help; return 0 }
-  for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
-  if ( args["help"] || ARGC==1 ) { print help; exit 0 }
 
   add_stat("diff", "average allele frequency difference", "between")
   add_stat("dxy", "absolute nucleotide divergence", "between")
@@ -74,16 +68,16 @@ function parse_arguments() {
   add_stat("Ht", "helper: 2nd harmonic number", "between")
   add_stat("Hsp", "helper: average of pi values, corrected for ploidy", "between", "pi")
 
-  if ( args["list"] ) {
+  if ( arg::args["list"] ) {
     print format_stats()
     exit 0
   }
-  if ( args["stats"]=="" ) {
-    args["stats"]="pi,dxy"
+  if ( arg::args["stats"]=="" ) {
+    arg::args["stats"]="pi,dxy"
   }
-  split( tolower(args["stats"]), statargs, "," )
+  split( tolower(arg::args["stats"]), statargs, "," )
   for (i in statargs) { 
-    assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
+    piawka::assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
     nr=statslist[statargs[i]]
     is_between=( stat_isbetween[nr] ? "between" : "within" )
     stats_print[is_between][statargs[i]]=1 
@@ -91,7 +85,7 @@ function parse_arguments() {
     if (stat_dep[nr] != "") {
       ndeps=split(stat_dep[nr], stat_deps, ",")
       for (j=1;j<=ndeps;j++) {
-        assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]" (check options with piawka -l)" )
+        piawka::assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]" (check options with piawka -l)" )
         nr=statslist[stat_deps[j]]
         is_between=( stat_isbetween[nr] ? "between" : "within" )
         stats[is_between][stat_deps[j]]=1
@@ -102,10 +96,10 @@ function parse_arguments() {
   any_between="between" in stats
 
   # Some arg checks
-  assert( args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
-  assert( args["groups"] != "", "required argument: -g <groups.tsv>" )
-  if ( args["bed"] != "" ) { check_file( args["bed"] ) }
-  if ( args["targets"] != "" ) { check_file( args["targets"] ) }
+  piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
+  piawka::assert( arg::args["groups"] != "", "required argument: -g <groups.tsv>" )
+  if ( arg::args["bed"] != "" ) { piawka::check_file( arg::args["bed"] ) }
+  if ( arg::args["targets"] != "" ) { piawka::check_file( arg::args["targets"] ) }
 }
 
 function add_stat(name, desc, is_between, dep) {
@@ -151,9 +145,9 @@ function format_stats(   help, help_col1, total_width) {
 function configure_run() {
 # Set default variable values, prepare index arrays and pipes
 
-  if ( args["miss"] == "" ) { args["miss"]=1 }
+  if ( arg::args["miss"] == "" ) { arg::args["miss"]=1 }
 
-  if ( ( args["groups"] != "unite" ) && ( args["groups"] != "divide" ) ) {
+  if ( ( arg::args["groups"] != "unite" ) && ( arg::args["groups"] != "divide" ) ) {
     get_groups()
   }
 
@@ -175,16 +169,16 @@ function configure_run() {
   close(tmpcmd)
   # We can't trap an exec'ed script but we can employ a process to clean the tmpdir after it's done:
   system( "{ while kill -0 "PROCINFO["pid"]" 2>/dev/null; do sleep 1; done; rm -r "tmpdir"; } &" )
-  if ( args["jobs"]==0 ) {
-    args["jobs"]=1 
+  if ( arg::args["jobs"]==0 ) {
+    arg::args["jobs"]=1 
   }
 }
 
 function main() {
 
   # Children: listen to query regions dispenser
-  for ( jobnum=0; jobnum < args["jobs"]; jobnum++ ) { 
-    if ( args["rand"] ) { srand( awk::xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
+  for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
+    if ( arg::args["rand"] ) { srand( awk::xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
     buffer = "cat #"jobnum
     buffers[buffer]++
     printf "" |& buffer # initialize pipe
@@ -193,7 +187,7 @@ function main() {
     close(buffer, "to") # children don't print to buffer
     bufl=0
     while ( $0 != SIGNAL_END_OF_BUFFER ) {
-      curr= jobnum + args["jobs"] * (++bufl - 1)
+      curr= jobnum + arg::args["jobs"] * (++bufl - 1)
       tmpf=tmpdir "/" curr ".tmp"
       getl=(buffer |& getline)
       if (getl <= 0) {
@@ -219,7 +213,7 @@ function main() {
   bufl=0
   while ( bedcmd | getline > 0 ) {
     bufl++
-    jobnum=bedline++ % args["jobs"]
+    jobnum=bedline++ % arg::args["jobs"]
     buffer="cat #"jobnum # number of pipes with regions == # jobs
     print $0 |& buffer
   }
@@ -232,38 +226,38 @@ function main() {
 }
 
 function get_bedcmd() {
-  if ( args["bed"] != "" ) {
-    return "cat "args["bed"]
-  } else if (args["targets"] != "") {
-    return aggregate_regions" "args["targets"] 
+  if ( arg::args["bed"] != "" ) {
+    return "cat "arg::args["bed"]
+  } else if (arg::args["targets"] != "") {
+    return piawka" win -T "arg::args["targets"] 
   } else {
-    return make_windows" -v "args["vcf"]" -s "header_length
+    return piawka" win -v "arg::args["vcf"]" -s "header_length
   }
 }
 
 # Groups file (first in command line): store lists of group members in `groups` array
 function get_groups() { 
-  check_file( args["groups"] )
-  while ( getline < args["groups"] > 0 ) {
-    if (!checked_groups) { assert(NF==2, "the groups file must contain two columns"); checked_groups=1 }
+  piawka::check_file( arg::args["groups"] )
+  while ( getline < arg::args["groups"] > 0 ) {
+    if (!checked_groups) { piawka::assert(NF==2, "the groups file must contain two columns"); checked_groups=1 }
       groupmem[$1]=$2
   }
-  close( args["groups"] )
+  close( arg::args["groups"] )
 }
 
 # VCF header: assign samples to groups
 function get_header() {
-  cmd="tabix -H " args["vcf"]
+  cmd="tabix -H " arg::args["vcf"]
   while ( cmd | getline > 0 ) { 
     header_length++
     if ($0 ~ /^#CHROM/ ) {
 
       # Assign sample positions to groups
       for (i=10; i<=NF; i++) {
-        if ( args["groups"]=="unite" ) {
+        if ( arg::args["groups"]=="unite" ) {
           groupindex[i]="all_samples"
           groups["all_samples"]++
-        } else if ( args["groups"]=="divide" ) {
+        } else if ( arg::args["groups"]=="divide" ) {
           groupindex[i]=$i
           groups[$i]++
         } else if ( groupmem[$i] != "" ) { 
@@ -287,14 +281,14 @@ function get_header() {
 }
 
 function initiate_diff(){
-  if ( args["mult"] == 1 ) {
+  if ( arg::args["mult"] == 1 ) {
     say("Warning: -s diff is not reliable in multiallelic sites")
   }
 }
 
 function initiate_tajima(){
-  assert( args["persite"]!=1, "-s tajima cannot be calculated for a single site" )
-  if ( args["jobs"] > 1 ) {
+  piawka::assert( arg::args["persite"]!=1, "-s tajima cannot be calculated for a single site" )
+  if ( arg::args["jobs"] > 1 ) {
     say("Warning: -s tajima is a bit less precise in multithreaded mode due to averaging across windows")
   }
   for (g in groups) {
@@ -305,12 +299,12 @@ function initiate_tajima(){
 }
 
 function initiate_watterson(){
-  assert( args["persite"]!=1, "-s watterson at a single site is meaningless" )
+  piawka::assert( arg::args["persite"]!=1, "-s watterson at a single site is meaningless" )
 }
 
 function initiate_tajimalike(){
-  assert( args["persite"]!=1, "-s tajimalike cannot be calculated for a single site" )
-  if ( args["jobs"] > 1 ) {
+  piawka::assert( arg::args["persite"]!=1, "-s tajimalike cannot be calculated for a single site" )
+  if ( arg::args["jobs"] > 1 ) {
     say("Warning: -s tajimalike is a bit less precise in multithreaded mode due to averaging across windows")
   }
   for (g in groups) {
@@ -321,7 +315,7 @@ function initiate_tajimalike(){
 }
 
 function initiate_rho(){
-  if ( args["mult"] == 1 ) {
+  if ( arg::args["mult"] == 1 ) {
     say("Warning: -s rho is not reliable in multiallelic sites")
   }
   for (g in groups) {
@@ -333,11 +327,11 @@ function initiate_rho(){
 
 # Process VCF lines
 function process_sites() {
-  if ( locus == "" ) { locus="_" } # empty locus breaks summarize_blks.awk
-  cmd = "tabix " args["vcf"] ( args["targets"]!="" ? " -T " args["targets"]:"" ) " "chr":"start+1"-"end  
+  if ( locus == "" ) { locus="_" } # empty locus breaks piawka sum
+  cmd = "tabix " arg::args["vcf"] ( arg::args["targets"]!="" ? " -T " arg::args["targets"]:"" ) " "chr":"start+1"-"end  
   while ( cmd | getline > 0 ) {
 
-    if ( args["rand"] && ( rand() > args["rand"] ) ) { continue }
+    if ( arg::args["rand"]!="" && ( rand() > arg::args["rand"] ) ) { continue }
 
     # Process only SNPs (possibly monomorphic or multiallelic)
     # To obtain results identical to ksamuk/pixy, set $4 !~ /^[ACGT]$/ && $5 !~ /\*|,|[ACGT][ACGT]/
@@ -357,7 +351,7 @@ function process_sites() {
       ALT[++a]=1
     }
 
-    if ( args["persite"] == 1 ) { 
+    if ( arg::args["persite"] == 1 ) { 
       start=$2-1
       end=$2
     }
@@ -388,7 +382,7 @@ function process_sites() {
           nalleles[g]++
         }
       }
-      if ( args["groups"] == "divide" && g in alleles ) {
+      if ( arg::args["groups"] == "divide" && g in alleles ) {
         calculate_within(g)
         allmiss[g]+=miss[g]
         allgeno[g]+=nalleles[g]
@@ -402,9 +396,9 @@ function process_sites() {
       }
     }
 
-    if ( args["groups"] != "divide" ) { 
+    if ( arg::args["groups"] != "divide" ) { 
       for ( g in alleles ) {
-        if ( exclude[g] || ( args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > args["miss"] ) || ( args["mult"] != 1 && length(alleles[g]) > 2 ) ) { 
+        if ( exclude[g] || ( arg::args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > arg::args["miss"] ) || ( arg::args["mult"] != 1 && length(alleles[g]) > 2 ) ) { 
           delete alleles[g]
           continue
         }
@@ -424,7 +418,7 @@ function process_sites() {
   }
   close(cmd)
   if ( pid>0 ) { return 0 }
-  if ( args["persite"] == 1 ) { return 0 }
+  if ( arg::args["persite"] == 1 ) { return 0 }
 
   for (i in nUsed) {
     if ( split(i, ii, SUBSEP) == 1 ) {
@@ -481,21 +475,21 @@ function finalize_tajimalike(g,     tP, a1, a2){
 
 END {
   if (pid>0) {
-    say("Total jobs to run: "bufl + (bufl % args["jobs"] > 0 ? args["jobs"] : 0)-1"\n", 1 )
+    say("Total jobs to run: "bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"] : 0)-1"\n", 1 )
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
       # to avoid race condition given persite, wait until the child writes to next region
-      tmpfn=tmpdir"/"f+args["jobs"]".tmp"
+      tmpfn=tmpdir"/"f+arg::args["jobs"]".tmp"
       while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
         system("sleep 1")
       }
-      say("Finalizing job " f+args["jobs"], 1)
+      say("Finalizing job " f+arg::args["jobs"], 1)
       while ( getline < tmpf > 0 ) {
         if ( $0 == SIGNAL_END_OF_BUFFER ) {
           break
         }
-        if ( args["bed"] == "" && args["persite"] != 1 ) {
-          print | summarize_blks
+        if ( arg::args["bed"] == "" && arg::args["persite"] != 1 ) {
+          print | piawka" sum -"
         } else {
           print
         }
@@ -504,7 +498,7 @@ END {
       system("rm -f "tmpf)
     }
     # no need to wait since all children confirmedly written output?..
-    close(summarize_blks)
+    close(piawka" sum -")
   }
 }
 
@@ -556,7 +550,7 @@ function calculate_within(g) {
       @incr(g)
     }
 
-    if ( args["persite"] == 1 ) { 
+    if ( arg::args["persite"] == 1 ) { 
       num[g][s]=thisnum[g][s]
       den[g][s]=thisden[g][s] 
     } else {
@@ -564,7 +558,7 @@ function calculate_within(g) {
       den[g][s]+=thisden[g][s] 
     }
   }
-  if (args["persite"] == 1) {
+  if (arg::args["persite"] == 1) {
     allgeno[g]=nalleles[g]+nalleles[g2]
     allmiss[g]=miss[g]+miss[g2]
     for ( s in stats["within"] ) {
@@ -609,7 +603,7 @@ function increment_fst(g,g2,    a1, a2, n1, n2, hw, hb){
     hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
     thisnum[g,g2]["fst"]+=hb-hw
     thisden[g,g2]["fst"]+=hb
-    if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+    if ( arg::args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
   }
 } 
 
@@ -627,7 +621,7 @@ function increment_fstwc(g,g2,    a1, a2, n1, n2, sizes, frac, mism, den){
     den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
     thisnum[g,g2]["fstwc"] += den - 2 * sizes * frac * mism
     thisden[g,g2]["fstwc"] += den
-    if ( args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
+    if ( arg::args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
   }
 }
 
@@ -671,8 +665,8 @@ function calculate_between(g,g2) {
     }
   }
 
-  # If not args["mult"] == 1, proceed only if common allele pool has <=2 alleles
-  if ( args["mult"] != 1 && poolsize > 2 ) { return 1 }
+  # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
+  if ( arg::args["mult"] != 1 && poolsize > 2 ) { return 1 }
 
   nUsed[g,g2]++
   
@@ -682,7 +676,7 @@ function calculate_between(g,g2) {
       @incr(g,g2)
     }
 
-    if ( args["persite"] == 1 ) { 
+    if ( arg::args["persite"] == 1 ) { 
       num[g,g2][s]=thisnum[g,g2][s]
       den[g,g2][s]=thisden[g,g2][s] 
     } else {
@@ -690,7 +684,7 @@ function calculate_between(g,g2) {
       den[g,g2][s]+=thisden[g,g2][s] 
     }
   }
-  if (args["persite"] == 1) {
+  if (arg::args["persite"] == 1) {
     allgeno[g,g2]=nalleles[g]+nalleles[g2]
     allmiss[g,g2]=miss[g]+miss[g2]
     for ( s in stats["between"] ) {
@@ -760,28 +754,12 @@ function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
   return S*(coef2/coef1)
 }
 
-function assert(condition, explanation) {
-  if (! condition) {
-    print help
-    printf("Error %s:%d: %s\n",
-           FILENAME, FNR, explanation) > "/dev/stderr"
-    exit 1
-  }
-}
-
 function print_header() {
     print "#chr", "start", "end", "locus", "pop1", "pop2", "nUsed", "metric", "value", "numerator", "denominator", "nGeno", "nMiss"
 }
 
-function check_file(file,   cmd) {
-   if (awk::stat(file, _) < 0) {
-        print "Error: could not read file "file > "/dev/stderr"
-        exit 1
-    }
-}
-
 function say(string, same_line) {
-  if (args["quiet"]) { return }
+  if (arg::args["quiet"]) { return }
   if (same_line) {
     printf "\033[2K\r" string > "/dev/stderr"
   } else {
