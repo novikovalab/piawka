@@ -343,7 +343,6 @@ function process_sites() {
   if ( locus == "" ) { locus="_" } # empty locus breaks summarize_blks.awk
   cmd = "tabix " args["vcf"] ( args["targets"]!="" ? " -T " args["targets"]:"" ) " "chr":"start+1"-"end  
   while ( cmd | getline > 0 ) {
-    vcfline++
 
     if ( args["rand"] && ( rand() > args["rand"] ) ) { continue }
 
