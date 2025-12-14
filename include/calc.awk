@@ -27,9 +27,14 @@ function run(){
   piawka=ENVIRON["AWKPATH"]
   sub(/include:.*$/,"piawka",piawka)
   check_arguments()
+  print_header()
   make_tmpdir()
-  print "#chr\tstart\tend\tlocus\tpop1\tpop2\tmetric\tvalue\tnumerator\tdenominator"
   exit main()
+}
+
+function print_header() {
+  # has to be before make_tmpdir otherwise children print own headers
+  print "#chr\tstart\tend\tlocus\tpop1\tpop2\tmetric\tvalue\tnumerator\tdenominator"
 }
 
 function check_htslib(    bgzip_status, tabix_status) {
