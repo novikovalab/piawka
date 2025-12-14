@@ -572,8 +572,6 @@ function increment_rho(g,g2){
 
 function calculate_between(g,g2) {
   if (!any_between) { return 0 }
-  # Is the union of allelic states from g1 and g2 bigger than length(alleles[g1])?
-  poolsize=length(alleles[g])
   # Extract alleles of the group
   delete bothalleles
   for (xx in alleles[g]) {
@@ -583,13 +581,12 @@ function calculate_between(g,g2) {
   }
   for (yy in alleles[g2]) {
     if ( !(yy in bothalleles) ) { 
-      poolsize++
       bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
       alleles[g][yy]=0
     }
   }
   # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
-  if ( arg::args["mult"] != 1 && poolsize > 2 ) { return 1 }
+  if ( arg::args["mult"] != 1 && length(bothalleles) > 2 ) { return 1 }
   nUsed[g,g2]++
   allmiss[g,g2]+=miss[g]+miss[g2]
   allgeno[g,g2]+=nalleles[g]+nalleles[g2]
