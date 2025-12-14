@@ -668,7 +668,7 @@ function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
 }
 
 function print_header() {
-    print "#chr", "start", "end", "locus", "pop1", "pop2", "nUsed", "metric", "value", "numerator", "denominator", "nGeno", "nMiss"
+    print "#chr", "start", "end", "locus", "pop1", "pop2", "metric", "value", "numerator", "denominator"
 }
 
 function say(string, same_line) {
