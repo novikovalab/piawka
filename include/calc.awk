@@ -26,9 +26,9 @@ function run(){
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
   piawka=ENVIRON["AWKPATH"]
   sub(/include:.*$/,"piawka",piawka)
-  parse_arguments()
-  print_header()
-  configure_run()
+  check_arguments()
+  make_tmpdir()
+  print "#chr\tstart\tend\tlocus\tpop1\tpop2\tmetric\tvalue\tnumerator\tdenominator"
   exit main()
 }
 
@@ -36,129 +36,45 @@ function check_htslib(    bgzip_status, tabix_status) {
   bgzip_status = system("bgzip --version > /dev/null")
   tabix_status = system("tabix --version > /dev/null")
   if ( bgzip_status || tabix_status ) {
-    print "Error: could not access dependencies: " ( bgzip_status ? "bgzip" : "" ) " " ( tabix_status ? "tabix" : "" )> "/dev/stderr"
+    say("Error: could not access dependencies: " ( bgzip_status ? "bgzip" : "" ) " " ( tabix_status ? "tabix" : "" ) )
     exit 1
   }
 }
 function check_gawk_version(    gawk_version) {
   gawk_version = substr(PROCINFO["version"],1,index(PROCINFO["version"],".")-1)
   if ( gawk_version < 5 ) {
-    print "Error: GNU AWK v5.0.0 or above is needed to run piawka" > "/dev/stderr"
+    say("Error: GNU AWK v5.0.0 or above is needed to run piawka")
     exit 1
   }
 }
 
-function parse_arguments() {
-
+function check_arguments() {
   if ( arg::args["list"] ) {
     print stats::format_stats()
     exit 0
   }
-  if ( arg::args["stats"]=="" ) {
-    arg::args["stats"]="pi,dxy"
-  }
-
+  if ( arg::args["stats"]=="" ) { arg::args["stats"]="pi,dxy" }
+  if ( arg::args["miss"] == "" ) { arg::args["miss"]=1 }
+  if ( arg::args["jobs"]==0 ) { arg::args["jobs"]=1 }
   stats::parse_stats(arg::args["stats"])
   any_within="within" in stats::stats
   any_between="between" in stats::stats
-
   # Some arg checks
   piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
   piawka::assert( arg::args["groups"] != "", "required argument: -g <groups.tsv>" )
   if ( arg::args["bed"] != "" ) { piawka::check_file( arg::args["bed"] ) }
   if ( arg::args["targets"] != "" ) { piawka::check_file( arg::args["targets"] ) }
-}
-
-function configure_run() {
-# Set default variable values, prepare index arrays and pipes
-
-  if ( arg::args["miss"] == "" ) { arg::args["miss"]=1 }
 
   if ( ( arg::args["groups"] != "unite" ) && ( arg::args["groups"] != "divide" ) ) {
     get_groups()
   }
-
   get_header()
-
   for (i in stats::statargs) {
     s=stats::statargs[i]
     init="calc::initiate_"s
     if ( init in FUNCTAB ) {
       @init()
     }
-  }
-
-  tmpcmd="mktemp -d piawkatmp.XXXXXXXX"
-  if ( tmpcmd | getline tmpdir <= 0 ) {
-    say("Error: failed to create temporary directory!")
-    exit 1
-  }
-  close(tmpcmd)
-  # We can't trap an exec'ed script but we can employ a process to clean the tmpdir after it's done:
-  system( "{ while kill -0 "PROCINFO["pid"]" 2>/dev/null; do sleep 1; done; rm -r "tmpdir"; } &" )
-  if ( arg::args["jobs"]==0 ) {
-    arg::args["jobs"]=1 
-  }
-}
-
-function main() {
-
-  # Children: listen to query regions dispenser
-  for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
-    if ( arg::args["rand"] ) { srand( awk::xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
-    buffer = "cat #"jobnum
-    printf "" |& buffer # initialize pipe
-    pid=awk::fork()
-    if ( pid>0 ) { continue } 
-    close(buffer, "to") # children don't print to buffer
-    bufl=0
-    while ( $0 != SIGNAL_END_OF_BUFFER ) {
-      curr= jobnum + arg::args["jobs"] * (++bufl - 1)
-      tmpf=tmpdir "/" curr ".tmp"
-      getl=(buffer |& getline)
-      if (getl <= 0) {
-        print "Error: job "jobnum" did not reach end of buffer:" > "/dev/stderr"
-        print $0 > "/dev/stderr"
-        return getl
-      }
-      chr=$1
-      start=$2
-      end=$3
-      locus=$4
-      process_sites()
-      # in case tmpf is empty, add a few bytes
-      print SIGNAL_END_OF_BUFFER > tmpf
-      close(tmpf)
-    }
-    close(buffer)
-    return 0
-  }
-  
-  # Parent process: dispense query regions or just scan the whole file
-  bedcmd = get_bedcmd()
-  bufl=0
-  while ( bedcmd | getline > 0 ) {
-    bufl++
-    jobnum=bedline++ % arg::args["jobs"]
-    buffer="cat #"jobnum # number of pipes with regions == # jobs
-    print $0 |& buffer
-  }
-  for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
-    buffer="cat #"jobnum 
-    print SIGNAL_END_OF_BUFFER |& buffer
-    close(i, "to")
-  }
-  close( bedcmd )
-  return 0
-}
-
-function get_bedcmd() {
-  if ( arg::args["bed"] != "" ) {
-    return "cat "arg::args["bed"]
-  } else if (arg::args["targets"] != "") {
-    return piawka" win -T "arg::args["targets"] 
-  } else {
-    return piawka" win -v "arg::args["vcf"]" -s "header_length
   }
 }
 
@@ -205,6 +121,78 @@ function get_header() {
     }
   }
   close(cmd)
+}
+
+function make_tmpdir(){
+  tmpcmd="mktemp -d piawkatmp.XXXXXXXX"
+  if ( tmpcmd | getline tmpdir <= 0 ) {
+    say("Error: failed to create temporary directory!")
+    exit 1
+  }
+  close(tmpcmd)
+  # We can't trap an exec'ed script but we can employ a process to clean the tmpdir after it's done:
+  system( "{ while kill -0 "PROCINFO["pid"]" 2>/dev/null; do sleep 1; done; rm -r "tmpdir"; } &" )
+}
+
+function main() {
+ 
+  # Children: listen to query regions dispenser
+  for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
+    if ( arg::args["rand"] ) { srand( awk::xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
+    buffer = "cat #"jobnum
+    printf "" |& buffer # initialize pipe
+    pid=awk::fork()
+    if ( pid>0 ) { continue } 
+    close(buffer, "to") # children don't print to buffer
+    bufl=0
+    while ( $0 != SIGNAL_END_OF_BUFFER ) {
+      curr= jobnum + arg::args["jobs"] * (++bufl - 1)
+      tmpf=tmpdir "/" curr ".tmp"
+      getl=(buffer |& getline)
+      if (getl <= 0) {
+        say("Error: job "jobnum" did not reach end of buffer, stopped at:")
+        print $0 > "/dev/stderr"
+        return getl
+      }
+      chr=$1
+      start=$2
+      end=$3
+      locus=$4
+      process_sites()
+      # in case tmpf is empty, add a few bytes
+      print SIGNAL_END_OF_BUFFER > tmpf
+      close(tmpf)
+    }
+    close(buffer)
+    return 0
+  }
+  
+  # Parent process: dispense query regions or just scan the whole file
+  bedcmd = get_bedcmd()
+  bufl=0
+  while ( bedcmd | getline > 0 ) {
+    bufl++
+    jobnum=bedline++ % arg::args["jobs"]
+    buffer="cat #"jobnum # number of pipes with regions == # jobs
+    print $0 |& buffer
+  }
+  for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
+    buffer="cat #"jobnum 
+    print SIGNAL_END_OF_BUFFER |& buffer
+    close(i, "to")
+  }
+  close( bedcmd )
+  return 0
+}
+
+function get_bedcmd() {
+  if ( arg::args["bed"] != "" ) {
+    return "cat "arg::args["bed"]
+  } else if (arg::args["targets"] != "") {
+    return piawka" win -T "arg::args["targets"] 
+  } else {
+    return piawka" win -v "arg::args["vcf"]" -s "header_length
+  }
 }
 
 # Process VCF lines
@@ -299,66 +287,6 @@ function process_sites() {
   close(cmd)
 }
 
-function yield_output() {
-  if ( pid>0 ) { return 0 }
-  for (_ij in den) {
-    if ( split(_ij, ij, SUBSEP) == 1 ) {
-      i=ij[1]
-      for ( s in stats::stats["within"] ) {
-        fin="calc::finalize_"s
-        if ( fin in FUNCTAB ) {
-          @fin(i)
-        }
-        if (s in stats::stats_print["within"]) {
-          printOutput( i, "", s ) 
-        }
-      }
-    } else {
-      for ( s in stats::stats["between"] ) {
-        fin="calc::finalize_"s
-        if ( fin in FUNCTAB ) {
-          @fin(ij[1],ij[2])
-        }
-        if (s in stats::stats_print["between"]) {
-          printOutput( ij[1], ij[2], s )
-        }
-      }
-    }
-  }
-  # Reset locus-specific parameters
-  delete num
-  delete den
-}
-
-END {
-  if (pid>0) {
-    say("Total jobs to run: "bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"] : 0)-1"\n", 1 )
-    for (f=0; f<bufl; f++) {
-      tmpf=tmpdir"/"f".tmp"
-      # to avoid race condition given persite, wait until the child writes to next region
-      tmpfn=tmpdir"/"f+arg::args["jobs"]".tmp"
-      while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
-        system("sleep 1")
-      }
-      say("Finalizing job " f+arg::args["jobs"], 1)
-      while ( getline < tmpf > 0 ) {
-        if ( $0 == SIGNAL_END_OF_BUFFER ) {
-          break
-        }
-        if ( arg::args["bed"] == "" && arg::args["persite"] != 1 ) {
-          print | piawka" sum -"
-        } else {
-          print
-        }
-      }
-      close(tmpf)
-      system("rm -f "tmpf)
-    }
-    # no need to wait since all children confirmedly written output?..
-    close(piawka" sum -")
-  }
-}
-
 function calculate_within(i) {
   if (!any_within) { return 0 }
   for ( s in stats::stats["within"] ) {
@@ -400,6 +328,37 @@ function calculate_between(i,j) {
   }
 }
 
+function yield_output() {
+  if ( pid>0 ) { return 0 }
+  for (_ij in den) {
+    if ( split(_ij, ij, SUBSEP) == 1 ) {
+      i=ij[1]
+      for ( s in stats::stats["within"] ) {
+        fin="calc::finalize_"s
+        if ( fin in FUNCTAB ) {
+          @fin(i)
+        }
+        if (s in stats::stats_print["within"]) {
+          printOutput( i, "", s ) 
+        }
+      }
+    } else {
+      for ( s in stats::stats["between"] ) {
+        fin="calc::finalize_"s
+        if ( fin in FUNCTAB ) {
+          @fin(ij[1],ij[2])
+        }
+        if (s in stats::stats_print["between"]) {
+          printOutput( ij[1], ij[2], s )
+        }
+      }
+    }
+  }
+  # Reset locus-specific parameters
+  delete num
+  delete den
+}
+
 function printOutput( i, j, metric,    idx ) {
   if (j=="") {
     idx=i
@@ -412,12 +371,37 @@ function printOutput( i, j, metric,    idx ) {
   print out > tmpf
 }
 
-function print_header() {
-    print "#chr\tstart\tend\tlocus\tpop1\tpop2\tmetric\tvalue\tnumerator\tdenominator"
+END {
+  if (pid>0) {
+    say("Total jobs to run: "bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"] : 0)-1"\n", 1 )
+    for (f=0; f<bufl; f++) {
+      tmpf=tmpdir"/"f".tmp"
+      # to avoid race condition given persite, wait until the child writes to next region
+      tmpfn=tmpdir"/"f+arg::args["jobs"]".tmp"
+      while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
+        system("sleep 1")
+      }
+      say("Finalizing job " f+arg::args["jobs"], 1)
+      while ( getline < tmpf > 0 ) {
+        if ( $0 == SIGNAL_END_OF_BUFFER ) {
+          break
+        }
+        if ( arg::args["bed"] == "" && arg::args["persite"] != 1 ) {
+          print | piawka" sum -"
+        } else {
+          print
+        }
+      }
+      close(tmpf)
+      system("rm -f "tmpf)
+    }
+    # no need to wait since all children confirmedly written output?..
+    close(piawka" sum -")
+  }
 }
 
 function say(string, same_line) {
-  if (arg::args["quiet"]) { return }
+  if (arg::args["quiet"] && string !~ /^Error/) { return }
   if (same_line) {
     printf "\033[2K\r" string > "/dev/stderr"
   } else {
