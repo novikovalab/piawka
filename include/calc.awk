@@ -15,7 +15,7 @@ function run(){
   arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group)")
   arg::add_argument("j", "jobs", 0, "number of parallel jobs to run")
   arg::add_argument("l", "list", 1, "list all available statistics and exit")
-  arg::add_argument("m", "mult", 1, "use populations with multiple alleles at a site")
+  arg::add_argument("m", "mult", 1, "use populations with multiple a at a site")
   arg::add_argument("M", "miss", 0, "max share of missing GT per group at site, 0.0-1.0")
   arg::add_argument("q", "quiet", 1, "do not output progress and warning messages")
   arg::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
@@ -197,26 +197,26 @@ function get_header() {
     if ($0 ~ /^#CHROM/ ) {
 
       # Assign sample positions to groups
-      for (i=10; i<=NF; i++) {
+      for (col=10; col<=NF; col++) {
         if ( arg::args["groups"]=="unite" ) {
-          groupindex[i]="all_samples"
+          groupindex[col]="all_samples"
           groups["all_samples"]++
         } else if ( arg::args["groups"]=="divide" ) {
-          groupindex[i]=$i
-          groups[$i]++
-        } else if ( groupmem[$i] != "" ) { 
-          groupindex[i]=groupmem[$i]
-          groups[groupmem[$i]]++
+          groupindex[col]=$col
+          groups[$col]++
+        } else if ( groupmem[$col] != "" ) { 
+          groupindex[col]=groupmem[$col]
+          groups[groupmem[$col]]++
         }
       }
       # Assign ploidy to groups using variant calls from next line, detect mixed-ploidy groups
       cmd | getline
-      # Count alleles for each group, then divide by number of samples
-      for (i in groupindex) {
-        ploidy[groupindex[i]] += ( ( p = index($i, ":") ) > 0 ? p : length($i)+1 )
+      # Count a for each group, then divide by number of samples
+      for (col in groupindex) {
+        ploidy[groupindex[col]] += ( ( p = index($col, ":") ) > 0 ? p : length($col)+1 )
       }
-      for (g in groups) {
-        ploidy[g] /= 2*groups[g]
+      for (i in groups) {
+        ploidy[i] /= 2*groups[i]
       }
       break
     }
@@ -235,8 +235,8 @@ function initiate_tajima(){
   if ( arg::args["jobs"] > 1 ) {
     say("Warning: -s tajima is a bit less precise in multithreaded mode due to averaging across windows")
   }
-  for (g in groups) {
-    if ( ploidy[g] % 1 != 0 ) {
+  for (i in groups) {
+    if ( ploidy[i] % 1 != 0 ) {
       say("Warning: mixed ploidy population "g" will give unreliable results with -s tajima" )
     }
   }
@@ -251,8 +251,8 @@ function initiate_tajimalike(){
   if ( arg::args["jobs"] > 1 ) {
     say("Warning: -s tajimalike is a bit less precise in multithreaded mode due to averaging across windows")
   }
-  for (g in groups) {
-    if ( ploidy[g] % 1 != 0 ) {
+  for (i in groups) {
+    if ( ploidy[i] % 1 != 0 ) {
       say("Warning: mixed ploidy population "g" will give unreliable results with -s tajimalike" )
     }
   }
@@ -262,8 +262,8 @@ function initiate_rho(){
   if ( arg::args["mult"] == 1 ) {
     say("Warning: -s rho is not reliable in multiallelic sites")
   }
-  for (g in groups) {
-    if ( ploidy[g] % 1 != 0 ) {
+  for (i in groups) {
+    if ( ploidy[i] % 1 != 0 ) {
       say("Warning: mixed ploidy population "g" will give unreliable results with -s rho" )
     }
   }
@@ -281,18 +281,18 @@ function process_sites() {
     # To obtain results identical to ksamuk/pixy, set $4 !~ /^[ACGT]$/ && $5 !~ /\*|,|[ACGT][ACGT]/
     if (length($4)>1) { continue } # if REF is multi-nucleotide, skip
     delete ALT
-    ALT[a=0]=1
+    ALT[nalt=0]=1
 
     # only consider single-char ALT that are not *
     while (x=index($5,",")) {
-      a++
+      nalt++
       if (x == 2 && substr($5,1,1)!="*") {
-        ALT[a]=1
+        ALT[nalt]=1
       }
       $5=substr($5,x+1)
     }
     if ( length($5) == 1 && $5 != "*" ) {
-      ALT[++a]=1
+      ALT[++nalt]=1
     }
 
     if ( arg::args["persite"] == 1 ) { 
@@ -301,38 +301,38 @@ function process_sites() {
     }
   
     # Reset site-specific parameters
-    for (g in groups) { miss[g]=0; misind[g]=0; nalleles[g]=0; exclude[g]=0 }
-    delete alleles
+    for (i in groups) { miss[i]=0; misind[i]=0; n[i]=0; exclude[i]=0 }
+    delete a
     delete thisnum
     delete thisden
 
     # Pool GT values for groups, count each state and missing data
-    for (i in groupindex) {
-      g=groupindex[i]
-      if ( exclude[g] ) { continue }
-      gtend=index( $i, ":" )
-      if ( gtend==0 ) { gtend=length($i)+1 }
+    for (col in groupindex) {
+      i=groupindex[col]
+      if ( exclude[i] ) { continue }
+      gtend=index( $col, ":" )
+      if ( gtend==0 ) { gtend=length($col)+1 }
       for (c=1; c<gtend; c+=2) {
-        al=substr($i,c,1)
+        al=substr($col,c,1)
         if ( al == "." ) {
-          miss[g]+=gtend/2
+          miss[i]+=gtend/2
           break
         } else {
           if ( !(al in ALT) ) { 
-            exclude[g]=1
+            exclude[i]=1
             break
           }
-          alleles[g][al]++
-          nalleles[g]++
+          a[i][al]++
+          n[i]++
         }
       }
-      if ( arg::args["groups"] == "divide" && g in alleles ) {
-        calculate_within(g)
-        for (g2 in alleles) {
-          if ( g2 > g ) {
-            calculate_between(g,g2)
-          } else if ( g2 < g ) {
-            calculate_between(g2,g)
+      if ( arg::args["groups"] == "divide" && i in a ) {
+        calculate_within(i)
+        for (j in a) {
+          if ( j > i ) {
+            calculate_between(i,j)
+          } else if ( j < i ) {
+            calculate_between(j,i)
           }
         }
         if ( arg::args["persite"] ) { yield_output() }
@@ -340,18 +340,18 @@ function process_sites() {
     }
 
     if ( arg::args["groups"] == "divide" ) { continue }
-    for ( g in alleles ) {
-      if ( exclude[g] || ( arg::args["miss"] < 1 && miss[g]/(miss[g]+nalleles[g]) > arg::args["miss"] ) || ( arg::args["mult"] != 1 && length(alleles[g]) > 2 ) ) { 
-        delete alleles[g]
+    for ( i in a ) {
+      if ( exclude[i] || ( arg::args["miss"] < 1 && miss[i]/(miss[i]+n[i]) > arg::args["miss"] ) || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
+        delete a[i]
         continue
       }
-      calculate_within( g )
+      calculate_within( i )
     }
-    for ( g in alleles ) {
-      for ( g2 in alleles ) {
+    for ( i in a ) {
+      for ( j in a ) {
         # Only making comparisons one way
-        if (g2>g) { 
-          calculate_between(g,g2)
+        if (j>i) { 
+          calculate_between(i,j)
         }
       }
     }
@@ -363,8 +363,8 @@ function process_sites() {
 
 function yield_output() {
   if ( pid>0 ) { return 0 }
-  for (i in den) {
-    if ( split(i, ii, SUBSEP) == 1 ) {
+  for (_ij in den) {
+    if ( split(_ij, ij, SUBSEP) == 1 ) {
       for ( s in stats::stats["within"] ) {
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
@@ -378,10 +378,10 @@ function yield_output() {
       for ( s in stats::stats["between"] ) {
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
-          @fin(ii[1],ii[2])
+          @fin(ij[1],ij[2])
         }
         if (s in stats::stats_print["between"]) {
-          printOutput( ii[1], ii[2], s )
+          printOutput( ij[1], ij[2], s )
         }
       }
     }
@@ -391,28 +391,28 @@ function yield_output() {
   delete den
 }
 
-function finalize_watterson(g){
-  if ( num[g]["truesegr"]==0 ) { return 0 }
-  num[g]["watterson"]=num[g]["truesegr"]/nUsed[g]
-  den[g]["watterson"]=num[g]["a1"]/num[g]["truesegr"]
+function finalize_watterson(i){
+  if ( num[i]["truesegr"]==0 ) { return 0 }
+  num[i]["watterson"]=num[i]["truesegr"]/nUsed[i]
+  den[i]["watterson"]=num[i]["a1"]/num[i]["truesegr"]
 }
 
-function finalize_tajima(g,     tP, a1, a2){
-  if ( num[g]["truesegr"]==0 ) { return 0 }
-  tP=num[g]["pi"]/den[g]["pi"]*nUsed[g]
-  a1=num[g]["a1"]/num[g]["truesegr"]
-  a2=num[g]["a2"]/num[g]["truesegr"]
-  num[g]["tajima"]= tP - num[g]["truesegr"]/a1
-  den[g]["tajima"]= calcTajimaVar( num[g]["truesegr"], a1, a2, nalleles[g]+miss[g] )
+function finalize_tajima(i,     tP, a1, a2){
+  if ( num[i]["truesegr"]==0 ) { return 0 }
+  tP=num[i]["pi"]/den[i]["pi"]*nUsed[i]
+  a1=num[i]["a1"]/num[i]["truesegr"]
+  a2=num[i]["a2"]/num[i]["truesegr"]
+  num[i]["tajima"]= tP - num[i]["truesegr"]/a1
+  den[i]["tajima"]= calcTajimaVar( num[i]["truesegr"], a1, a2, n[i]+miss[i] )
 }
 
-function finalize_tajimalike(g,     tP, a1, a2){
-  if ( num[g]["truesegr"]==0 ) { return 0 }
-  tP=num[g]["pi"]/den[g]["pi"]*nUsed[g]
-  a1=num[g]["a1"]/num[g]["truesegr"]
-  a2=num[g]["a2"]/num[g]["truesegr"]
-  num[g]["tajimalike"]= tP - num[g]["segr"]/a1
-  den[g]["tajimalike"]=calcTajimaVar( num[g]["segr"], a1, a2, nalleles[g]+miss[g] )
+function finalize_tajimalike(i,     tP, a1, a2){
+  if ( num[i]["truesegr"]==0 ) { return 0 }
+  tP=num[i]["pi"]/den[i]["pi"]*nUsed[i]
+  a1=num[i]["a1"]/num[i]["truesegr"]
+  a2=num[i]["a2"]/num[i]["truesegr"]
+  num[i]["tajimalike"]= tP - num[i]["segr"]/a1
+  den[i]["tajimalike"]=calcTajimaVar( num[i]["segr"], a1, a2, n[i]+miss[i] )
 }
 
 END {
@@ -444,189 +444,192 @@ END {
   }
 }
 
-function increment_pi(g){
-  # Add to pi: probability that two randomly picked alleles differ
+function increment_pi(i){
+  # Add to pi: probability that two randomly picked a differ
   # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
-  thisnum[g]["pi"]=nalleles[g]^2
-  thisden[g]["pi"]=nalleles[g]*(nalleles[g]-1)
-  for ( x in alleles[g] ) { thisnum[g]["pi"]-=alleles[g][x]^2 }
+  thisnum[i]["pi"]=n[i]^2
+  thisden[i]["pi"]=n[i]*(n[i]-1)
+  for ( x in a[i] ) { thisnum[i]["pi"]-=a[i][x]^2 }
 }
 
-function increment_truesegr(g){
-  if ( length(alleles[g])==2 ) { 
-    thisnum[g]["truesegr"]++
-    thisden[g]["truesegr"]=1 
+function increment_truesegr(i){
+  if ( length(a[i])==2 ) { 
+    thisnum[i]["truesegr"]++
+    thisden[i]["truesegr"]=1 
   }
 }
 
-function increment_segr(g){
-  if ( length(alleles[g])==2 ) { 
-    thisnum[g]["segr"]+=recalcS_expected( 1, nalleles[g], nalleles[g]+miss[g] )
-    thisden[g]["segr"]=1 
+function increment_segr(i){
+  if ( length(a[i])==2 ) { 
+    thisnum[i]["segr"]+=recalcS_expected( 1, n[i], n[i]+miss[i] )
+    thisden[i]["segr"]=1 
   }
 }
 
-function increment_a1(g){
-  if ( length(alleles[g])==2 ) { 
-    thisnum[g]["a1"]+=harm(nalleles[g]-1)
-    thisden[g]["a1"]=1 
+function increment_a1(i){
+  if ( length(a[i])==2 ) { 
+    thisnum[i]["a1"]+=harm(n[i]-1)
+    thisden[i]["a1"]=1 
   }
 }
    
-function increment_a2(g){
-  if ( length(alleles[g])==2 ) { 
-    thisnum[g]["a2"]+=harm2(nalleles[g]-1)
-    thisden[g]["a2"]=1 
+function increment_a2(i){
+  if ( length(a[i])==2 ) { 
+    thisnum[i]["a2"]+=harm2(n[i]-1)
+    thisden[i]["a2"]=1 
   }
 }
 
-function increment_lines(g){
-  thisnum[g]["lines"]++
+function increment_lines(i){
+  thisnum[i]["lines"]++
 }
 
-function finalize_lines(g){
-  den[g]["lines"]=1
+function finalize_lines(i){
+  den[i]["lines"]=1
 }
 
-function increment_miss(g){
-  thisnum[g]["miss"]+=miss[g]
-  thisden[g]["miss"]+=nalleles[g]+miss[g]
+function increment_miss(i){
+  thisnum[i]["miss"]+=miss[i]
+  thisden[i]["miss"]+=n[i]+miss[i]
 }
 
-function calculate_within(g) {
+function calculate_within(i) {
   if (!any_within) { return 0 }
   for ( s in stats::stats["within"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
-      @incr(g)
+      @incr(i)
     }
-    num[g][s]+=thisnum[g][s]
-    den[g][s]+=thisden[g][s] 
+    num[i][s]+=thisnum[i][s]
+    den[i][s]+=thisden[i][s] 
   }
 }
 
-function increment_dxy(g,g2){
-  # Add to dxy: probability that two alleles picked from two groups differ
+function increment_dxy(i,j){
+  # Add to dxy: probability that two a picked from two groups differ
   # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
-  thisnum[g,g2]["dxy"]=nalleles[g]*nalleles[g2]
-  thisden[g,g2]["dxy"]=thisnum[g,g2]["dxy"]
-  for ( x in bothalleles ) { 
-    thisnum[g,g2]["dxy"]-=alleles[g][x]*alleles[g2][x]
+  thisnum[i,j]["dxy"]=n[i]*n[j]
+  thisden[i,j]["dxy"]=thisnum[i,j]["dxy"]
+  for ( x in a_ij ) { 
+    thisnum[i,j]["dxy"]-=a[i][x]*a[j][x]
   }
 }
 
-function increment_diff(g,g2,    thisdiff){
-  for ( x in bothalleles ) { 
-    thisdiff=( alleles[g][x]*nalleles[g2] - alleles[g2][x]*nalleles[g] ) / 2
-    thisnum[g,g2]["diff"]+=( thisdiff > 0 ? thisdiff : -thisdiff )
+function increment_diff(i,j,    thisdiff){
+  for ( x in a_ij ) { 
+    thisdiff=( a[i][x]*n[j] - a[j][x]*n[i] ) / 2
+    thisnum[i,j]["diff"]+=( thisdiff > 0 ? thisdiff : -thisdiff )
   }
-  thisden[g,g2]["diff"]=nalleles[g]*nalleles[g2]
+  thisden[i,j]["diff"]=n[i]*n[j]
 }
 
-function increment_fst(g,g2,    a1, a2, n1, n2, hw, hb){
-  for ( x in bothalleles ) { 
-    a1=alleles[g][x]
-    a2=alleles[g2][x]
-    n1=nalleles[g]
-    n2=nalleles[g2]
+function increment_fst(i,j,    a1, a2, n1, n2, hw, hb){
+  for ( x in a_ij ) { 
+    a1=a[i][x]
+    a2=a[j][x]
+    n1=n[i]
+    n2=n[j]
     pi1 = a1 * (n1 - a1) / (n1*(n1-1))
     pi2 = a2 * (n2 - a2) / (n2*(n2-1))
     hw = pi1 + pi2
     hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
-    thisnum[g,g2]["fst"]+=hb-hw
-    thisden[g,g2]["fst"]+=hb
+    thisnum[i,j]["fst"]+=hb-hw
+    thisden[i,j]["fst"]+=hb
     if ( arg::args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
   }
 } 
 
-function increment_fstwc(g,g2,    a1, a2, n1, n2, sizes, frac, mism, den){
-  for ( x in bothalleles ) { 
-    a1=alleles[g][x]
-    a2=alleles[g2][x]
-    n1=nalleles[g]
-    n2=nalleles[g2]
+function increment_fstwc(i,j,    a1, a2, n1, n2, sizes, frac, mism, den){
+  for ( x in a_ij ) { 
+    a1=a[i][x]
+    a2=a[j][x]
+    n1=n[i]
+    n2=n[j]
     # Formula from Bhatia et al. 2013, eq. (6)
     sizes = n1 * n2 / ( n1 + n2 )
     frac = 1 / ( n1 + n2 - 2 )
     mism = a1 * ( 1 - a1 / n1 ) + a2 * ( 1 - a2 / n2 )
 
     den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
-    thisnum[g,g2]["fstwc"] += den - 2 * sizes * frac * mism
-    thisden[g,g2]["fstwc"] += den
+    thisnum[i,j]["fstwc"] += den - 2 * sizes * frac * mism
+    thisden[i,j]["fstwc"] += den
     if ( arg::args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
   }
 }
 
-function increment_rho(g,g2){
+function increment_rho(i,j){
   # Here Hs = average of pi values of two populations,
   #      Ht = pi of two populations pooled,
   #      Hsp = Hs corrected for ploidy
-  thisnum[g,g2]["Hs"] = ( ( thisnum[g]["pi"]*thisden[g2]["pi"] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] ) )
-  thisden[g,g2]["Hs"] = 2 * thisden[g]["pi"] * thisden[g2]["pi"] # same as thisden[g,g2]["Hsp"]
-  thisnum[g,g2]["Hsp"] = ( ( thisnum[g]["pi"] * thisden[g2]["pi"] * ( ploidy[g] - 1 ) / ploidy[g] ) + ( thisnum[g2]["pi"] * thisden[g]["pi"] * (ploidy[g2]-1) / ploidy[g2] ) )
-  thisden[g,g2]["Hsp"] = thisden[g,g2]["Hs"]
-  thisnum[g,g2]["Ht"]=(nalleles[g] + nalleles[g2])^2
-  for ( x in bothalleles ) { 
-    thisnum[g,g2]["Ht"]-=(alleles[g][x]+alleles[g2][x])^2 
+  thisnum[i,j]["Hs"] = ( ( thisnum[i]["pi"]*thisden[j]["pi"] ) + ( thisnum[j]["pi"] * thisden[i]["pi"] ) )
+  thisden[i,j]["Hs"] = 2 * thisden[i]["pi"] * thisden[j]["pi"] # same as thisden[i,j]["Hsp"]
+  thisnum[i,j]["Hsp"] = ( ( thisnum[i]["pi"] * thisden[j]["pi"] * ( ploidy[i] - 1 ) / ploidy[i] ) + ( thisnum[j]["pi"] * thisden[i]["pi"] * (ploidy[j]-1) / ploidy[j] ) )
+  thisden[i,j]["Hsp"] = thisden[i,j]["Hs"]
+  thisnum[i,j]["Ht"]=(n[i] + n[j])^2
+  for ( x in a_ij ) { 
+    thisnum[i,j]["Ht"]-=(a[i][x]+a[j][x])^2 
   }
-  thisden[g,g2]["Ht"]=(nalleles[g] + nalleles[g2]) * (nalleles[g] + nalleles[g2] - 1)
+  thisden[i,j]["Ht"]=(n[i] + n[j]) * (n[i] + n[j] - 1)
 
-  num[g,g2]["Hs"]+=thisnum[g,g2]["Hs"]
-  den[g,g2]["Hs"]+=thisden[g,g2]["Hs"]
-  num[g,g2]["Hsp"]+=thisnum[g,g2]["Hsp"]
-  den[g,g2]["Hsp"]+=thisden[g,g2]["Hsp"]
-  num[g,g2]["Ht"]+=thisnum[g,g2]["Ht"]
-  den[g,g2]["Ht"]+=thisden[g,g2]["Ht"]
+  num[i,j]["Hs"]+=thisnum[i,j]["Hs"]
+  den[i,j]["Hs"]+=thisden[i,j]["Hs"]
+  num[i,j]["Hsp"]+=thisnum[i,j]["Hsp"]
+  den[i,j]["Hsp"]+=thisden[i,j]["Hsp"]
+  num[i,j]["Ht"]+=thisnum[i,j]["Ht"]
+  den[i,j]["Ht"]+=thisden[i,j]["Ht"]
 }
 
-function calculate_between(g,g2) {
+function calculate_between(i,j) {
   if (!any_between) { return 0 }
-  # Extract alleles of the group
-  delete bothalleles
-  for (xx in alleles[g]) {
-    bothalleles[xx]++
-    # gawk breaks if you don't set uninitialized array elems to 0
-    if ( !(xx in alleles[g2]) ) { alleles[g2][xx]=0 }
+
+  # Populate a_ij array -- the union of a[i] and a[j] arrays
+  # Also set a missing from a[i] or a[j] to zero
+  delete a_ij
+  for (x in a[i]) {
+    a_ij[x]=a[i][x]
+    if ( !(x in a[j]) ) { 
+      a[j][x]=0 
+    }
   }
-  for (yy in alleles[g2]) {
-    if ( !(yy in bothalleles) ) { 
-      bothalleles[yy]++ # so far keeps alleles from comparisons of g with previous groups
-      alleles[g][yy]=0
+  for (x in a[j]) {
+    a_ij[x]+=a[j][x] 
+    if ( !(x in a_ij) ) { 
+      a[i][x]=0
     }
   }
   # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
-  if ( arg::args["mult"] != 1 && length(bothalleles) > 2 ) { return 1 }
+  if ( arg::args["mult"] != 1 && length(a_ij) > 2 ) { return 1 }
   for ( s in stats::stats["between"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
-      @incr(g,g2)
+      @incr(i,j)
     }
-    num[g,g2][s]+=thisnum[g,g2][s]
-    den[g,g2][s]+=thisden[g,g2][s] 
+    num[i,j][s]+=thisnum[i,j][s]
+    den[i,j][s]+=thisden[i,j][s] 
   }
 }
 
-function finalize_rho(g,g2,    Hs, Ht, Hsp, Hpt) {
-  if ( den[g,g2]["Hs"]==0 ) { return 0 }
-  if ( den[g,g2]["Hsp"]==0 ) { return 0 }
-  if ( den[g,g2]["Ht"]==0 ) { return 0 }
-  Hs = num[g,g2]["Hs"]/den[g,g2]["Hs"]
-  Ht = num[g,g2]["Ht"]/den[g,g2]["Ht"]
-  Hsp= num[g,g2]["Hsp"]/den[g,g2]["Hsp"]
+function finalize_rho(i,j,    Hs, Ht, Hsp, Hpt) {
+  if ( den[i,j]["Hs"]==0 ) { return 0 }
+  if ( den[i,j]["Hsp"]==0 ) { return 0 }
+  if ( den[i,j]["Ht"]==0 ) { return 0 }
+  Hs = num[i,j]["Hs"]/den[i,j]["Hs"]
+  Ht = num[i,j]["Ht"]/den[i,j]["Ht"]
+  Hsp= num[i,j]["Hsp"]/den[i,j]["Hsp"]
   Hpt= Hs + 2 * (Ht - Hs)
-  num[g,g2]["rho"]=Hpt-Hs
-  den[g,g2]["rho"]=Hpt-Hsp
+  num[i,j]["rho"]=Hpt-Hs
+  den[i,j]["rho"]=Hpt-Hsp
 }
 
-function printOutput( pop1, pop2, metric,    idx ) {
-  if (pop2=="") {
-    idx=pop1
-    pop2="."
+function printOutput( i, j, metric,    idx ) {
+  if (j=="") {
+    idx=i
+    j="."
   } else {
-    idx=pop1 SUBSEP pop2 
+    idx=i SUBSEP j 
   }
   if ( den[idx][metric]==0 ) { return 0 }
-  out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
+  out=chr"\t"start"\t"end"\t"locus"\t"i"\t"j"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
   print out > tmpf
 }
 
@@ -661,14 +664,14 @@ function calcTajimaVar( S, a1, a2, n ) {
   return sqrt(e1*S + e2*S*(S-1))
 }
 
-function recalcS_expected(S, n1, n2,    coef1, coef2 ) {
+function recalcS_expected(S, n1, n2,    coef1, coef2, i ) {
   for (i=1; i<n1; i++) { coef1+=(1/i+1/(n1-i)) }
   for (i=1; i<n2; i++) { coef2+=(1/i+1/(n2-i)) }
   return S*(coef2/coef1)
 }
 
 function print_header() {
-    print "#chr", "start", "end", "locus", "pop1", "pop2", "metric", "value", "numerator", "denominator"
+    print "#chr\tstart\tend\tlocus\tpop1\tpop2\tmetric\tvalue\tnumerator\tdenominator"
 }
 
 function say(string, same_line) {
