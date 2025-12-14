@@ -427,7 +427,7 @@ function process_sites() {
         if ( fin in FUNCTAB ) {
           @fin(i)
         }
-        printOutput( i, ".", nUsed[i], s, num[i][s], den[i][s], allgeno[i], allmiss[i] ) 
+        printOutput( i, "", s ) 
       }
     } else {
       allgeno[i]=allgeno[ii[1]]+allgeno[ii[2]] 
@@ -437,7 +437,7 @@ function process_sites() {
         if ( fin in FUNCTAB ) {
           @fin(ii[1],ii[2])
         }
-        printOutput( ii[1], ii[2], nUsed[i], s, num[i][s], den[i][s], allgeno[i], allmiss[i] ) 
+        printOutput( ii[1], ii[2], s )
       }
     }
   }
@@ -561,13 +561,14 @@ function calculate_within(g) {
   if (arg::args["persite"] == 1) {
     allgeno[g]=nalleles[g]+nalleles[g2]
     allmiss[g]=miss[g]+miss[g2]
+    nUsed[g]=1
     for ( s in stats["within"] ) {
       fin="calc::finalize_"s
       if ( fin in FUNCTAB ) {
         @fin(g)
       }
       if (s in stats_print["within"]) {
-        printOutput( g, ".", 1, s, num[g][s], den[g][s], allgeno[g], allmiss[g] ) 
+        printOutput( g, "", s )
       }
     }
   }
@@ -687,13 +688,14 @@ function calculate_between(g,g2) {
   if (arg::args["persite"] == 1) {
     allgeno[g,g2]=nalleles[g]+nalleles[g2]
     allmiss[g,g2]=miss[g]+miss[g2]
+    nUsed[g,g2]=1
     for ( s in stats["between"] ) {
       fin="calc::finalize_"s
       if ( fin in FUNCTAB ) {
         @fin(g,g2)
       }
       if (s in stats_print["between"]) {
-        printOutput( g, g2, 1, s, num[g,g2][s], den[g,g2][s], allgeno[g,g2], allmiss[g,g2] ) 
+        printOutput( g, g2, s )
       }
     }
   }
@@ -711,9 +713,15 @@ function finalize_rho(g,g2,    Hs, Ht, Hsp, Hpt) {
   den[g,g2]["rho"]=Hpt-Hsp
 }
 
-function printOutput( pop1, pop2, nUsed, metric, numerator, denominator, nGeno, nMiss ) {
-  if ( !denominator ) { return 0 }
-  out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"nUsed"\t"metric"\t"numerator/denominator"\t"numerator"\t"denominator"\t"nGeno"\t"nMiss
+function printOutput( pop1, pop2, metric,    idx ) {
+  if (pop2=="") {
+    idx=pop1
+    pop2="."
+  } else {
+    idx=pop1 SUBSEP pop2 
+  }
+  if ( !den[idx][metric] ) { return 0 }
+  out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"nUsed[idx]"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]"\t"allgeno[idx]"\t"allmiss[idx]
   print out > tmpf
 }
 
