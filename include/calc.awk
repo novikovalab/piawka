@@ -50,96 +50,41 @@ function check_gawk_version(    gawk_version) {
 
 function parse_arguments() {
 
-  add_stat("diff", "average allele frequency difference", "between")
-  add_stat("dxy", "absolute nucleotide divergence", "between")
-  add_stat("fst", "fixation index, Hudson's estimator", "between")
-  add_stat("fstwc", "fixation index, Weir & Cockerham's estimator", "between")
-  add_stat("pi", "expected heterozygosity = nucleotide diversity")
-  add_stat("tajima", "Tajima's D", "a1,a2,truesegr,pi")
-  add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segr,pi")
-  add_stat("rho", "Ronfort's rho", "between", "Hs,Ht,Hsp,pi")
-  add_stat("watterson", "Watterson's theta", 0, "a1,truesegr")
+  stats::add_stat("diff", "average allele frequency difference", "between")
+  stats::add_stat("dxy", "absolute nucleotide divergence", "between")
+  stats::add_stat("fst", "fixation index, Hudson's estimator", "between")
+  stats::add_stat("fstwc", "fixation index, Weir & Cockerham's estimator", "between")
+  stats::add_stat("pi", "expected heterozygosity = nucleotide diversity")
+  stats::add_stat("tajima", "Tajima's D", "a1,a2,truesegr,pi")
+  stats::add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segr,pi")
+  stats::add_stat("rho", "Ronfort's rho", "between", "Hs,Ht,Hsp,pi")
+  stats::add_stat("watterson", "Watterson's theta", 0, "a1,truesegr")
   # Helper statistics: accumulators for other stats, are not shown with piawka -l
-  add_stat("a1", "helper: 1st harmonic number", 0)
-  add_stat("a2", "helper: 2nd harmonic number", 0)
-  add_stat("truesegr", "helper: count of segregating sites", 0)
-  add_stat("segr", "helper: count of segregating sites adjusted for missingness", 0)
-  add_stat("Hs", "helper: average of pi values of two populations", "between", "pi")
-  add_stat("Ht", "helper: 2nd harmonic number", "between")
-  add_stat("Hsp", "helper: average of pi values, corrected for ploidy", "between", "pi")
+  stats::add_stat("a1", "helper: 1st harmonic number", 0)
+  stats::add_stat("a2", "helper: 2nd harmonic number", 0)
+  stats::add_stat("truesegr", "helper: count of segregating sites", 0)
+  stats::add_stat("segr", "helper: count of segregating sites adjusted for missingness", 0)
+  stats::add_stat("Hs", "helper: average of pi values of two populations", "between", "pi")
+  stats::add_stat("Ht", "helper: 2nd harmonic number", "between")
+  stats::add_stat("Hsp", "helper: average of pi values, corrected for ploidy", "between", "pi")
 
   if ( arg::args["list"] ) {
-    print format_stats()
+    print stats::format_stats()
     exit 0
   }
   if ( arg::args["stats"]=="" ) {
     arg::args["stats"]="pi,dxy"
   }
-  split( tolower(arg::args["stats"]), statargs, "," )
-  for (i in statargs) { 
-    piawka::assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
-    nr=statslist[statargs[i]]
-    is_between=( stat_isbetween[nr] ? "between" : "within" )
-    stats_print[is_between][statargs[i]]=1 
-    stats[is_between][statargs[i]]=1 
-    if (stat_dep[nr] != "") {
-      ndeps=split(stat_dep[nr], stat_deps, ",")
-      for (j=1;j<=ndeps;j++) {
-        piawka::assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]" (check options with piawka -l)" )
-        nr=statslist[stat_deps[j]]
-        is_between=( stat_isbetween[nr] ? "between" : "within" )
-        stats[is_between][stat_deps[j]]=1
-      }
-    }
-  }
-  any_within="within" in stats
-  any_between="between" in stats
+
+  stats::parse_stats(arg::args["stats"])
+  any_within="within" in stats::stats
+  any_between="between" in stats::stats
 
   # Some arg checks
   piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
   piawka::assert( arg::args["groups"] != "", "required argument: -g <groups.tsv>" )
   if ( arg::args["bed"] != "" ) { piawka::check_file( arg::args["bed"] ) }
   if ( arg::args["targets"] != "" ) { piawka::check_file( arg::args["targets"] ) }
-}
-
-function add_stat(name, desc, is_between, dep) {
-  nstat++
-  statslist[name]=nstat
-  stat_name[nstat] = name
-  stat_desc[nstat] = desc (is_between ? " (within population)" : " (between populations)")
-  stat_isbetween[nstat] = is_between
-  stat_dep[nstat] = dep
-}
-
-function format_stats(   help, help_col1, total_width) {
-  total_width=80
-  for (i=1;i<=nstat;i++) {
-    if (stat_desc[i] ~ /^helper:/) { continue }
-    help_col1[i] = stat_name[i] 
-    if ( (l=length(help_col1[i])) > help_col1_width ) { help_col1_width=l }
-  }
-  help_col1_width++
-  remain_width = total_width - help_col1_width
-  help="Available statistics:"
-  for (i=1;i<=nstat;i++) {
-    if (stat_desc[i] ~ /^helper:/) { continue }
-    nlines=1
-    if (length(stat_desc[i]) > remain_width ) {
-      for (j=remain_width+index(stat_desc[i], "\n"); j<length(stat_desc[i]); j+=remain_width+1) {
-        for (k=0; k<remain_width/2; k++) {
-          if (substr(stat_desc[i], j-k, 1) ~ /[ ,)]/) { break }
-        }
-        if (k < remain_width/2-1) { j-=k }
-        stat_desc[i] = substr(stat_desc[i], 1, j) "\n" substr(stat_desc[i],j+1)
-      }
-      nlines=split(stat_desc[i], desclines, "\n")
-    }
-    help = help "\n" sprintf("%-"help_col1_width"s", help_col1[i]) ( nlines > 1 ? desclines[1] : stat_desc[i] )
-    for (j=2;j<=nlines;j++) {
-      help = help "\n" sprintf("%-"help_col1_width"s", " ") desclines[j] 
-    }
-  }
-  return help
 }
 
 function configure_run() {
@@ -153,8 +98,8 @@ function configure_run() {
 
   get_header()
 
-  for (i in statargs) {
-    s=statargs[i]
+  for (i in stats::statargs) {
+    s=stats::statargs[i]
     init="calc::initiate_"s
     if ( init in FUNCTAB ) {
       @init()
@@ -422,7 +367,7 @@ function process_sites() {
 
   for (i in nUsed) {
     if ( split(i, ii, SUBSEP) == 1 ) {
-      for ( s in stats_print["within"] ) {
+      for ( s in stats::stats_print["within"] ) {
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(i)
@@ -432,7 +377,7 @@ function process_sites() {
     } else {
       allgeno[i]=allgeno[ii[1]]+allgeno[ii[2]] 
       allmiss[i]=allmiss[ii[1]]+allmiss[ii[2]] 
-      for ( s in stats_print["between"] ) {
+      for ( s in stats::stats_print["between"] ) {
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(ii[1],ii[2])
@@ -544,7 +489,7 @@ function calculate_within(g) {
 
   nUsed[g]++
   
-  for ( s in stats["within"] ) {
+  for ( s in stats::stats["within"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
       @incr(g)
@@ -562,12 +507,12 @@ function calculate_within(g) {
     allgeno[g]=nalleles[g]+nalleles[g2]
     allmiss[g]=miss[g]+miss[g2]
     nUsed[g]=1
-    for ( s in stats["within"] ) {
+    for ( s in stats::stats["within"] ) {
       fin="calc::finalize_"s
       if ( fin in FUNCTAB ) {
         @fin(g)
       }
-      if (s in stats_print["within"]) {
+      if (s in stats::stats_print["within"]) {
         printOutput( g, "", s )
       }
     }
@@ -671,7 +616,7 @@ function calculate_between(g,g2) {
 
   nUsed[g,g2]++
   
-  for ( s in stats["between"] ) {
+  for ( s in stats::stats["between"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
       @incr(g,g2)
@@ -689,12 +634,12 @@ function calculate_between(g,g2) {
     allgeno[g,g2]=nalleles[g]+nalleles[g2]
     allmiss[g,g2]=miss[g]+miss[g2]
     nUsed[g,g2]=1
-    for ( s in stats["between"] ) {
+    for ( s in stats::stats["between"] ) {
       fin="calc::finalize_"s
       if ( fin in FUNCTAB ) {
         @fin(g,g2)
       }
-      if (s in stats_print["between"]) {
+      if (s in stats::stats_print["between"]) {
         printOutput( g, g2, s )
       }
     }

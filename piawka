@@ -8,6 +8,7 @@
 
 @include "getopt.awk"
 @include "arg.awk"
+@include "stats.awk"
 
 # Subcommands
 
