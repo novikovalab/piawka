@@ -59,6 +59,8 @@ function parse_arguments() {
   stats::add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segr,pi")
   stats::add_stat("rho", "Ronfort's rho", "between", "pi")
   stats::add_stat("watterson", "Watterson's theta", 0, "a1,truesegr")
+  stats::add_stat("lines", "number of lines used in calculation", 0)
+  stats::add_stat("miss", "share of missing genotype calls", 0)
   # Helper statistics: accumulators for other stats, are not shown with piawka -l
   stats::add_stat("a1", "helper: 1st harmonic number", 0)
   stats::add_stat("a2", "helper: 2nd harmonic number", 0)
@@ -361,7 +363,7 @@ function process_sites() {
 
 function yield_output() {
   if ( pid>0 ) { return 0 }
-  for (i in nUsed) {
+  for (i in den) {
     if ( split(i, ii, SUBSEP) == 1 ) {
       for ( s in stats::stats["within"] ) {
         fin="calc::finalize_"s
@@ -385,9 +387,6 @@ function yield_output() {
     }
   }
   # Reset locus-specific parameters
-  delete allgeno
-  delete allmiss
-  delete nUsed
   delete num
   delete den
 }
@@ -481,11 +480,21 @@ function increment_a2(g){
   }
 }
 
+function increment_lines(g){
+  thisnum[g]["lines"]++
+}
+
+function finalize_lines(g){
+  den[g]["lines"]=1
+}
+
+function increment_miss(g){
+  thisnum[g]["miss"]+=miss[g]
+  thisden[g]["miss"]+=nalleles[g]+miss[g]
+}
+
 function calculate_within(g) {
   if (!any_within) { return 0 }
-  nUsed[g]++
-  allmiss[g]+=miss[g]
-  allgeno[g]+=nalleles[g]
   for ( s in stats::stats["within"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
@@ -587,9 +596,6 @@ function calculate_between(g,g2) {
   }
   # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
   if ( arg::args["mult"] != 1 && length(bothalleles) > 2 ) { return 1 }
-  nUsed[g,g2]++
-  allmiss[g,g2]+=miss[g]+miss[g2]
-  allgeno[g,g2]+=nalleles[g]+nalleles[g2]
   for ( s in stats::stats["between"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
@@ -619,8 +625,8 @@ function printOutput( pop1, pop2, metric,    idx ) {
   } else {
     idx=pop1 SUBSEP pop2 
   }
-  if ( !den[idx][metric] ) { return 0 }
-  out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"nUsed[idx]"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]"\t"allgeno[idx]"\t"allmiss[idx]
+  if ( den[idx][metric]==0 ) { return 0 }
+  out=chr"\t"start"\t"end"\t"locus"\t"pop1"\t"pop2"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
   print out > tmpf
 }
 

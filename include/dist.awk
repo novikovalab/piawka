@@ -19,11 +19,11 @@ function run(){
 
 function calc2dist(f) {
   while (getline < f > 0) {
-    if ( $8 == arg::args["metric"] ) {
+    if ( $7 == arg::args["metric"] ) {
       samples[$5]++
       samples[$6]++
-      dist[$5,$6]+=$10
-      scal[$5,$6]+=$11
+      dist[$5,$6]+=$9
+      scal[$5,$6]+=$10
     }
   }
   piawka::assert( awk::isarray(samples), "lines with metric "arg::args["metric"]" not found in file "f)

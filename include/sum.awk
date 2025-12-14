@@ -18,10 +18,10 @@ function summarize_regions(f,    firstline) {
   while (getline < f > 0) {
     if (firstline) { 
       firstline=0
-      piawka::assert( NF == 13, "piawka output (13 columns) is required!" )
+      piawka::assert( NF == 10, "piawka output (10 columns) is required!" )
     }
     if ( $9 != "value" && $9==$9 ) { # exclude header and NaNs 
-      idx=$1 SUBSEP $4 SUBSEP $5 SUBSEP $6 SUBSEP $8 SUBSEP
+      idx=$1 SUBSEP $4 SUBSEP $5 SUBSEP $6 SUBSEP $7 SUBSEP
       if (!seen[idx]) {
         seen[idx]=1
         start[idx]=$2
@@ -29,17 +29,14 @@ function summarize_regions(f,    firstline) {
       }
       if ($2 < start[idx]) { start[idx]=$2 }
       if ($3 > end[idx]) { end[idx]=$2 }
-      allnUsed[idx]+=$7
-      denominator[idx]+=$11
-      numerator[idx]+=$10
-      nGeno[idx]+=$12
-      nMiss[idx]+=$13
+      denominator[idx]+=$10
+      numerator[idx]+=$9
     }
   }
   for (i in seen) {
     split(i, pops, SUBSEP)
-    finvalue[i]=numerator[i]/denominator[i]"\t"numerator[i]"\t"denominator[i]"\t"nGeno[i]"\t"nMiss[i]
-    print pops[1]"\t"start[i]"\t"end[i]"\t"pops[2]"\t"pops[3]"\t"pops[4]"\t"allnUsed[i]"\t"pops[5]"\t"finvalue[i]
+    finvalue[i]=numerator[i]/denominator[i]"\t"numerator[i]"\t"denominator[i]
+    print pops[1]"\t"start[i]"\t"end[i]"\t"pops[2]"\t"pops[3]"\t"pops[4]"\t"pops[5]"\t"finvalue[i]
   }
 }
 
