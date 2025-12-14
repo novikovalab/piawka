@@ -1,0 +1,56 @@
+#!/bin/sh
+"export" "AWKPATH=$( dirname $0 )/include:$AWKPATH" 
+"export" "LC_ALL=C"
+"exec" "gawk" -f "$0" "--" "$@"
+
+@include "getopt.awk"
+@include "argparse.awk"
+
+# Subcommands
+
+@include "calc.awk"
+
+@namespace "piawka"
+
+BEGIN{
+help="\
+    piawka v0.9.0 -- calculate pi & other population stats in VCF files \n\
+    Subcommands: \n\
+    \tpiawka calc -- calculate various population stats from a VCF file \n\
+    \tpiawka win  -- prepare genomic windows from various sources \n\
+    \tpiawka sum  -- summarize stats from calc output across regions \n\
+    \tpiawka dist -- convert calc output to PHYLIP or NEXUS distance matrix"
+
+  # Parse subcommand
+  subcmd=ARGV[1]
+
+  switch (subcmd) {
+    case "calc":
+      calc::run()
+    case "win":
+      win::run()
+    case "sum":
+      header::run()
+    case "dist":
+      fa2chain::run()
+    case "fstats":
+      lchain::run()
+    default:
+      print help
+      if (subcmd != "") {
+        print "Invalid subcommand: "subcmd > "/dev/stderr"
+        exit 1
+      }
+      exit 0
+  }
+}
+
+function assert(condition, explanation) {
+  if (! condition) {
+    print argparse::help
+    printf("Error %s:%d: %s\n",
+           FILENAME, FNR, explanation) > "/dev/stderr"
+    exit 1
+  }
+}
+

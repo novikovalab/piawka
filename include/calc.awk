@@ -1,23 +1,19 @@
-#!/bin/sh
-"export" "AWKPATH=$( dirname $0 ):$AWKPATH"
-"export" "LC_ALL=C"
-"exec" "gawk" "-v" "PIAWKADIR=$( dirname $0 )" -f "$0" "--" "$@" && 0 {}
+@namespace "calc"
 
 @load "fork"
 @load "filefuncs"
 
-@include "getopt.awk"
-@include "argparse.awk"
-
-BEGIN{ 
+function run(){ 
   check_gawk_version()
   check_htslib()
   OFS="\t"
   usage="piawka v0.8.11\nUsage:\npiawka -g groups_tsv -v vcf_gz [OPTIONS]"
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
-  summarize_blks=PIAWKADIR"/summarize_blks.awk"
-  make_windows=PIAWKADIR"/make_windows.awk"
-  aggregate_regions=PIAWKADIR"/aggregate_regions.awk"
+  piawka=ENVIRON["AWKPATH"]
+  sub(/include:.*$/,"scripts",piawka)
+  summarize_blks=piawka"/summarize_blks.awk"
+  make_windows=piawka"/make_windows.awk"
+  aggregate_regions=piawka"/aggregate_regions.awk"
 
   parse_arguments()
   print_header()
@@ -57,7 +53,7 @@ function parse_arguments() {
   argparse::add_argument("s", "stats", 0, "stats to calculate, comma-separated, e.g. \"pi,dxy,fst\"; full list under `piawka -l`")
   argparse::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
   help = usage "\n" argparse::format_help()
-  getopt::Optind = 1 # start with 1st opt
+  getopt::Optind = 2 # start with 2nd opt
   getopt::Opterr = 1 # print getopt errs
   if ( argparse::parse_args() != 0 ) { print help; return 0 }
   for(i in argparse::args) { args[i]=argparse::args[i] } # shorten args array name
@@ -168,7 +164,7 @@ function configure_run() {
 
   for (i in statargs) {
     s=statargs[i]
-    init="initiate_"s
+    init="calc::initiate_"s
     if ( init in FUNCTAB ) {
       @init()
     }
@@ -195,7 +191,7 @@ function main() {
     buffer = "cat #"jobnum
     buffers[buffer]++
     printf "" |& buffer # initialize pipe
-    pid=fork()
+    pid=awk::fork()
     if ( pid>0 ) { continue } 
     close(buffer, "to") # children don't print to buffer
     bufl=0
@@ -436,20 +432,17 @@ function process_sites() {
   for (i in nUsed) {
     if ( split(i, ii, SUBSEP) == 1 ) {
       for ( s in stats_print["within"] ) {
-        fin="finalize_"s
+        fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(i)
         }
         printOutput( i, ".", nUsed[i], s, num[i][s], den[i][s], allgeno[i], allmiss[i] ) 
       }
-      if ( num[i]["truesegr"] ) {
-          printOutput( i, ".", truesegr[i], "tajima", num[i]["tajima"], den[i]["tajima"], allgeno[i], allmiss[i] )
-      }
     } else {
       allgeno[i]=allgeno[ii[1]]+allgeno[ii[2]] 
       allmiss[i]=allmiss[ii[1]]+allmiss[ii[2]] 
       for ( s in stats_print["between"] ) {
-        fin="finalize_"s
+        fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(ii[1],ii[2])
         }
@@ -496,7 +489,7 @@ END {
       tmpf=tmpdir"/"f".tmp"
       # to avoid race condition given persite, wait until the child writes to next region
       tmpfn=tmpdir"/"f+args["jobs"]".tmp"
-      while ( stat(tmpfn, _) < 0 || _["size"]==0 ) {
+      while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
         system("sleep 1")
       }
       say("Finalizing job " f+args["jobs"], 1)
@@ -561,7 +554,7 @@ function calculate_within(g) {
   nUsed[g]++
   
   for ( s in stats["within"] ) {
-    incr="increment_"s
+    incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
       @incr(g)
     }
@@ -578,7 +571,7 @@ function calculate_within(g) {
     allgeno[g]=nalleles[g]+nalleles[g2]
     allmiss[g]=miss[g]+miss[g2]
     for ( s in stats["within"] ) {
-      fin="finalize_"s
+      fin="calc::finalize_"s
       if ( fin in FUNCTAB ) {
         @fin(g)
       }
@@ -687,7 +680,7 @@ function calculate_between(g,g2) {
   nUsed[g,g2]++
   
   for ( s in stats["between"] ) {
-    incr="increment_"s
+    incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
       @incr(g,g2)
     }
@@ -704,7 +697,7 @@ function calculate_between(g,g2) {
     allgeno[g,g2]=nalleles[g]+nalleles[g2]
     allmiss[g,g2]=miss[g]+miss[g2]
     for ( s in stats["between"] ) {
-      fin="finalize_"s
+      fin="calc::finalize_"s
       if ( fin in FUNCTAB ) {
         @fin(g,g2)
       }
@@ -784,7 +777,7 @@ function print_header() {
 }
 
 function check_file(file,   cmd) {
-   if (stat(file, _) < 0) {
+   if (awk::stat(file, _) < 0) {
         print "Error: could not read file "file > "/dev/stderr"
         exit 1
     }
