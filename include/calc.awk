@@ -50,23 +50,6 @@ function check_gawk_version(    gawk_version) {
 
 function parse_arguments() {
 
-  stats::add_stat("diff", "average allele frequency difference", "between")
-  stats::add_stat("dxy", "absolute nucleotide divergence", "between")
-  stats::add_stat("fst", "fixation index, Hudson's estimator", "between")
-  stats::add_stat("fstwc", "fixation index, Weir & Cockerham's estimator", "between")
-  stats::add_stat("pi", "expected heterozygosity = nucleotide diversity")
-  stats::add_stat("tajima", "Tajima's D", "a1,a2,truesegr,pi")
-  stats::add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segr,pi")
-  stats::add_stat("rho", "Ronfort's rho", "between", "pi")
-  stats::add_stat("watterson", "Watterson's theta", 0, "a1,truesegr")
-  stats::add_stat("lines", "number of lines used in calculation", 0)
-  stats::add_stat("miss", "share of missing genotype calls", 0)
-  # Helper statistics: accumulators for other stats, are not shown with piawka -l
-  stats::add_stat("a1", "helper: 1st harmonic number", 0)
-  stats::add_stat("a2", "helper: 2nd harmonic number", 0)
-  stats::add_stat("truesegr", "helper: count of segregating sites", 0)
-  stats::add_stat("segr", "helper: count of segregating sites adjusted for missingness", 0)
-
   if ( arg::args["list"] ) {
     print stats::format_stats()
     exit 0
@@ -224,51 +207,6 @@ function get_header() {
   close(cmd)
 }
 
-function initiate_diff(){
-  if ( arg::args["mult"] == 1 ) {
-    say("Warning: -s diff is not reliable in multiallelic sites")
-  }
-}
-
-function initiate_tajima(){
-  piawka::assert( arg::args["persite"]!=1, "-s tajima cannot be calculated for a single site" )
-  if ( arg::args["jobs"] > 1 ) {
-    say("Warning: -s tajima is a bit less precise in multithreaded mode due to averaging across windows")
-  }
-  for (i in groups) {
-    if ( ploidy[i] % 1 != 0 ) {
-      say("Warning: mixed ploidy population "g" will give unreliable results with -s tajima" )
-    }
-  }
-}
-
-function initiate_watterson(){
-  piawka::assert( arg::args["persite"]!=1, "-s watterson at a single site is meaningless" )
-}
-
-function initiate_tajimalike(){
-  piawka::assert( arg::args["persite"]!=1, "-s tajimalike cannot be calculated for a single site" )
-  if ( arg::args["jobs"] > 1 ) {
-    say("Warning: -s tajimalike is a bit less precise in multithreaded mode due to averaging across windows")
-  }
-  for (i in groups) {
-    if ( ploidy[i] % 1 != 0 ) {
-      say("Warning: mixed ploidy population "g" will give unreliable results with -s tajimalike" )
-    }
-  }
-}
-
-function initiate_rho(){
-  if ( arg::args["mult"] == 1 ) {
-    say("Warning: -s rho is not reliable in multiallelic sites")
-  }
-  for (i in groups) {
-    if ( ploidy[i] % 1 != 0 ) {
-      say("Warning: mixed ploidy population "g" will give unreliable results with -s rho" )
-    }
-  }
-}
-
 # Process VCF lines
 function process_sites() {
   if ( locus == "" ) { locus="_" } # empty locus breaks piawka sum
@@ -365,6 +303,7 @@ function yield_output() {
   if ( pid>0 ) { return 0 }
   for (_ij in den) {
     if ( split(_ij, ij, SUBSEP) == 1 ) {
+      i=ij[1]
       for ( s in stats::stats["within"] ) {
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
@@ -389,30 +328,6 @@ function yield_output() {
   # Reset locus-specific parameters
   delete num
   delete den
-}
-
-function finalize_watterson(i){
-  if ( num[i]["truesegr"]==0 ) { return 0 }
-  num[i]["watterson"]=num[i]["truesegr"]/nUsed[i]
-  den[i]["watterson"]=num[i]["a1"]/num[i]["truesegr"]
-}
-
-function finalize_tajima(i,     tP, a1, a2){
-  if ( num[i]["truesegr"]==0 ) { return 0 }
-  tP=num[i]["pi"]/den[i]["pi"]*nUsed[i]
-  a1=num[i]["a1"]/num[i]["truesegr"]
-  a2=num[i]["a2"]/num[i]["truesegr"]
-  num[i]["tajima"]= tP - num[i]["truesegr"]/a1
-  den[i]["tajima"]= calcTajimaVar( num[i]["truesegr"], a1, a2, n[i]+miss[i] )
-}
-
-function finalize_tajimalike(i,     tP, a1, a2){
-  if ( num[i]["truesegr"]==0 ) { return 0 }
-  tP=num[i]["pi"]/den[i]["pi"]*nUsed[i]
-  a1=num[i]["a1"]/num[i]["truesegr"]
-  a2=num[i]["a2"]/num[i]["truesegr"]
-  num[i]["tajimalike"]= tP - num[i]["segr"]/a1
-  den[i]["tajimalike"]=calcTajimaVar( num[i]["segr"], a1, a2, n[i]+miss[i] )
 }
 
 END {
@@ -444,55 +359,6 @@ END {
   }
 }
 
-function increment_pi(i){
-  # Add to pi: probability that two randomly picked a differ
-  # New formula below from https://pubmed.ncbi.nlm.nih.gov/36031871/
-  thisnum[i]["pi"]=n[i]^2
-  thisden[i]["pi"]=n[i]*(n[i]-1)
-  for ( x in a[i] ) { thisnum[i]["pi"]-=a[i][x]^2 }
-}
-
-function increment_truesegr(i){
-  if ( length(a[i])==2 ) { 
-    thisnum[i]["truesegr"]++
-    thisden[i]["truesegr"]=1 
-  }
-}
-
-function increment_segr(i){
-  if ( length(a[i])==2 ) { 
-    thisnum[i]["segr"]+=recalcS_expected( 1, n[i], n[i]+miss[i] )
-    thisden[i]["segr"]=1 
-  }
-}
-
-function increment_a1(i){
-  if ( length(a[i])==2 ) { 
-    thisnum[i]["a1"]+=harm(n[i]-1)
-    thisden[i]["a1"]=1 
-  }
-}
-   
-function increment_a2(i){
-  if ( length(a[i])==2 ) { 
-    thisnum[i]["a2"]+=harm2(n[i]-1)
-    thisden[i]["a2"]=1 
-  }
-}
-
-function increment_lines(i){
-  thisnum[i]["lines"]++
-}
-
-function finalize_lines(i){
-  den[i]["lines"]=1
-}
-
-function increment_miss(i){
-  thisnum[i]["miss"]+=miss[i]
-  thisden[i]["miss"]+=n[i]+miss[i]
-}
-
 function calculate_within(i) {
   if (!any_within) { return 0 }
   for ( s in stats::stats["within"] ) {
@@ -505,100 +371,25 @@ function calculate_within(i) {
   }
 }
 
-function increment_dxy(i,j){
-  # Add to dxy: probability that two a picked from two groups differ
-  # subtraction rather than addition inspired by https://pubmed.ncbi.nlm.nih.gov/36031871/
-  thisnum[i,j]["dxy"]=n[i]*n[j]
-  thisden[i,j]["dxy"]=thisnum[i,j]["dxy"]
-  for ( x in a_ij ) { 
-    thisnum[i,j]["dxy"]-=a[i][x]*a[j][x]
-  }
-}
-
-function increment_diff(i,j,    thisdiff){
-  for ( x in a_ij ) { 
-    thisdiff=( a[i][x]*n[j] - a[j][x]*n[i] ) / 2
-    thisnum[i,j]["diff"]+=( thisdiff > 0 ? thisdiff : -thisdiff )
-  }
-  thisden[i,j]["diff"]=n[i]*n[j]
-}
-
-function increment_fst(i,j,    a1, a2, n1, n2, hw, hb){
-  for ( x in a_ij ) { 
-    a1=a[i][x]
-    a2=a[j][x]
-    n1=n[i]
-    n2=n[j]
-    pi1 = a1 * (n1 - a1) / (n1*(n1-1))
-    pi2 = a2 * (n2 - a2) / (n2*(n2-1))
-    hw = pi1 + pi2
-    hb = ( a1 * (n2-a2) + a2*(n1-a1) ) / (n1*n2)
-    thisnum[i,j]["fst"]+=hb-hw
-    thisden[i,j]["fst"]+=hb
-    if ( arg::args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
-  }
-} 
-
-function increment_fstwc(i,j,    a1, a2, n1, n2, sizes, frac, mism, den){
-  for ( x in a_ij ) { 
-    a1=a[i][x]
-    a2=a[j][x]
-    n1=n[i]
-    n2=n[j]
-    # Formula from Bhatia et al. 2013, eq. (6)
-    sizes = n1 * n2 / ( n1 + n2 )
-    frac = 1 / ( n1 + n2 - 2 )
-    mism = a1 * ( 1 - a1 / n1 ) + a2 * ( 1 - a2 / n2 )
-
-    den = sizes * ( a1 / n1 - a2 / n2 )^2 + ( 2 * sizes - 1 ) * frac * mism
-    thisnum[i,j]["fstwc"] += den - 2 * sizes * frac * mism
-    thisden[i,j]["fstwc"] += den
-    if ( arg::args["mult"] != 1 ) { break } # no need to increment twice for biallelic comparisons
-  }
-}
-
-function increment_rho(i,j){
-  # Here Hs = average of pi values of two populations,
-  #      Ht = pi of two populations pooled,
-  #      Hsp = Hs corrected for ploidy
-  thisnum[i,j]["Hs"] = ( ( thisnum[i]["pi"]*thisden[j]["pi"] ) + ( thisnum[j]["pi"] * thisden[i]["pi"] ) )
-  thisden[i,j]["Hs"] = 2 * thisden[i]["pi"] * thisden[j]["pi"] # same as thisden[i,j]["Hsp"]
-  thisnum[i,j]["Hsp"] = ( ( thisnum[i]["pi"] * thisden[j]["pi"] * ( ploidy[i] - 1 ) / ploidy[i] ) + ( thisnum[j]["pi"] * thisden[i]["pi"] * (ploidy[j]-1) / ploidy[j] ) )
-  thisden[i,j]["Hsp"] = thisden[i,j]["Hs"]
-  thisnum[i,j]["Ht"]=(n[i] + n[j])^2
-  for ( x in a_ij ) { 
-    thisnum[i,j]["Ht"]-=(a[i][x]+a[j][x])^2 
-  }
-  thisden[i,j]["Ht"]=(n[i] + n[j]) * (n[i] + n[j] - 1)
-
-  num[i,j]["Hs"]+=thisnum[i,j]["Hs"]
-  den[i,j]["Hs"]+=thisden[i,j]["Hs"]
-  num[i,j]["Hsp"]+=thisnum[i,j]["Hsp"]
-  den[i,j]["Hsp"]+=thisden[i,j]["Hsp"]
-  num[i,j]["Ht"]+=thisnum[i,j]["Ht"]
-  den[i,j]["Ht"]+=thisden[i,j]["Ht"]
-}
-
 function calculate_between(i,j) {
   if (!any_between) { return 0 }
-
   # Populate a_ij array -- the union of a[i] and a[j] arrays
   # Also set a missing from a[i] or a[j] to zero
   delete a_ij
   for (x in a[i]) {
-    a_ij[x]=a[i][x]
     if ( !(x in a[j]) ) { 
       a[j][x]=0 
     }
+    a_ij[x]=a[i][x]
   }
   for (x in a[j]) {
-    a_ij[x]+=a[j][x] 
-    if ( !(x in a_ij) ) { 
+    if ( !(x in a[i]) ) { 
       a[i][x]=0
     }
+    a_ij[x]+=a[j][x] 
   }
   # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
-  if ( arg::args["mult"] != 1 && length(a_ij) > 2 ) { return 1 }
+  if ( arg::args["mult"] != 1 && length(a_ij) > 2 ) { return 0 }
   for ( s in stats::stats["between"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
@@ -607,18 +398,6 @@ function calculate_between(i,j) {
     num[i,j][s]+=thisnum[i,j][s]
     den[i,j][s]+=thisden[i,j][s] 
   }
-}
-
-function finalize_rho(i,j,    Hs, Ht, Hsp, Hpt) {
-  if ( den[i,j]["Hs"]==0 ) { return 0 }
-  if ( den[i,j]["Hsp"]==0 ) { return 0 }
-  if ( den[i,j]["Ht"]==0 ) { return 0 }
-  Hs = num[i,j]["Hs"]/den[i,j]["Hs"]
-  Ht = num[i,j]["Ht"]/den[i,j]["Ht"]
-  Hsp= num[i,j]["Hsp"]/den[i,j]["Hsp"]
-  Hpt= Hs + 2 * (Ht - Hs)
-  num[i,j]["rho"]=Hpt-Hs
-  den[i,j]["rho"]=Hpt-Hsp
 }
 
 function printOutput( i, j, metric,    idx ) {
@@ -631,43 +410,6 @@ function printOutput( i, j, metric,    idx ) {
   if ( den[idx][metric]==0 ) { return 0 }
   out=chr"\t"start"\t"end"\t"locus"\t"i"\t"j"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
   print out > tmpf
-}
-
-function harm( n ) {
- # Return Nth harmonic number
- if ( n == 0 ) { return 0 }
- if ( !(n in _harm) ) { _harm[n]= 1/n + harm(n-1) }
- return _harm[n]
-}
-
-function harm2( n ) {
- # Return Nth second harmonic number
- if ( n == 0 ) { return 0 }
- if ( !(n in _harm2) ) { _harm2[n]= 1/n^2 + harm2(n-1) }
- return _harm2[n]
-}
-
-# Tajima's D-like statistic calculation
-# The formula below is classic Tajima's D but with missing data we calculate a1 and a2 in a slightly different way
-function calcTajimaVar( S, a1, a2, n ) {
-  if (n==3) { return 0 }
-  if (n==1) { return 0 }
-  if (n==0) { return 0 }
-  if (a1==0) { return 0 }
-  if (S==0) {return 0}
-  b1=(n+1)/(3*n-3)
-  b2=(2*(n^2+n+3))/(9*n*(n-1))
-  c1=b1-1/a1
-  c2=b2-(n+2)/(a1*n)+a2/(a1^2)
-  e1=c1/a1
-  e2=c2/(a1^2+a2)
-  return sqrt(e1*S + e2*S*(S-1))
-}
-
-function recalcS_expected(S, n1, n2,    coef1, coef2, i ) {
-  for (i=1; i<n1; i++) { coef1+=(1/i+1/(n1-i)) }
-  for (i=1; i<n2; i++) { coef2+=(1/i+1/(n2-i)) }
-  return S*(coef2/coef1)
 }
 
 function print_header() {

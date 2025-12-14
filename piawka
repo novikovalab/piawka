@@ -6,16 +6,35 @@
 @load "fork"
 @load "filefuncs"
 
+# utility functions
 @include "getopt.awk"
 @include "arg.awk"
 @include "stats.awk"
 
-# Subcommands
-
+# subcommands
 @include "calc.awk"
 @include "win.awk"
 @include "sum.awk"
 @include "dist.awk"
+
+# metrics: within
+@include "lines.awk"
+@include "miss.awk"
+@include "pi.awk"
+@include "tajima.awk"
+@include "tajimalike.awk"
+@include "watterson.awk"
+@include "a1.awk"
+@include "a2.awk"
+@include "truesegr.awk"
+@include "segr.awk"
+
+#metrics: between
+@include "diff.awk"
+@include "dxy.awk"
+@include "fst.awk"
+@include "fstwc.awk"
+@include "rho.awk"
 
 @namespace "piawka"
 
