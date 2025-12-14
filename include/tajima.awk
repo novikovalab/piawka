@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("tajima", "Tajima's D", "a1,a2,truesegr,pi,lines")
+  stats::add_stat("tajima", "Tajima's D", "a1,a2,segr,pi,lines")
 }
 
 function initiate_tajima(){
@@ -17,12 +17,12 @@ function initiate_tajima(){
 }
 
 function finalize_tajima(i,     tP, a1, a2){
-  if ( num[i]["truesegr"]==0 ) { return 0 }
+  if ( num[i]["segr"]==0 ) { return 0 }
   tP=num[i]["pi"]/den[i]["pi"]*num[i]["lines"]
-  a1=num[i]["a1"]/num[i]["truesegr"]
-  a2=num[i]["a2"]/num[i]["truesegr"]
-  num[i]["tajima"]= tP - num[i]["truesegr"]/a1
-  den[i]["tajima"]= calcTajimaVar( num[i]["truesegr"], a1, a2, n[i]+miss[i] )
+  a1=num[i]["a1"]/num[i]["segr"]
+  a2=num[i]["a2"]/num[i]["segr"]
+  num[i]["tajima"]= tP - num[i]["segr"]/a1
+  den[i]["tajima"]= calcTajimaVar( num[i]["segr"], a1, a2, n[i]+miss[i] )
 }
 
 # Tajima's D-like statistic calculation

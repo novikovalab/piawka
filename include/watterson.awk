@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("watterson", "Watterson's theta", 0, "a1,truesegr,nlines")
+  stats::add_stat("watterson", "Watterson's theta", 0, "a1,segr,nlines")
 }
 
 function initiate_watterson(){
@@ -9,7 +9,7 @@ function initiate_watterson(){
 }
 
 function finalize_watterson(i){
-  if ( num[i]["truesegr"]==0 ) { return 0 }
-  num[i]["watterson"]=num[i]["truesegr"]/num[i]["nlines"]
-  den[i]["watterson"]=num[i]["a1"]/num[i]["truesegr"]
+  if ( num[i]["segr"]==0 ) { return 0 }
+  num[i]["watterson"]=num[i]["segr"]/num[i]["nlines"]
+  den[i]["watterson"]=num[i]["a1"]/num[i]["segr"]
 }

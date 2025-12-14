@@ -26,8 +26,8 @@
 @include "watterson.awk"
 @include "a1.awk"
 @include "a2.awk"
-@include "truesegr.awk"
 @include "segr.awk"
+@include "segrcorr.awk"
 
 #metrics: between
 @include "diff.awk"
