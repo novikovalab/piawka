@@ -122,7 +122,6 @@ function main() {
   for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
     if ( arg::args["rand"] ) { srand( awk::xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
     buffer = "cat #"jobnum
-    buffers[buffer]++
     printf "" |& buffer # initialize pipe
     pid=awk::fork()
     if ( pid>0 ) { continue } 
@@ -159,8 +158,9 @@ function main() {
     buffer="cat #"jobnum # number of pipes with regions == # jobs
     print $0 |& buffer
   }
-  for (i in buffers) {
-    print SIGNAL_END_OF_BUFFER |& i
+  for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
+    buffer="cat #"jobnum 
+    print SIGNAL_END_OF_BUFFER |& buffer
     close(i, "to")
   }
   close( bedcmd )
@@ -326,8 +326,6 @@ function process_sites() {
       }
       if ( arg::args["groups"] == "divide" && g in alleles ) {
         calculate_within(g)
-        allmiss[g]+=miss[g]
-        allgeno[g]+=nalleles[g]
         for (g2 in alleles) {
           if ( g2 > g ) {
             calculate_between(g,g2)
@@ -346,16 +344,12 @@ function process_sites() {
         continue
       }
       calculate_within( g )
-      allmiss[g]+=miss[g]
-      allgeno[g]+=nalleles[g]
     }
     for ( g in alleles ) {
       for ( g2 in alleles ) {
         # Only making comparisons one way
         if (g2>g) { 
           calculate_between(g,g2)
-          allmiss[g,g2]+=miss[g]+miss[g2]
-          allgeno[g,g2]+=nalleles[g]+nalleles[g2]
         }
       }
     }
@@ -490,6 +484,8 @@ function increment_a2(g){
 function calculate_within(g) {
   if (!any_within) { return 0 }
   nUsed[g]++
+  allmiss[g]+=miss[g]
+  allgeno[g]+=nalleles[g]
   for ( s in stats::stats["within"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
@@ -595,6 +591,8 @@ function calculate_between(g,g2) {
   # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
   if ( arg::args["mult"] != 1 && poolsize > 2 ) { return 1 }
   nUsed[g,g2]++
+  allmiss[g,g2]+=miss[g]+miss[g2]
+  allgeno[g,g2]+=nalleles[g]+nalleles[g2]
   for ( s in stats::stats["between"] ) {
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
