@@ -389,6 +389,7 @@ END {
     total_jobs=bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"]: 0 ) - 1
     jobs_width=int(log(total_jobs)/log(10))+1
     seconds_elapsed=0
+    say("Total jobs to run: "total_jobs, 1)
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
       # to avoid race condition given persite, wait until the child writes to next region
