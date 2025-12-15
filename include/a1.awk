@@ -5,7 +5,7 @@ BEGIN{
 }
 
 function increment_a1(i){
-  if ( length(a[i])==2 ) { 
+  if ( length(a[i])>1 ) { 
     thisnum[i]["a1"]+=harm(n[i]-1)
     thisden[i]["a1"]=1 
   }

@@ -262,6 +262,10 @@ function process_sites() {
         }
       }
       if ( arg::args["groups"] == "divide" && i in a ) {
+        if ( exclude[i] || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
+          delete a[i]
+          continue
+        }
         calculate_within(i)
         for (j in a) {
           if ( j > i ) {

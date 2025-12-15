@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segrcorr,pi,nlines")
+  stats::add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segrcorr,pi,lines")
 }
 
 function initiate_tajimalike(){
@@ -14,7 +14,7 @@ function initiate_tajimalike(){
   }
   for (i in groups) {
     if ( ploidy[i] % 1 != 0 ) {
-      say("Warning: mixed ploidy population "g" will give unreliable results with -s tajimalike" )
+      say("Warning: mixed ploidy population "i" will give unreliable results with -s tajimalike" )
     }
   }
 }

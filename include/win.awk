@@ -8,7 +8,7 @@ function run() {
   arg::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
   arg::add_argument("w", "windowsize", 0, "# VCF lines per window")
   arg::parse_args(2, help)
-  DEFAULT_WINDOWSIZE=10000
+  DEFAULT_WINDOWSIZE=100000
   if ( arg::args["windowsize"] == "" ) { arg::args["windowsize"]=DEFAULT_WINDOWSIZE }
   piawka::assert( awk::xor(arg::args["vcf"]!="", arg::args["targets"]!=""), "provide either VCF or BED to generate windows from" )
   exit main()

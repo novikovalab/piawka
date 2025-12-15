@@ -28,6 +28,9 @@
 @include "segr.awk"
 @include "segrcorr.awk"
 @include "theta_w.awk"
+@include "theta_low.awk"
+@include "theta_mid.awk"
+@include "theta_high.awk"
 
 #metrics: between
 @include "diff.awk"

@@ -6,7 +6,10 @@ BEGIN{
 
 function increment_segr(i){
   if ( length(a[i])>1 ) { 
-    thisnum[i]["segr"]++
-    thisden[i]["segr"]=1 
+    thisnum[i]["segr"]=1
   }
+}
+
+function finalize_segr(i){
+  den[i]["segr"]=1
 }

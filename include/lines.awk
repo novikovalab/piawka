@@ -5,7 +5,8 @@ BEGIN{
 }
 
 function increment_lines(i){
-  thisnum[i]["lines"]++
+  thisnum[i]["lines"]=1
+  thisden[i]["lines"]=1
 }
 
 function finalize_lines(i){
