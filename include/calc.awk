@@ -1,6 +1,7 @@
 @namespace "calc"
 
 function run(){ 
+  time_start=awk::systime()
   check_gawk_version()
   check_htslib()
   help="\
@@ -143,7 +144,7 @@ function main() {
  
   # Children: listen to query regions dispenser
   for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
-    if ( arg::args["rand"] ) { srand( awk::xor( systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
+    if ( arg::args["rand"] ) { srand( awk::xor( awk::systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
     buffer = "cat #"jobnum
     printf "" |& buffer # initialize pipe
     pid=awk::fork()
@@ -177,6 +178,9 @@ function main() {
   bufl=0
   while ( bedcmd | getline > 0 ) {
     bufl++
+    if ( bufl % 1000 == 0 ) {
+      say("Total jobs to run: "bufl" and counting...", 1)
+    }
     jobnum=bedline++ % arg::args["jobs"]
     buffer="cat #"jobnum # number of pipes with regions == # jobs
     print $0 |& buffer
@@ -378,15 +382,20 @@ function printOutput( i, j, metric,    idx ) {
 
 END {
   if (pid>0) {
-    say("Total jobs to run: "bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"] : 0)-1"\n", 1 )
+    total_jobs=bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"]: 0 ) - 1
+    jobs_width=int(log(total_jobs)/log(10))+1
+    seconds_elapsed=0
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
       # to avoid race condition given persite, wait until the child writes to next region
       tmpfn=tmpdir"/"f+arg::args["jobs"]".tmp"
       while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
         system("sleep 1")
+        seconds_elapsed=awk::systime()-time_start
       }
-      say("Finalizing job " f+arg::args["jobs"], 1)
+      say(sprintf("Finalizing job %*d of %d, seconds elapsed: %d", 
+                  jobs_width, f+arg::args["jobs"], total_jobs, seconds_elapsed),
+          1)
       while ( getline < tmpf > 0 ) {
         if ( $0 == SIGNAL_END_OF_BUFFER ) {
           break
