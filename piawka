@@ -23,11 +23,11 @@
 @include "pi.awk"
 @include "tajima.awk"
 @include "tajimalike.awk"
-@include "watterson.awk"
 @include "a1.awk"
 @include "a2.awk"
 @include "segr.awk"
 @include "segrcorr.awk"
+@include "theta_w.awk"
 
 #metrics: between
 @include "diff.awk"

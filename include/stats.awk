@@ -11,7 +11,7 @@ function parse_stats(s) {
     if (stat_dep[nr] != "") {
       ndeps=split(stat_dep[nr], stat_deps, ",")
       for (j=1;j<=ndeps;j++) {
-        piawka::assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]" (check options with piawka -l)" )
+        piawka::assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]"-"stat_deps[j]" (check options with piawka -l)" )
         nr=statslist[stat_deps[j]]
         is_between=( stat_isbetween[nr] ? "between" : "within" )
         stats[is_between][stat_deps[j]]=1
