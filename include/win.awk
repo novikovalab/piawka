@@ -3,7 +3,6 @@
 function run() { 
   help="Usage:\nmake_windows.awk -v vcf_gz [OPTIONS]"
   arg::add_argument("n", "number", 1, "enumerate windows in 4th column")
-  arg::add_argument("s", "skip", 0, "# lines to skip")
   arg::add_argument("T", "targets", 0, "BED file with small regions to aggregate into larger ones")
   arg::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
   arg::add_argument("w", "windowsize", 0, "# VCF lines per window")
@@ -49,10 +48,7 @@ function aggregate_regions() {
 function make_windows(chunk_size,    
                       cmd, lines_seen, first_window,
                       last_chr, minpos, lastpos) {
-  cmd = "bgzip -dc "arg::args["vcf"]
-  if (arg::args["skip"]>0) {
-    while( arg::args["skip"]-- > 0 ) { cmd | getline }
-  }
+  cmd = "tabix "arg::args["vcf"]" $( tabix -l "arg::args["vcf"]" )"
   first_window=1
   while ( cmd | getline > 0 ) {
     if ( passed_header==0 && index($0,"#")==1 ) { continue }

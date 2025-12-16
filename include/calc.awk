@@ -98,7 +98,6 @@ function get_groups() {
 function get_header() {
   cmd="tabix -H " arg::args["vcf"]
   while ( cmd | getline > 0 ) { 
-    header_length++
     if ($0 ~ /^#CHROM/ ) {
 
       # Assign sample positions to groups
@@ -200,7 +199,7 @@ function get_bedcmd() {
   } else if (arg::args["targets"] != "") {
     return piawka" win -T "arg::args["targets"] 
   } else {
-    return piawka" win -v "arg::args["vcf"]" -s "header_length
+    return piawka" win -v "arg::args["vcf"]
   }
 }
 
