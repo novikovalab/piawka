@@ -20,7 +20,7 @@ function summarize_regions(f,    firstline) {
       firstline=0
       piawka::assert( NF == 10, "piawka output (10 columns) is required!" )
     }
-    if ( $9 != "value" && $9==$9 ) { # exclude header and NaNs 
+    if ( substr($0,1,1)!="#" && $8==$8 ) { # exclude header and NaNs 
       idx=$1 SUBSEP $4 SUBSEP $5 SUBSEP $6 SUBSEP $7 SUBSEP
       if (!seen[idx]) {
         seen[idx]=1
