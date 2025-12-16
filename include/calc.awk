@@ -149,7 +149,7 @@ function main() {
     pid=awk::fork()
     if ( pid>0 ) { continue } 
     bufl=0
-    while ( awk::stat(buffer, _) < 0 ) { continue } # busy wait until first line drops to buffer
+    while ( awk::stat(buffer, _) < 0 || _["size"]==0 ) { continue } # busy wait until first line drops to buffer
     while ( $0 != SIGNAL_END_OF_BUFFER ) {
       if ((getl=getline < buffer) <= 0) {
         say("Error: job "jobnum" did not reach end of buffer, stopped at:")
@@ -388,7 +388,9 @@ END {
   if (pid>0) {
     total_jobs=bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"]: 0 ) - 1
     jobs_width=int(log(total_jobs)/log(10))+1
-    say("Total jobs to run: "total_jobs, 1)
+    say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
+                jobs_width, 0, total_jobs, awk::systime()-time_start),
+        1)
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
       # to avoid race condition given persite, wait until the child writes to next region
@@ -396,7 +398,7 @@ END {
       while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
         continue
       }
-      say(sprintf("Finalizing job %*d of %d, seconds elapsed: %d", 
+      say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
                   jobs_width, f+arg::args["jobs"], total_jobs, awk::systime()-time_start),
           1)
       while ( getline < tmpf > 0 ) {
