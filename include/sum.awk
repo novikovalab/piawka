@@ -6,6 +6,7 @@ function run() {
     It simply divides sum of numerators by sum of denominators. \n\
     The only arguments are the output file(-s) of piawka calc; stdin should be passed as `piawka sum -`."
   arg::add_argument("s", "stats", 0, "recalculate stats that cannot be summarized as sum(num)/sum(den) using dependencies, format as in piawka calc")
+  arg::add_argument("i", "ignore-chrs", 0, "summarize statistics across all chromosomes using only locus field to match")
   arg::parse_args(2, help)
   narg=arg::parse_nonargs()
 
@@ -26,6 +27,9 @@ function summarize_regions(f,    firstline) {
       piawka::assert( NF == 10, "piawka output (10 columns) is required!" )
     }
     if ( substr($0,1,1)!="#" && $8==$8 ) { # exclude header and NaNs 
+      if ( "ignore-chrs" in arg::args ) {
+        $1=$2=$3="_"
+      }
       idx=$1 SUBSEP $4 SUBSEP $5 SUBSEP $6 SUBSEP $7 SUBSEP
       if (!seen[idx]) {
         seen[idx]=1
