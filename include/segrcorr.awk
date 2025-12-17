@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("segrcorr", "helper: count of segregating sites corrected for missingness", 0, "", "sum")
+  stats::add_stat("segrcorr", "helper: count of segregating sites corrected for missingness", 0, "")
 }
 
 function increment_segrcorr(i){

@@ -30,58 +30,33 @@ function summarize_regions(f,    firstline) {
       if ( "ignore-chrs" in arg::args ) {
         $1=$2=$3="_"
       }
-      idx=$1 SUBSEP $4 SUBSEP $5 SUBSEP $6 SUBSEP $7 SUBSEP
-      if (!seen[idx]) {
-        seen[idx]=1
-        start[idx]=$2
-        end[idx]=$3
+      if ( !("stats" in arg::args) && !seenstat[$7] ) {
+        seenstat[$7]=1
+        stats=stats","$7
       }
-      if ($2 < start[idx]) { start[idx]=$2 }
-      if ($3 > end[idx]) { end[idx]=$2 }
-      if (stats::summary_func[$7]=="sum") {
-        numerator[idx]+=$9/$10
-        denominator[idx]=1
-      } else {
-        denominator[idx]+=$10
-        numerator[idx]+=$9
-      }
+      i1=$1 SUBSEP $4                      # locus-chr
+      i2=$5 ( $6 == "." ? "" : SUBSEP $6 ) # pops
+      i3= $7                               # metric
+      if ($2 < start[ i1 ] || start[ i1 ]=="") { start[ i1 ]=$2 }
+      if ($3 > end[ i1 ]) { end[ i1 ]=$3 }
+      den[ i1 ][ i2 ][ i3 ]+=$10
+      num[ i1 ][ i2 ][ i3 ]+=$9
     }
   }
-  for (i in seen) {
-    split(i, pops, SUBSEP)
-    finvalue[i]=numerator[i]/denominator[i]"\t"numerator[i]"\t"denominator[i]
-    print pops[1]"\t"start[i]"\t"end[i]"\t"pops[2]"\t"pops[3]"\t"pops[4]"\t"pops[5]"\t"finvalue[i]
-    # populate num[locus][pop1,pop2][metric] array
-    if ("stats" in arg::args) {
-      allnum[ pops[1],pops[2] ][ pops[3] (pops[4]=="." ? "" : SUBSEP pops[4]) ][ pops[5] ]=numerator[i]
-      allden[ pops[1],pops[2] ][ pops[3] (pops[4]=="." ? "" : SUBSEP pops[4]) ][ pops[5] ]=denominator[i]
-      allstart[ pops[1],pops[2] ] = start[i]
-      allend[ pops[1],pops[2] ] = end[i]
-    }
+  close(f)
+  if (stats != "") {
+    stats::parse_stats(substr(stats,2))
   }
-  if ("stats" in arg::args) {
-    calc::tmpf="/dev/stdout"
-    for (i in allden) {
-      split(i, ii, SUBSEP)
-      calc::chr=ii[1]
-      calc::start=allstart[i]
-      calc::end=allend[i]
-      calc::locus=ii[2]
-      copy_array(allnum[i],calc::num)
-      copy_array(allden[i],calc::den)
-      calc::yield_output()
-    }
+  calc::tmpf="/dev/stdout"
+  for (i1 in den) {
+    split(i1, ii, SUBSEP)
+    calc::chr=ii[1]
+    calc::locus=ii[2]
+    calc::start=start[i1]
+    calc::end=end[i1]
+    piawka::copy_array(num[i1],calc::num)
+    piawka::copy_array(den[i1],calc::den)
+    calc::yield_output() # if dependencies are not there, falls back to sum(num)/sum(den) because finalize_i3 returns nothing
   }
 }
 
-# Array copy func by Ed Morton @ https://stackoverflow.com/a/62179751/14993291
-function copy_array(orig, copy,      i) {
-  for (i in orig) {
-    if (awk::isarray(orig[i])) {
-      copy_array(orig[i], copy[i])
-    }
-    else {
-      copy[i] = orig[i]
-    }
-  }
-}

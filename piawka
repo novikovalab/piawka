@@ -82,8 +82,20 @@ function assert(condition, explanation) {
 }
 
 function check_file(file,   cmd) {
-   if (awk::stat(file, _) < 0) {
-        print "Error: could not read file "file > "/dev/stderr"
-        exit 1
+  if (awk::stat(file, _) < 0) {
+    print "Error: could not read file "file > "/dev/stderr"
+    exit 1
+  }
+}
+#
+# Array copy func by Ed Morton @ https://stackoverflow.com/a/62179751/14993291
+function copy_array(orig, copy,      i) {
+  for (i in orig) {
+    if (awk::isarray(orig[i])) {
+      copy_array(orig[i], copy[i])
     }
+    else {
+      copy[i] = orig[i]
+    }
+  }
 }

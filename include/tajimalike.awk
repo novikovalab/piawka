@@ -9,9 +9,6 @@ function initiate_tajimalike(){
   if ( arg::args["mult"]==1 ) {
     piawka::say("Warning: -s tajimalike is unreliable when calculated for multiallelic sites")
   }
-  if ( arg::args["jobs"] > 1 ) {
-    say("Warning: -s tajimalike is a bit less precise in multithreaded mode due to averaging across windows")
-  }
   for (i in groups) {
     if ( ploidy[i] % 1 != 0 ) {
       say("Warning: mixed ploidy population "i" will give unreliable results with -s tajimalike" )

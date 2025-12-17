@@ -65,6 +65,11 @@ function check_arguments() {
   stats::parse_stats(arg::args["stats"])
   any_within="within" in stats::stats
   any_between="between" in stats::stats
+  piping_to_sum=( arg::args["bed"] == "" && arg::args["persite"] != 1  )
+  # if piping to sum, dependencies should be also passed over
+  if ( piping_to_sum ) {
+    piawka::copy_array(stats::stats, stats::stats_print)
+  }
   # Some arg checks
   piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
   piawka::assert( arg::args["groups"] != "", "required argument: -g <groups.tsv>" )
@@ -402,8 +407,9 @@ END {
         if ( $0 == SIGNAL_END_OF_BUFFER ) {
           break
         }
-        if ( arg::args["bed"] == "" && arg::args["persite"] != 1 ) {
-          print | piawka" sum -"
+        if ( piping_to_sum ) {
+          sumcmd = piawka" sum -s "arg::args["stats"]" -"
+          print | sumcmd
         } else {
           print
         }
@@ -412,7 +418,8 @@ END {
       system("rm -f "tmpf)
     }
     # no need to wait since all children confirmedly written output?..
-    close(piawka" sum -")
+    say("") # clear stdout
+    close(sumcmd)
   }
 }
 

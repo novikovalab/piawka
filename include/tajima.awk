@@ -1,11 +1,10 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("tajima", "Tajima's D", 0, "a1,a2,segr,pi,lines")
+  stats::add_stat("tajima", "Tajima's D", 0, "a1,a2,segr,pi,lines,miss")
 }
 
 function initiate_tajima(){
-  say("Warning: -s tajima is imprecise when averaged across small windows!")
   piawka::assert( arg::args["persite"]!=1, "-s tajima cannot be calculated for a single site" )
   if ( arg::args["mult"]==1 ) {
     piawka::say("Warning: -s tajima is unreliable when calculated for multiallelic sites")
@@ -17,13 +16,14 @@ function initiate_tajima(){
   }
 }
 
-function finalize_tajima(i,     tP, a1, a2){
+function finalize_tajima(i,     tP, a1, a2, N){
   if ( num[i]["segr"]==0 ) { return 0 }
   tP=num[i]["pi"]/den[i]["pi"]*num[i]["lines"]
   a1=num[i]["a1"]/num[i]["segr"]
   a2=num[i]["a2"]/num[i]["segr"]
+  N=den[i]["miss"]/num[i]["lines"]
   num[i]["tajima"]= tP - num[i]["segr"]/a1
-  den[i]["tajima"]= calcTajimaVar( num[i]["segr"], a1, a2, n[i]+miss[i] )
+  den[i]["tajima"]= calcTajimaVar( num[i]["segr"], a1, a2, N )
 }
 
 # Tajima's D-like statistic calculation

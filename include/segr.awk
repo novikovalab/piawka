@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("segr", "helper: count of segregating sites", 0, "", "sum")
+  stats::add_stat("segr", "helper: count of segregating sites", 0, "")
 }
 
 function increment_segr(i){
