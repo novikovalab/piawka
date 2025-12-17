@@ -148,15 +148,13 @@ function main() {
     pid=awk::fork()
     if ( pid>0 ) { continue } 
     bufl=0
-    while ( awk::stat(buffer, _) < 0 || _["size"]==0 ) { continue } # busy wait until first line drops to buffer
+    bytes=0
     while ( $0 != SIGNAL_END_OF_BUFFER ) {
-      if ((getl=getline < buffer) <= 0) {
-        say("Error: job "jobnum" did not reach end of buffer, stopped at:")
-        print $0 > "/dev/stderr"
-        return getl
-      }
+      while ( _["size"] <= bytes ) { awk::stat(buffer, _) } #wait till file gets bigger
       curr= jobnum + arg::args["jobs"] * (++bufl - 1)
       tmpf=tmpdir "/" curr ".tmp"
+      piawka::assert((getl=getline < buffer)>0, "could not reach end of buffer "buffer": "bufl": "ERRNO))
+      bytes+=length($0)+1
       chr=$1
       start=$2
       end=$3
