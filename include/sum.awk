@@ -16,9 +16,6 @@ function run() {
   for (n=1; n<=narg; n++) {
     summarize_regions(arg::nonargs[n])
   }
-  if (narg==0) {
-    summarize_regions("/dev/stdin")
-  }
   exit 0
 }
 
