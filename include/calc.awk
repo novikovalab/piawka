@@ -153,7 +153,7 @@ function main() {
       while ( _["size"] <= bytes ) { awk::stat(buffer, _) } #wait till file gets bigger
       curr= jobnum + arg::args["jobs"] * (++bufl - 1)
       tmpf=tmpdir "/" curr ".tmp"
-      piawka::assert((getl=getline < buffer)>0, "could not reach end of buffer "buffer": "bufl": "ERRNO))
+      piawka::assert((getl=getline < buffer)>0, "could not reach end of buffer "buffer": "bufl": "ERRNO)
       bytes+=length($0)+1
       chr=$1
       start=$2
