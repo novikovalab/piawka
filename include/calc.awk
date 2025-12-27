@@ -400,7 +400,6 @@ function printOutput( i, j, metric,    idx, ij ) {
   } else {
     ij=i"\t"j
   }
-}
   out=chr"\t"start"\t"end"\t"locus"\t"ij"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
   print out > tmpf
 }
