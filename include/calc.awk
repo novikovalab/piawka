@@ -115,11 +115,11 @@ function get_header() {
           groupindex[col]="all_samples"
           groups["all_samples"]++
         } else if ( divide ) {
+          for ( j in groups ) {
+            pairs[$col][j]=1
+          }
           groupindex[col]=$col
           groups[$col]++
-          for ( j in groups ) {
-            if ( j != $col ) { pairs[$col][j]=1 }
-          }
         } else if ( $col in groupmem ) { 
           groupindex[col]=groupmem[$col]
           groups[groupmem[$col]]++
@@ -325,7 +325,7 @@ function calculate_within(i) {
 function calculate_between(i) {
   if (!any_between) { return 0 }
   for ( j in a ) {
-    if ( divide || j in pairs[i] ) { 
+    if ( j in pairs[i] ) { 
       # Populate a_ij array -- the union of a[i] and a[j] arrays
       # Also set a missing from a[i] or a[j] to zero
       delete a_ij
