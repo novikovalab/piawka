@@ -6,7 +6,7 @@ function run() {
     It simply divides sum of numerators by sum of denominators. \n\
     The only arguments are the output file(-s) of piawka calc; stdin should be passed as `piawka sum -`."
   arg::add_argument("s", "stats", 0, "recalculate stats that cannot be summarized as sum(num)/sum(den) using dependencies, format as in piawka calc")
-  arg::add_argument("i", "ignore-chrs", 0, "summarize statistics across all chromosomes using only locus field to match")
+  arg::add_argument("i", "ignore-chrs", 1, "summarize statistics across all chromosomes using only locus field to match")
   arg::parse_args(2, help)
   narg=arg::parse_nonargs()
 
