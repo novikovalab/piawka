@@ -76,7 +76,8 @@ function check_arguments() {
   if ( arg::args["bed"] != "" ) { piawka::check_file( arg::args["bed"] ) }
   if ( arg::args["targets"] != "" ) { piawka::check_file( arg::args["targets"] ) }
 
-  if ( ( arg::args["groups"] != "unite" ) && ( arg::args["groups"] != "divide" ) ) {
+  divide=arg::args["groups"]=="divide"
+  if ( ( arg::args["groups"] != "unite" ) && !divide ) {
     get_groups()
   }
   get_header()
@@ -93,8 +94,11 @@ function check_arguments() {
 function get_groups() { 
   piawka::check_file( arg::args["groups"] )
   while ( getline < arg::args["groups"] > 0 ) {
-    if (!checked_groups) { piawka::assert(NF==2, "the groups file must contain two columns"); checked_groups=1 }
-      groupmem[$1]=$2
+    if (!seen_groupsfile) { 
+      seen_groupsfile=1 
+      piawka::assert(NF==2, "the groups file must contain two columns")
+    }
+    groupmem[$1]=$2
   }
   close( arg::args["groups"] )
 }
@@ -110,12 +114,26 @@ function get_header() {
         if ( arg::args["groups"]=="unite" ) {
           groupindex[col]="all_samples"
           groups["all_samples"]++
-        } else if ( arg::args["groups"]=="divide" ) {
+        } else if ( divide ) {
           groupindex[col]=$col
           groups[$col]++
-        } else if ( groupmem[$col] != "" ) { 
+          for ( j in groups ) {
+            if ( j != $col ) { pairs[$col][j]=1 }
+          }
+        } else if ( $col in groupmem ) { 
           groupindex[col]=groupmem[$col]
           groups[groupmem[$col]]++
+        }
+      }
+      if ( seen_groupsfile ) {
+        divide=1
+        for ( i in groups ) {
+          if ( divide && groups[i]>1 ) { divide=0 }
+          for ( j in groups ) {
+            if ( j > i ) {
+              pairs[i][j]=1
+            }
+          }
         }
       }
       # Assign ploidy to groups using variant calls from next line, detect mixed-ploidy groups
@@ -263,24 +281,18 @@ function process_sites() {
           n[i]++
         }
       }
-      if ( arg::args["groups"] == "divide" && i in a ) {
+      if ( divide && i in a ) {
         if ( exclude[i] || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
           delete a[i]
           continue
         }
         calculate_within(i)
-        for (j in a) {
-          if ( j > i ) {
-            calculate_between(i,j)
-          } else if ( j < i ) {
-            calculate_between(j,i)
-          }
-        }
+        calculate_between(i)
         if ( arg::args["persite"] ) { yield_output() }
       }
     }
 
-    if ( arg::args["groups"] == "divide" ) { continue }
+    if ( divide ) { continue }
     for ( i in a ) {
       if ( exclude[i] || ( arg::args["miss"] < 1 && miss[i]/(miss[i]+n[i]) > arg::args["miss"] ) || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
         delete a[i]
@@ -288,13 +300,9 @@ function process_sites() {
       }
       calculate_within( i )
     }
+    # Between is in second pass to make sure dependencies are there
     for ( i in a ) {
-      for ( j in a ) {
-        # Only making comparisons one way
-        if (j>i) { 
-          calculate_between(i,j)
-        }
-      }
+      calculate_between( i )
     }
     if ( arg::args["persite"] ) { yield_output() }
   }
@@ -314,32 +322,36 @@ function calculate_within(i) {
   }
 }
 
-function calculate_between(i,j) {
+function calculate_between(i) {
   if (!any_between) { return 0 }
-  # Populate a_ij array -- the union of a[i] and a[j] arrays
-  # Also set a missing from a[i] or a[j] to zero
-  delete a_ij
-  for (x in a[i]) {
-    if ( !(x in a[j]) ) { 
-      a[j][x]=0 
+  for ( j in a ) {
+    if ( divide || j in pairs[i] ) { 
+      # Populate a_ij array -- the union of a[i] and a[j] arrays
+      # Also set a missing from a[i] or a[j] to zero
+      delete a_ij
+      for (x in a[i]) {
+        if ( !(x in a[j]) ) { 
+          a[j][x]=0 
+        }
+        a_ij[x]=a[i][x]
+      }
+      for (x in a[j]) {
+        if ( !(x in a[i]) ) { 
+          a[i][x]=0
+        }
+        a_ij[x]+=a[j][x] 
+      }
+      # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
+      if ( arg::args["mult"] != 1 && length(a_ij) > 2 ) { return 0 }
+      for ( s in stats::stats["between"] ) {
+        incr="calc::increment_"s
+        if ( incr in FUNCTAB ) {
+          @incr(i,j)
+        }
+        num[i,j][s]+=thisnum[i,j][s]
+        den[i,j][s]+=thisden[i,j][s] 
+      }
     }
-    a_ij[x]=a[i][x]
-  }
-  for (x in a[j]) {
-    if ( !(x in a[i]) ) { 
-      a[i][x]=0
-    }
-    a_ij[x]+=a[j][x] 
-  }
-  # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
-  if ( arg::args["mult"] != 1 && length(a_ij) > 2 ) { return 0 }
-  for ( s in stats::stats["between"] ) {
-    incr="calc::increment_"s
-    if ( incr in FUNCTAB ) {
-      @incr(i,j)
-    }
-    num[i,j][s]+=thisnum[i,j][s]
-    den[i,j][s]+=thisden[i,j][s] 
   }
 }
 
@@ -374,7 +386,7 @@ function yield_output() {
   delete den
 }
 
-function printOutput( i, j, metric,    idx ) {
+function printOutput( i, j, metric,    idx, ij ) {
   if (j=="") {
     idx=i
     j="."
@@ -382,7 +394,14 @@ function printOutput( i, j, metric,    idx ) {
     idx=i SUBSEP j 
   }
   if ( den[idx][metric]==0 ) { return 0 }
-  out=chr"\t"start"\t"end"\t"locus"\t"i"\t"j"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
+  # reverse pop1 and pop2 to keep pop1 alphabetically smaller
+  if ( divide && i > j ) {
+    ij=j"\t"i
+  } else {
+    ij=i"\t"j
+  }
+}
+  out=chr"\t"start"\t"end"\t"locus"\t"ij"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
   print out > tmpf
 }
 
