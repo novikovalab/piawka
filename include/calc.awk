@@ -105,7 +105,7 @@ function get_groups() {
 
 # VCF header: assign samples to groups
 function get_header() {
-  cmd="tabix -H " arg::args["vcf"]
+  cmd = "tabix -h "arg::args["vcf"]" $( tabix -l "arg::args["vcf"]" )"
   while ( cmd | getline > 0 ) { 
     if ($0 ~ /^#CHROM/ ) {
 
