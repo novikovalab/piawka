@@ -389,17 +389,17 @@ function yield_output() {
 function printOutput( i, j, metric,    idx, ij ) {
   if (j=="") {
     idx=i
-    j="."
+    ij=i"\t."
   } else {
     idx=i SUBSEP j 
+    if ( divide && i > j ) {
+      ij=j"\t"i
+    } else {
+      ij=i"\t"j
+    }
   }
   if ( den[idx][metric]==0 ) { return 0 }
   # reverse pop1 and pop2 to keep pop1 alphabetically smaller
-  if ( divide && i > j ) {
-    ij=j"\t"i
-  } else {
-    ij=i"\t"j
-  }
   out=chr"\t"start"\t"end"\t"locus"\t"ij"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
   print out > tmpf
 }
