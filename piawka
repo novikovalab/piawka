@@ -54,6 +54,8 @@ help="\
   # Parse subcommand
   subcmd=ARGV[1]
 
+  FS="\t"
+
   switch (subcmd) {
     case "calc":
       calc::run()
