@@ -44,6 +44,7 @@ function summarize_regions(f,    firstline) {
     }
   }
   close(f)
+  calc::print_header()
   if (stats != "") {
     stats::parse_stats(substr(stats,2))
   }
