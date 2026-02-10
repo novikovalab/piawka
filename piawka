@@ -21,6 +21,8 @@
 @include "lines.awk"
 @include "miss.awk"
 @include "pi.awk"
+@include "maf.awk"
+@include "daf.awk"
 @include "tajima.awk"
 @include "tajimalike.awk"
 @include "a1.awk"
