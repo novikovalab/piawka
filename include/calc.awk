@@ -28,7 +28,6 @@ function run(){
   piawka=ENVIRON["AWKPATH"]
   sub(/include:.*$/,"piawka",piawka)
   check_arguments()
-  print_header()
   make_tmpdir()
   exit main()
 }
@@ -429,6 +428,7 @@ END {
           sumcmd = piawka" sum -s "arg::args["stats"]" -"
           print | sumcmd
         } else {
+          if (!printed_header++) { print_header() }
           print
         }
       }
