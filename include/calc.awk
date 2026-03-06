@@ -225,7 +225,7 @@ function get_bedcmd() {
 
 # Process VCF lines
 function process_sites() {
-  if ( locus == "" ) { locus="_" } # empty locus breaks piawka sum
+  if ( locus == "" ) { locus="." } # empty locus breaks piawka sum
   cmd = "tabix " arg::args["vcf"] ( arg::args["targets"]!="" ? " -T " arg::args["targets"]:"" ) " "chr":"start+1"-"end  
   while ( cmd | getline > 0 ) {
 
@@ -385,7 +385,8 @@ function yield_output() {
   delete den
 }
 
-function printOutput( i, j, metric,    idx, ij ) {
+function printOutput( i, j, metric,    idx, ij, locusprint ) {
+  # reverse pop1 and pop2 to keep pop1 alphabetically smaller
   if (j=="") {
     idx=i
     ij=i"\t."
@@ -398,8 +399,8 @@ function printOutput( i, j, metric,    idx, ij ) {
     }
   }
   if ( den[idx][metric]==0 ) { return 0 }
-  # reverse pop1 and pop2 to keep pop1 alphabetically smaller
-  out=chr"\t"start"\t"end"\t"locus"\t"ij"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
+  locusprint = ( arg::args["persite"]==1 && locus=="." ) ? $1":"$2 : locus
+  out=chr"\t"start"\t"end"\t"locusprint"\t"ij"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
   print out > tmpf
 }
 
