@@ -17,6 +17,8 @@ function run() {
   if ( "groups" in arg::args ) {
     calc::get_groups()
   }
+  calc::print_header()
+  calc::tmpf="/dev/stdout"
   for (n=1; n<=narg; n++) {
     summarize_regions(arg::nonargs[n])
   }
@@ -31,12 +33,19 @@ function summarize_regions(f,    firstline) {
       piawka::assert( NF == 10, "piawka output (10 columns) is required!" )
     }
     if ( substr($0,1,1)!="#" && $8==$8 ) { # exclude header and NaNs 
+
+      # print if new locus/chr
+      if ( locuschr != $1 SUBSEP $4 && locuschr != "" ) {
+        print_sum()
+      }
+
       if ( "ignore-chrs" in arg::args ) {
         $1=$2=$3="_"
       }
       if ( !("stats" in arg::args) && !seenstat[$7] ) {
         seenstat[$7]=1
         stats=stats","$7
+        stats::parse_stats(substr(stats,2))
       }
       if ( "groups" in arg::args ) {
         if ( $5 in calc::groupmem && ($6=="." || $6 in calc::groupmem) ) {
@@ -46,30 +55,25 @@ function summarize_regions(f,    firstline) {
           continue 
         }
       }
-      i1=$1 SUBSEP $4                      # locus-chr
+      locuschr=$1 SUBSEP $4                # locus-chr
       i2=$5 ( $6 == "." ? "" : SUBSEP $6 ) # pops
       i3= $7                               # metric
-      if ($2 < start[ i1 ] || start[ i1 ]=="") { start[ i1 ]=$2 }
-      if ($3 > end[ i1 ]) { end[ i1 ]=$3 }
-      den[ i1 ][ i2 ][ i3 ]+=$10
-      num[ i1 ][ i2 ][ i3 ]+=$9
+      if ($2 < calc::start || calc::start=="") { calc::start=$2 }
+      if ($3 > calc::end) { calc::end=$3 }
+      calc::den[ i2 ][ i3 ]+=$10
+      calc::num[ i2 ][ i3 ]+=$9
     }
   }
+  print_sum()
   close(f)
-  calc::print_header()
-  if (stats != "") {
-    stats::parse_stats(substr(stats,2))
-  }
-  calc::tmpf="/dev/stdout"
-  for (i1 in den) {
-    split(i1, ii, SUBSEP)
-    calc::chr=ii[1]
-    calc::locus=ii[2]
-    calc::start=start[i1]
-    calc::end=end[i1]
-    piawka::copy_array(num[i1],calc::num)
-    piawka::copy_array(den[i1],calc::den)
-    calc::yield_output() # if dependencies are not there, falls back to sum(num)/sum(den) because finalize_i3 returns nothing
-  }
 }
 
+function print_sum() {
+  split(locuschr, ii, SUBSEP)
+  calc::chr=ii[1]
+  calc::locus=ii[2]
+  calc::yield_output() # if dependencies are not there, falls back to sum(num)/sum(den) because finalize_i3 returns nothing
+  delete calc::num
+  delete calc::den
+  calc::start=calc::end=""
+}
