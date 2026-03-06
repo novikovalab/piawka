@@ -6,12 +6,16 @@ function run() {
     It simply divides sum of numerators by sum of denominators. \n\
     The only arguments are the output file(-s) of piawka calc; stdin should be passed as `piawka sum -`."
   arg::add_argument("s", "stats", 0, "recalculate stats that cannot be summarized as sum(num)/sum(den) using dependencies, format as in piawka calc")
+  arg::add_argument("g", "groups", 0, "group file to average stats across individuals/subgroups")
   arg::add_argument("i", "ignore-chrs", 1, "summarize statistics across all chromosomes using only locus field to match")
   arg::parse_args(2, help)
   narg=arg::parse_nonargs()
 
   if ( "stats" in arg::args ) {
     stats::parse_stats(arg::args["stats"])
+  }
+  if ( "groups" in arg::args ) {
+    calc::get_groups()
   }
   for (n=1; n<=narg; n++) {
     summarize_regions(arg::nonargs[n])
@@ -33,6 +37,14 @@ function summarize_regions(f,    firstline) {
       if ( !("stats" in arg::args) && !seenstat[$7] ) {
         seenstat[$7]=1
         stats=stats","$7
+      }
+      if ( "groups" in arg::args ) {
+        if ( $5 in calc::groupmem && ($6=="." || $6 in calc::groupmem) ) {
+          $5=calc::groupmem[$5]
+          $6=( $6=="." ? "." : calc::groupmem[$6] )
+        } else { 
+          continue 
+        }
       }
       i1=$1 SUBSEP $4                      # locus-chr
       i2=$5 ( $6 == "." ? "" : SUBSEP $6 ) # pops
