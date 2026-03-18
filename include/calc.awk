@@ -422,6 +422,11 @@ END {
       tmpfn=tmpdir"/"f+arg::args["jobs"]".tmp"
       while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
         awk::sleep(0.1)
+        if (++timestep % 10 == 0) {
+          say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
+                      jobs_width, f+arg::args["jobs"], total_jobs, awk::systime()-time_start),
+              1)
+        }
         continue
       }
       say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
