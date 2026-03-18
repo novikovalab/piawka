@@ -17,6 +17,7 @@
 @include "sum.awk"
 @include "dist.awk"
 @include "filt.awk"
+@include "list.awk"
 
 # metrics: within
 @include "lines.awk"
@@ -53,7 +54,8 @@ help="\
     \tpiawka win  -- prepare genomic windows from various sources \n\
     \tpiawka sum  -- summarize stats from calc output across regions \n\
     \tpiawka dist -- convert calc output to PHYLIP or NEXUS distance matrix \n\
-    \tpiawka filt -- filter piawka output using AWK expressions"
+    \tpiawka filt -- filter piawka output using AWK expressions \n\
+    \tpiawka list -- show all statistics available for calculation"
 
   # Parse subcommand
   subcmd=ARGV[1]
@@ -71,6 +73,8 @@ help="\
       dist::run()
     case "filt":
       filt::run()
+    case "list":
+      list::run()
     default:
       print help
       if (subcmd != "") {
