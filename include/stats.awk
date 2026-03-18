@@ -12,7 +12,7 @@ function parse_stats(s) {
     if (stat_dep[nr] != "") {
       ndeps=split(stat_dep[nr], stat_deps, ",")
       for (j=1;j<=ndeps;j++) {
-        piawka::assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]"-"stat_deps[j]" (check options with piawka -l)" )
+        piawka::assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]"-"stat_deps[j]" (check options with `piawka calc -l`)" )
         nr=statslist[stat_deps[j]]
         is_between=( stat_isbetween[nr] ? "between" : "within" )
         stats[is_between][stat_deps[j]]=1
@@ -25,7 +25,7 @@ function add_stat(name, desc, is_between, dep) {
   nstat++
   statslist[name]=nstat
   stat_name[nstat] = name
-  stat_desc[nstat] = desc (is_between ? " (within population)" : " (between populations)")
+  stat_desc[nstat] = desc "\n\t(" (is_between ? "between" : "within") " pops, dependencies: " (dep==""?"none":dep) ")"
   stat_isbetween[nstat] = is_between
   stat_dep[nstat] = dep
 }
@@ -33,7 +33,7 @@ function add_stat(name, desc, is_between, dep) {
 function format_stats(   help, help_col1, total_width) {
   total_width=80
   for (i=1;i<=nstat;i++) {
-    if (stat_desc[i] ~ /^helper:/) { continue }
+    if (stat_desc[i] ~ /^helper:/ && !("dependencies" in arg::args) ) { continue }
     help_col1[i] = stat_name[i] 
     if ( (l=length(help_col1[i])) > help_col1_width ) { help_col1_width=l }
   }
@@ -41,9 +41,9 @@ function format_stats(   help, help_col1, total_width) {
   remain_width = total_width - help_col1_width
   help="Available statistics:"
   for (i=1;i<=nstat;i++) {
-    if (stat_desc[i] ~ /^helper:/) { continue }
+    if (stat_desc[i] ~ /^helper:/ && !("dependencies" in arg::args)) { continue }
     nlines=1
-    if (length(stat_desc[i]) > remain_width ) {
+    if (length(stat_desc[i]) > remain_width || stat_desc[i]~/\n/) {
       for (j=remain_width+index(stat_desc[i], "\n"); j<length(stat_desc[i]); j+=remain_width+1) {
         for (k=0; k<remain_width/2; k++) {
           if (substr(stat_desc[i], j-k, 1) ~ /[ ,)]/) { break }
