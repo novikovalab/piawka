@@ -16,9 +16,7 @@ function run(){
   arg::add_argument("d", "dependencies", 1, "output dependencies stats as well (best for piping to `piawka sum`)")
   arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group)")
   arg::add_argument("j", "jobs", 0, "number of parallel jobs to run")
-  arg::add_argument("l", "list", 1, "list all available statistics and exit")
   arg::add_argument("m", "mult", 1, "use populations with multiple a at a site")
-  arg::add_argument("M", "miss", 0, "max share of missing GT per group at site, 0.0-1.0")
   arg::add_argument("q", "quiet", 1, "do not output progress and warning messages")
   arg::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
   arg::add_argument("s", "stats", 0, "stats to calculate, comma-separated, e.g. \"pi,dxy,fst\"; full list under `piawka calc -l`")
@@ -55,10 +53,6 @@ function check_gawk_version(    gawk_version) {
 }
 
 function check_arguments() {
-  if ( arg::args["list"] ) {
-    print stats::format_stats()
-    exit 0
-  }
   if ( arg::args["stats"]=="" ) { arg::args["stats"]="pi,dxy" }
   if ( arg::args["miss"] == "" ) { arg::args["miss"]=1 }
   if ( arg::args["jobs"]==0 ) { arg::args["jobs"]=1 }
