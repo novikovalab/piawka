@@ -4,6 +4,7 @@
 "exec" "gawk" -f "$0" "--" "$@"
 
 @load "fork"
+@load "time"
 @load "filefuncs"
 
 # utility functions

@@ -173,7 +173,11 @@ function main() {
     bufl=0
     bytes=0
     while ( $0 != SIGNAL_END_OF_BUFFER ) {
-      while ( _["size"] <= bytes ) { awk::stat(buffer, _) } #wait till file gets bigger
+      #wait till file gets bigger
+      while ( _["size"] <= bytes ) { 
+        awk::sleep(0.1)
+        awk::stat(buffer, _) 
+      }
       curr= jobnum + arg::args["jobs"] * (++bufl - 1)
       tmpf=tmpdir "/" curr ".tmp"
       piawka::assert((getl=getline < buffer)>0, "could not reach end of buffer "buffer": "bufl": "ERRNO)
@@ -417,6 +421,7 @@ END {
       # to avoid race condition given persite, wait until the child writes to next region
       tmpfn=tmpdir"/"f+arg::args["jobs"]".tmp"
       while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
+        awk::sleep(0.1)
         continue
       }
       say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
