@@ -13,6 +13,7 @@ function run(){
   arg::add_argument("1", "persite", 1, "output values for each site")
   arg::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
   arg::add_argument("B", "targets", 0, "BED file with targets (faster for numerous small regions)")
+  arg::add_argument("d", "dependencies", 1, "output dependencies stats as well (best for piping to `piawka sum`)")
   arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group)")
   arg::add_argument("j", "jobs", 0, "number of parallel jobs to run")
   arg::add_argument("l", "list", 1, "list all available statistics and exit")
@@ -66,7 +67,7 @@ function check_arguments() {
   any_between="between" in stats::stats
   piping_to_sum=( arg::args["bed"] == "" && arg::args["persite"] != 1  )
   # if piping to sum, dependencies should be also passed over
-  if ( piping_to_sum ) {
+  if ( piping_to_sum || "dependencies" in arg::args ) {
     piawka::copy_array(stats::stats, stats::stats_print)
   }
   # Some arg checks
