@@ -407,10 +407,10 @@ function printOutput( i, j, metric,    idx, ij, locusprint ) {
 
 END {
   if (pid>0) {
-    total_jobs=bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"]: 0 ) - 1
+    total_jobs=bufl + (bufl % arg::args["jobs"] > 0 ? arg::args["jobs"]: 0 )
     jobs_width=int(log(total_jobs)/log(10))+1
-    say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
-                jobs_width, 0, total_jobs, awk::systime()-time_start),
+    say(sprintf("Starting %d jobs, seconds elapsed: %d", 
+                total_jobs, awk::systime()-time_start),
         1)
     for (f=0; f<bufl; f++) {
       tmpf=tmpdir"/"f".tmp"
