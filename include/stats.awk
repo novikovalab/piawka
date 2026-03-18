@@ -4,6 +4,7 @@ function parse_stats(s) {
   split( tolower(s), statargs, "," )
   for (i in statargs) { 
     piawka::assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
+    stat_used[statargs[i]]=i
     nr=statslist[statargs[i]]
     is_between=( stat_isbetween[nr] ? "between" : "within" )
     stats_print[is_between][statargs[i]]=1 
