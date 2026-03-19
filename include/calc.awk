@@ -68,6 +68,10 @@ function check_arguments() {
   piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
   piawka::assert( arg::args["groups"] != "", "required argument: -g <groups.tsv>" )
   piawka::check_file( arg::args["vcf"] )
+  if ( system("tabix -l "arg::args["vcf"]" > /dev/null") != 0 ) {
+    say("Error: "arg::args["vcf"]" cannot be queried by index, is the index file there?")
+    exit 1
+  }
   if ( arg::args["bed"] != "" ) { piawka::check_file( arg::args["bed"] ) }
   if ( arg::args["targets"] != "" ) { piawka::check_file( arg::args["targets"] ) }
 
