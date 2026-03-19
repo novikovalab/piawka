@@ -67,6 +67,7 @@ function check_arguments() {
   # Some arg checks
   piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
   piawka::assert( arg::args["groups"] != "", "required argument: -g <groups.tsv>" )
+  piawka::check_file( arg::args["vcf"] )
   if ( arg::args["bed"] != "" ) { piawka::check_file( arg::args["bed"] ) }
   if ( arg::args["targets"] != "" ) { piawka::check_file( arg::args["targets"] ) }
 
