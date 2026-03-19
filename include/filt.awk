@@ -5,7 +5,9 @@ function run() {
     Filter `piawka` output by values of calculated statistics. \n\
     BED entries for groups that satisfy the expression fully are kept. \n\
     Expressions can include arithmetic, comparison and logical operators as well as numbers and statistics names. \n\
-    Input is the piawka output file (stdin) and an awk-compatibe expression (e.g. \"pi >= 0.1 && lines > 100\"."
+    Takes piawka output file(-s) on stdin (pipe as `| piawka filt -e expr -`) \n\
+    and an AWK-compatibe expression (e.g. \"pi >= 0.1 && lines > 100\"). \n\
+    EXAMPLE: \n\tpiawka filt [OPTIONS] file.bed > distmat.phy"
   arg::add_argument("e", "expr", 0, "expression to be evaluated")
   arg::parse_args(2, help)
   narg=arg::parse_nonargs()

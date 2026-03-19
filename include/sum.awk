@@ -2,12 +2,13 @@
 
 function run() { 
   help="\
-    This script summarizes piawka calc results counted over several loci. \n\
-    It simply divides sum of numerators by sum of denominators. \n\
-    The only arguments are the output file(-s) of piawka calc; stdin should be passed as `piawka sum -`."
-  arg::add_argument("s", "stats", 0, "recalculate stats that cannot be summarized as sum(num)/sum(den) using dependencies, format as in piawka calc")
+    Summarize `piawka calc` results counted over several loci. \n\
+    If dependencies are not given (see `piawka list`), defaults to sum(numerator)/sum(denominator). \n\
+    It only takes the output file(-s) of `piawka calc` passed over stdin (pipe as `piawka sum -`). \n\
+    EXAMPLE: \n\tpiawka sum [OPTIONS] file.bed > file_sum.bed"
   arg::add_argument("g", "groups", 0, "group file to average stats across individuals/subgroups")
   arg::add_argument("i", "ignore-chrs", 1, "summarize statistics across all chromosomes using only locus field to match")
+  arg::add_argument("s", "stats", 0, "stats to be summarized, defaults to all stats found (see `piawka list`)")
   arg::parse_args(2, help)
   narg=arg::parse_nonargs()
 

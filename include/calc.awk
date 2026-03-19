@@ -6,20 +6,20 @@ function run(){
   check_htslib()
   help="\
     Calculate statistics within & between groups of samples in a VCF file.\n\
-    Mandatory arguments are VCF file (--vcf) and grouping (--groups).\n\
+    Mandatory arguments are VCF file (--vcf) and grouping (--groups). --bed is recommended.\n\
     Default --stats are pi,dxy; other can be provided as a spaceless comma-seprarted list.\n\
-    EXAMPLE: \n\tpiawka calc [OPTIONS] -v file.tsv -g  > distance_file"
+    EXAMPLE: \n\tpiawka calc [OPTIONS] -v file.tsv -g ( groups.tsv | unite | divide ) > file.bed"
   # add_argument args: shortopt, longopt, is_flag, description
   arg::add_argument("1", "persite", 1, "output values for each site")
   arg::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
-  arg::add_argument("T", "targets", 0, "BED file with targets (faster for numerous small regions)")
   arg::add_argument("d", "dependencies", 1, "output dependencies stats as well (best for piping to `piawka sum`)")
   arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group)")
   arg::add_argument("j", "jobs", 0, "number of parallel jobs to run")
   arg::add_argument("m", "mult", 1, "use populations with multiple a at a site")
   arg::add_argument("q", "quiet", 1, "do not output progress and warning messages")
   arg::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
-  arg::add_argument("s", "stats", 0, "stats to calculate, comma-separated, e.g. \"pi,dxy,fst\"; full list under `piawka calc -l`")
+  arg::add_argument("s", "stats", 0, "stats to calculate, comma-separated with no spaces as in \"pi,dxy,fst\"; see `piawka list`")
+  arg::add_argument("T", "targets", 0, "BED file with targets (faster for numerous small regions)")
   arg::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
   arg::parse_args(2, help)
 

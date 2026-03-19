@@ -1,13 +1,18 @@
 @namespace "win"
 
 function run() { 
-  help="Usage:\nmake_windows.awk -v vcf_gz [OPTIONS]"
+  help="\
+    Chunk a VCF file into windows for parallel processing or sub-chromosome resolution.\n\
+    Default (slow): output windows containing --lines [100000] VCF lines each. \n\
+    Alternatively, output windows of --window-size at --step (requires ##contig header lines). \n\
+    If --targets are supplied instead of --vcf, produces bigger windows with multiple targets in. \n\
+    EXAMPLE: \n\tpiawka win [OPTIONS] -v file.vcf.gz | -T targets.bed > win.bed"
+  arg::add_argument("l", "lines", 0, "# VCF lines per window")
   arg::add_argument("n", "number", 1, "enumerate windows in 4th column")
+  arg::add_argument("s", "step", 0, "step in bp for sliding windows (requires --window-size)")
   arg::add_argument("T", "targets", 0, "BED file with small regions to aggregate into larger ones")
   arg::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
-  arg::add_argument("l", "lines", 0, "# VCF lines per window")
   arg::add_argument("w", "window-size", 0, "bp per window (requires ##contig lines in VCF header)")
-  arg::add_argument("s", "step", 0, "step in bp for sliding windows (requires --window-size)")
   arg::parse_args(2, help)
   DEFAULT_WINDOWSIZE=100000
   if ( arg::args["lines"] == "" && arg::args["window-size"] == "" ) { 

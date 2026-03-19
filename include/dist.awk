@@ -2,11 +2,11 @@
 
 function run(){
   help="\
-    Convert piawka Dxy values into a distance matrix.\n\
-    Input is piawka output with some pairwise statistic in.\n\
-    By default, Dxy is used. Can be changed to other metric (fst, rho etc.)\n\
-    If loci are many, weighted average is taken.\n\
-    EXAMPLE: \n\tpiawka2dist.awk [OPTIONS] file.tsv > distance_file"
+    Convert `piawka calc` pairwise distance values as a PHYLIP/NEXUS matrix.\n\
+    Input is piawka output with some pairwise statistics in.\n\
+    By default, dxy is used. Can be changed to other metric (fst, rho etc.)\n\
+    If many values per sample pair are present, weighted average is taken.\n\
+    EXAMPLE: \n\tpiawka dist [OPTIONS] file.bed > distmat.phy"
   arg::add_argument("m", "metric", 0, "piawka pairwise metric to use as distance")
   arg::add_argument("n", "nexus", 1, "write matrix in NEXUS format instead of PHYLIP")
   arg::parse_args(2, help)
