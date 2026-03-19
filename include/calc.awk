@@ -12,7 +12,7 @@ function run(){
   # add_argument args: shortopt, longopt, is_flag, description
   arg::add_argument("1", "persite", 1, "output values for each site")
   arg::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
-  arg::add_argument("B", "targets", 0, "BED file with targets (faster for numerous small regions)")
+  arg::add_argument("T", "targets", 0, "BED file with targets (faster for numerous small regions)")
   arg::add_argument("d", "dependencies", 1, "output dependencies stats as well (best for piping to `piawka sum`)")
   arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group)")
   arg::add_argument("j", "jobs", 0, "number of parallel jobs to run")
