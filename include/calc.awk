@@ -45,9 +45,9 @@ function check_htslib(    bgzip_status, tabix_status) {
   }
 }
 function check_gawk_version(    gawk_version) {
-  gawk_version = substr(PROCINFO["version"],1,index(PROCINFO["version"],".")-1)
-  if ( gawk_version < 5 ) {
-    say("Error: GNU AWK v5.0.0 or above is needed to run piawka")
+  split(PROCINFO["version"], gawk_version,".")
+  if ( gawk_version[1] < 5 || gawk_version[1]==5 && gawk_version[2] < 2 ) {
+    say("Error: GNU AWK v5.2.0 or above is needed to run piawka")
     exit 1
   }
 }
