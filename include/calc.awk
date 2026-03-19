@@ -456,6 +456,7 @@ END {
     say("") # clear stdout
     close(sumcmd)
   } else {
+    if ( tmpdir == "" ) { exit } # some unwanted children make it here somehow
     chkpt=tmpdir"/"jobnum"_done.ckp"
     printf "" > chkpt; close(chkpt)
     for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
