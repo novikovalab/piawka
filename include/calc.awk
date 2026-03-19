@@ -156,6 +156,34 @@ function make_tmpdir(){
   system( "{ while kill -0 "PROCINFO["pid"]" 2>/dev/null; do sleep 1; done; rm -rf "tmpdir"; } &" )
 }
 
+function process_buffer(    _, bytes, bufl, chkpt) {
+  do {
+    #wait till file gets bigger
+    while ( _["size"] <= bytes ) { 
+      awk::sleep(0.1)
+      awk::stat(buffer, _) 
+    }
+    curr= jobnum + arg::args["jobs"] * (++bufl - 1)
+    tmpf=tmpdir "/" curr ".tmp"
+    chkpt=tmpdir "/" curr "_started.ckp"
+    piawka::assert((getl=getline < buffer)>0, "could not reach end of buffer "buffer": "bufl": "ERRNO)
+    bytes+=length($0)+1
+    if ( awk::stat(chkpt, __) == 0 ) { continue }
+    printf "" > chkpt; close(chkpt)
+    chr=$1
+    start=$2
+    end=$3
+    locus=$4
+    process_sites()
+    # in case tmpf is empty, add a few bytes
+    print SIGNAL_END_OF_BUFFER > tmpf
+    chkpt=tmpdir"/"curr"_fin.ckp"
+    printf "" > chkpt; close(chkpt)
+    close(tmpf)
+  } while ( $0 != SIGNAL_END_OF_BUFFER )
+  close(buffer)
+}
+
 function main() {
  
   # Children: listen to query regions dispenser
@@ -164,28 +192,7 @@ function main() {
     buffer=tmpdir"/buffer_"jobnum".tmp" # number of pipes with regions == # jobs
     pid=awk::fork()
     if ( pid>0 ) { continue } 
-    bufl=0
-    bytes=0
-    while ( $0 != SIGNAL_END_OF_BUFFER ) {
-      #wait till file gets bigger
-      while ( _["size"] <= bytes ) { 
-        awk::sleep(0.1)
-        awk::stat(buffer, _) 
-      }
-      curr= jobnum + arg::args["jobs"] * (++bufl - 1)
-      tmpf=tmpdir "/" curr ".tmp"
-      piawka::assert((getl=getline < buffer)>0, "could not reach end of buffer "buffer": "bufl": "ERRNO)
-      bytes+=length($0)+1
-      chr=$1
-      start=$2
-      end=$3
-      locus=$4
-      process_sites()
-      # in case tmpf is empty, add a few bytes
-      print SIGNAL_END_OF_BUFFER > tmpf
-      close(tmpf)
-    }
-    close(buffer)
+    process_buffer()
     return 0
   }
   
@@ -411,10 +418,8 @@ END {
                 total_jobs, awk::systime()-time_start),
         1)
     for (f=0; f<bufl; f++) {
-      tmpf=tmpdir"/"f".tmp"
-      # to avoid race condition given persite, wait until the child writes to next region
-      tmpfn=tmpdir"/"f+arg::args["jobs"]".tmp"
-      while ( awk::stat(tmpfn, _) < 0 || _["size"]==0 ) {
+      chkpt=tmpdir"/"f"_fin.ckp"
+      while ( awk::stat(chkpt, _) < 0 ) {
         awk::sleep(0.1)
         if (++timestep % 10 == 0) {
           say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
@@ -426,6 +431,7 @@ END {
       say(sprintf("Finishing job %*d of %d, seconds elapsed: %d", 
                   jobs_width, f+arg::args["jobs"], total_jobs, awk::systime()-time_start),
           1)
+      tmpf=tmpdir"/"f".tmp"
       while ( getline < tmpf > 0 ) {
         if ( $0 == SIGNAL_END_OF_BUFFER ) {
           break
@@ -444,6 +450,15 @@ END {
     # no need to wait since all children confirmedly written output?..
     say("") # clear stdout
     close(sumcmd)
+  } else {
+    chkpt=tmpdir"/"jobnum"_done.ckp"
+    printf "" > chkpt; close(chkpt)
+    for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
+      chkpt=tmpdir"/"jobnum"_done.ckp"
+      if ( awk::stat(chkpt, __) == 0 ) { continue }
+      buffer=tmpdir"/buffer_"jobnum".tmp" # number of pipes with regions == # jobs
+      process_buffer()
+    }
   }
 }
 
