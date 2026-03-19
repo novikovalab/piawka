@@ -5,18 +5,30 @@ function run() {
   arg::add_argument("n", "number", 1, "enumerate windows in 4th column")
   arg::add_argument("T", "targets", 0, "BED file with small regions to aggregate into larger ones")
   arg::add_argument("v", "vcf", 0, "gzipped and tabixed VCF file")
-  arg::add_argument("w", "windowsize", 0, "# VCF lines per window")
+  arg::add_argument("l", "lines", 0, "# VCF lines per window")
+  arg::add_argument("w", "window-size", 0, "bp per window (requires ##contig lines in VCF header)")
+  arg::add_argument("s", "step", 0, "step in bp for sliding windows (requires --window-size)")
   arg::parse_args(2, help)
   DEFAULT_WINDOWSIZE=100000
-  if ( arg::args["windowsize"] == "" ) { arg::args["windowsize"]=DEFAULT_WINDOWSIZE }
+  if ( arg::args["lines"] == "" && arg::args["window-size"] == "" ) { 
+    arg::args["lines"]=DEFAULT_WINDOWSIZE 
+  }
   piawka::assert( awk::xor(arg::args["vcf"]!="", arg::args["targets"]!=""), "provide either VCF or BED to generate windows from" )
+  piawka::assert( awk::xor(arg::args["lines"]!="", arg::args["window-size"]!=""), "options --lines and --window-size are mutually exclusive!" )
+  if ( arg::args["window-size"] == "" && arg::args["step"] != "" ) {
+    calc::say("Warning: --step is meaningless without --window-size")
+  }
   exit main()
 }
 
 function main() {
   if (arg::args["vcf"]!="") {
     piawka::check_file(arg::args["vcf"])
-    make_windows(arg::args["windowsize"])
+    if ( arg::args["window-size"] == "" ) {
+      make_windows(arg::args["lines"])
+    } else {
+      make_windows_bp( arg::args["window-size"] )
+    }
   } else if ( arg::args["targets"]!="" ) {
     piawka::check_file(arg::args["targets"])
     aggregate_regions()
@@ -77,4 +89,30 @@ function make_windows(chunk_size,
     print last_chr"\t"minpos-1"\t"lastpos ( (arg::args["number"]==1) ? "\twin"++window_number : "" )
   }
   close(cmd)
+}
+
+function make_windows_bp( window_size ) {
+  cmd = "tabix -H "arg::args["vcf"]
+  step = ( arg::args["step"] == "" ? window_size : arg::args["step"] )
+  while ( cmd | getline > 0 ) {
+    if ( /^##contig/ ) {
+      if ( match($0,/ID=[^,>]+/) ) {
+        id=substr($0, RSTART+3, RLENGTH-3)
+      } else { continue }
+      if ( match($0,/length=[0-9]+/) ) {
+        len=int(substr($0, RSTART+7, RLENGTH-7))
+      } else { continue }
+      start=0
+      while (start < len) {
+        end = start+window_size
+        print id"\t"start"\t"( end > len ? len : end ) ( (arg::args["number"]==1) ? "\twin"++window_number : "" )
+        start += step 
+      }
+    }
+  }
+  close(cmd)
+  if (start=="") {
+    calc::say("Error: VCF header does not carry ##contig lines with ID and length values")
+    exit 1
+  }
 }
