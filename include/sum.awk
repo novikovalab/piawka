@@ -8,6 +8,7 @@ function run() {
     EXAMPLE: \n\tpiawka sum [OPTIONS] file.bed > file_sum.bed"
   arg::add_argument("g", "groups", 0, "group file to average stats across individuals/subgroups")
   arg::add_argument("i", "ignore-chrs", 1, "summarize statistics across all chromosomes using only locus field to match")
+  arg::add_argument("I", "ignore-locus", 1, "ignore locus name")
   arg::add_argument("s", "stats", 0, "stats to be summarized, defaults to all stats found (see `piawka list`)")
   arg::parse_args(2, help, "no help if empty")
   narg=arg::parse_nonargs()
@@ -44,7 +45,10 @@ function summarize_regions(f,    firstline) {
       }
 
       if ( "ignore-chrs" in arg::args ) {
-        $1=$2=$3="_"
+        $1=$2=$3="."
+      } 
+      if ( "ignore-locus" in arg::args ) {
+        $4="."
       }
       if ( !("stats" in arg::args) && !seenstat[$7] ) {
         seenstat[$7]=1
