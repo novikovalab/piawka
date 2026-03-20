@@ -6,6 +6,7 @@ function run() {
     If dependencies are not given (see `piawka list`), defaults to sum(numerator)/sum(denominator). \n\
     It only takes the output file(-s) of `piawka calc` passed over stdin. \n\
     EXAMPLE: \n\tpiawka sum [OPTIONS] file.bed > file_sum.bed"
+  arg::add_argument("b", "bed", 0, "summarize stats by regions in BED file")
   arg::add_argument("g", "groups", 0, "group file to average stats across individuals/subgroups")
   arg::add_argument("i", "ignore-chrs", 1, "summarize statistics across all chromosomes using only locus field to match")
   arg::add_argument("I", "ignore-locus", 1, "ignore locus name")
@@ -24,13 +25,38 @@ function run() {
   }
   calc::print_header()
   calc::tmpf="/dev/stdout"
+  if ( "bed" in arg::args ) {
+    calc::make_tmpdir()
+    ind=calc::tmpdir"/index.bed.gz"
+    prepare_index(ind)
+    while ( getline < arg::args["bed"] > 0 ) {
+      tmpf=calc::tmpdir"/query.bed"
+      split($0,bedl)
+      print "tabix -h "ind" "$1":"$2+1"-"$3" > "tmpf | "/bin/bash"
+      close("/bin/bash")
+      summarize_regions(tmpf)
+    }
+    exit 0
+  }
   for (n=1; n<=narg; n++) {
     summarize_regions(arg::nonargs[n])
   }
   exit 0
 }
 
-function summarize_regions(f,    firstline) {
+function prepare_index(f) {
+  sortcmd="sort -k1,1 -k2,2n /dev/stdin | bgzip > "f
+  for (n=1; n<=narg; n++) {
+    while ( getline < arg::nonargs[n] > 0 ) {
+      print | sortcmd
+    }
+  }
+  close(sortcmd)
+  print "tabix "f | "/bin/bash"
+  close("/bin/bash")
+}
+
+function summarize_regions(f,    firstline, locschr, i2, i3) {
   firstline=1
   while (getline < f > 0) {
     if (firstline) { 
@@ -38,6 +64,13 @@ function summarize_regions(f,    firstline) {
       piawka::assert( NF == 10, "piawka output (10 columns) is required!" )
     }
     if ( substr($0,1,1)!="#" && $8==$8 ) { # exclude header and NaNs 
+
+      if ( "bed" in arg::args ) {
+        $1=bedl[1]
+        $2=bedl[2]
+        $3=bedl[3]
+        $4=( 4 in bedl ? bedl[4] : "." )
+      }
 
       # print if new locus/chr
       if ( locuschr != $1 SUBSEP $4 && locuschr != "" ) {
