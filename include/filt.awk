@@ -4,10 +4,11 @@ function run() {
   help="\
     Filter `piawka` output by values of calculated statistics. \n\
     BED entries for groups that satisfy the expression fully are kept. \n\
-    Expressions can include arithmetic, comparison and logical operators as well as numbers and statistics names. \n\
+    Expressions can include arithmetic, comparison and logical operators, \n\
+    numbers, statistics names and some field names (chr,start,end,locus,pop1,pop2). \n\
     Takes piawka output file(-s) on stdin (pipe as `| piawka filt -e expr -`) \n\
-    and an AWK-compatibe expression (e.g. \"pi >= 0.1 && lines > 100\"). \n\
-    EXAMPLE: \n\tpiawka filt [OPTIONS] file.bed > distmat.phy"
+    and an AWK-compatibe expression (e.g. 'pi >= 0.1 && lines > 100'). \n\
+    EXAMPLE: \n\tpiawka filt [OPTIONS] file.bed > file_filt.bed"
   arg::add_argument("e", "expr", 0, "expression to be evaluated")
   arg::parse_args(2, help)
   narg=arg::parse_nonargs()
@@ -22,16 +23,20 @@ function run() {
 }
 
 function parse_expr() {
+  split("chr start end locus pop1 pop2", fieldsi)
+  for (i in fieldsi) {
+    fields[fields[i]]=1
+  }
   split(arg::args["expr"], ex, / +|\^|\*\*|\*|\/|%|\+|-|\(|\)|!|&&|\|\|/)
   for (i in ex) {
     if (i == "" i ~ /[0-9]+(\.[0-9]+)?/) {
       continue
     }
-    if (ex[i] in stats::statslist) {
+    if (ex[i] in stats::statslist || ex[i] in fields || ex[i] in FUNCTAB) {
       seenstat[ex[i]]=1
       stats=stats","ex[i]
     } else {
-      calc::say("Warning: not a valid statistic name or value:" i)
+      calc::say("Warning: not a recognized statistic/field name or value:" i)
     }
   }
   stats::parse_stats(substr(stats,2))
@@ -41,12 +46,11 @@ function prepare_awkscript(    vars, s) {
   vars=""
   for ( s in stats::statslist ) {
     vars = vars" -v "s"="
-
   }
-  awkscript=" gawk " vars " 'NR==1{split($0,s)} \n\
-              NR>1{for(i=7;i<=NF;i++){split($i,f,SUBSEP);SYMTAB[s[i]]=f[1]} \n\
+  awkscript=" gawk -v chr= -v start= -v end= -v locus= -v pop1= -v pop2= " vars " 'NR==1{split($0,s)} \n\
+              NR>1{for(i=1;i<=NF;i++){split($i,f,SUBSEP);SYMTAB[s[i]]=f[1]} \n\
                 if(!(" arg::args["expr"] ")){next} \n\
-                if($0 ~ SUBSEP SUBSEP SUBSEP){for(i=7;i<=NF;i++){if($i!~SUBSEP SUBSEP SUBSEP){continue};split($i,f,SUBSEP);SYMTAB[s[i]]=f[6]} \n\
+                if($0 ~ SUBSEP SUBSEP SUBSEP){for(i=1;i<=NF;i++){if($i!~SUBSEP SUBSEP SUBSEP){continue};split($i,f,SUBSEP);SYMTAB[s[i]]=f[6]} \n\
                   if(!(" arg::args["expr"] ")){next}} \n\
                 for(i=7;i<=NF;i++){if($i==\"\"){continue};if($i!~SUBSEP SUBSEP SUBSEP){gsub(SUBSEP,\"\\t\",$i);print $1,$2,$3,$4,$5,$6,s[i],$i}} \n\
               }' FS=\\\\t OFS=\\\\t -"
@@ -81,7 +85,7 @@ function filter_regions(f,    firstline) {
 }
 
 function print_wide() {
-  header="#chr\tstart\tend\tlocus\tpop1\tpop2"
+  header="chr\tstart\tend\tlocus\tpop1\tpop2"
   for ( sl in stats::stat_used ) {
     header = header "\t" sl
   }
