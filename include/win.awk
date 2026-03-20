@@ -102,7 +102,7 @@ function make_windows(chunk_size,
 
 function make_windows_bp( window_size ) {
   cmd = "tabix -H "arg::args["vcf"]
-  step = ( arg::args["step"] == "" ? window_size : arg::args["step"] )
+  step = ( "step" in arg::args ? arg::args["step"] : window_size )
   while ( cmd | getline > 0 ) {
     if ( /^##contig/ ) {
       if ( match($0,/ID=[^,>]+/) ) {
@@ -127,7 +127,7 @@ function make_windows_bp( window_size ) {
 }
 
 function make_windows_bp_fai( window_size ) {
-  step = ( arg::args["step"] == "" ? window_size : arg::args["step"] )
+  step = ( "step" in arg::args ? arg::args["step"] : window_size )
   FS="\t"
   while ( getline < arg::args["fai"] > 0 ) {
     id=$1

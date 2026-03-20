@@ -51,19 +51,19 @@ function check_gawk_version(    gawk_version) {
 }
 
 function check_arguments() {
-  if ( arg::args["stats"]=="" ) { arg::args["stats"]="pi,dxy" }
-  if ( arg::args["miss"] == "" ) { arg::args["miss"]=1 }
+  if ( !( "stats" in arg::args ) ) { arg::args["stats"]="pi,dxy" }
+  if ( !( "miss" in arg::args ) ) { arg::args["miss"]=1 }
   if ( arg::args["jobs"]==0 ) { arg::args["jobs"]=1 }
   stats::parse_stats(arg::args["stats"])
   any_within="within" in stats::stats
   any_between="between" in stats::stats
-  piping_to_sum=( arg::args["bed"] == "" && arg::args["persite"] != 1  )
+  piping_to_sum=( !( "bed" in arg::args ) && arg::args["persite"] != 1  )
   # if piping to sum, dependencies should be also passed over
   if ( piping_to_sum || "dependencies" in arg::args ) {
     piawka::copy_array(stats::stats, stats::stats_print)
   }
   # Some arg checks
-  piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
+  piawka::assert( "vcf" in arg::args, "required argument: -v <file.vcf.gz>" )
   if (!( "groups" in arg::args ) ) {
     arg::args["groups"]="unite"
   }
@@ -72,8 +72,8 @@ function check_arguments() {
     say("Error: "arg::args["vcf"]" cannot be queried by index, is the index file there?")
     exit 1
   }
-  if ( arg::args["bed"] != "" ) { piawka::check_file( arg::args["bed"] ) }
-  if ( arg::args["targets"] != "" ) { piawka::check_file( arg::args["targets"] ) }
+  if ( "bed" in arg::args ) { piawka::check_file( arg::args["bed"] ) }
+  if ( "targets" in arg::args ) { piawka::check_file( arg::args["targets"] ) }
 
   divide=arg::args["groups"]=="divide"
   if ( ( arg::args["groups"] != "unite" ) && !divide ) {
@@ -193,7 +193,7 @@ function main() {
  
   # Children: listen to query regions dispenser
   for ( jobnum=0; jobnum < arg::args["jobs"]; jobnum++ ) { 
-    if ( arg::args["rand"] ) { srand( awk::xor( awk::systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
+    if ( "rand" in arg::args ) { srand( awk::xor( awk::systime(), PROCINFO["pid"] ) ) } # processes have different random seeds
     buffer=tmpdir"/buffer_"jobnum".tmp" # number of pipes with regions == # jobs
     pid=awk::fork()
     if ( pid>0 ) { continue } 
@@ -225,9 +225,9 @@ function main() {
 }
 
 function get_bedcmd() {
-  if ( arg::args["bed"] != "" ) {
+  if ( "bed" in arg::args ) {
     return "cat "arg::args["bed"]
-  } else if (arg::args["targets"] != "") {
+  } else if ("targets" in arg::args) {
     return piawka" win -T "arg::args["targets"] 
   } else {
     return piawka" win -v "arg::args["vcf"]
@@ -237,10 +237,10 @@ function get_bedcmd() {
 # Process VCF lines
 function process_sites() {
   if ( locus == "" ) { locus="." } # empty locus breaks piawka sum
-  cmd = "tabix " arg::args["vcf"] ( arg::args["targets"]!="" ? " -T " arg::args["targets"]:"" ) " "chr":"start+1"-"end  
+  cmd = "tabix " arg::args["vcf"] ( "targets" in arg::args ? " -T " arg::args["targets"]:"" ) " "chr":"start+1"-"end  
   while ( cmd | getline > 0 ) {
 
-    if ( arg::args["rand"]!="" && ( rand() > arg::args["rand"] ) ) { continue }
+    if ( "rand" in arg::args && ( rand() > arg::args["rand"] ) ) { continue }
 
     # Process only SNPs (possibly monomorphic or multiallelic)
     # To obtain results identical to ksamuk/pixy, set $4 !~ /^[ACGT]$/ && $5 !~ /\*|,|[ACGT][ACGT]/

@@ -11,7 +11,7 @@ function run(){
   arg::add_argument("n", "nexus", 1, "write matrix in NEXUS format instead of PHYLIP")
   arg::parse_args(2, help)
 
-  if (arg::args["metric"]=="") {
+  if (!( "metric" in arg::args )) {
     arg::args["metric"]="dxy"
   }
   exit calc2dist(ARGV[ARGC-1])
