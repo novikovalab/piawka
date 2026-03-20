@@ -3,67 +3,98 @@
 
 [![Conda Downloads](https://img.shields.io/conda/dn/bioconda/piawka?style=for-the-badge&label=bioconda%20downloads&color=FA9E89)](http://bioconda.github.io/recipes/piawka/README.html)
 
-The powerful `awk` script to calculate π, Dxy (or πxy, or Nei's D) and some more simple stats (Fst, Tajima's D, Ronfort's rho) in VCF files in the command line. Developed to analyze arbitrary-ploidy groups with substantial amounts of missing data.
+Calculate SNP-based population statistics over groups of samples in VCF files with:
 
-> :warning: `piawka` is under development. If something does not seem to work well, check for updates and do not hesitate to file an issue!
+- indexable BED output
+- correct handling of missing data
+- support for polyploid variant calls
+- higher data yield due to per-group ALT-agnostic SNP retrieval
+- a broad selection of statistics, extensible with modules
+- convenient helper tools for making genomic windows, filtering and summarizing the results
+- the power of GNU AWK: no installation, competitive speed, low memory footprint, and multiprocessing :eyes:
 
-[wiki](https://github.com/novikovalab/piawka/wiki)
+> [!WARNING]
+> `piawka` is under development. At this stage, breaking changes are not unthinkable of. If something does not seem to work well, check newer versions and do not hesitate to file an issue!
 
-# Install it!
-
-## Quickly: `conda`
+# Installation
 
 ```bash
 conda install -c bioconda piawka
 ```
 
-## Quickly but slower
+Alternatively, have the following programs available in the command line and clone the repo:
 
-Make the following programs available in the command line (install and add to `PATH`):
-
- - `gawk` v5.0.0 and above 
+ - `gawk>=v5.2.0`
  - `tabix`
-
-Then, get `piawka` by cloning the repo and add the scripts to `PATH`:
+ - `bgzip`
 
 ```bash
 git clone https://github.com/novikovalab/piawka.git
-export PATH="$( realpath ./piawka/scripts ):${PATH}"
+export PATH="$( realpath ./piawka ):${PATH}"
 ```
 
-# Use it!
+# Usage
+
+Docs are available at <https://novikovalab.github.io/piawka>.
+
+## Input and output
+
+Mandatory (for `piawka calc`):
+
+- **VCF file** -- bgzipped and tabixed
+
+Optional:
+
+- **groups file** -- 2-column TSV with sample ID and group ID (may include relevant samples only)
+- **regions/targets file** -- BED file to restrict/split output by regions
+
+Output is a BED file:
 
 ```console
-$ piawka
-piawka v0.8.11
-Usage:
-piawka -g groups_tsv -v vcf_gz [OPTIONS]
-Options:
--1, --persite       output values for each site
--b, --bed <arg>     BED file with regions to be analyzed
--B, --targets <arg> BED file with targets (faster for numerous small regions)
--D, --nodxy         do not output Dxy
--f, --fst           output Hudson Fst
--F, --fstwc         output Weir and Cockerham Fst instead
--g, --groups <arg>  either 2-columns sample / group table or 
-                    keywords "unite" (1 group) or "divide" (n_samples groups)
--h, --help          show this help message
--H, --het           output only per-sample pi = heterozygosity
--j, --jobs <arg>    number of parallel jobs to run
--m, --mult          use multiallelic sites
--M, --miss <arg>    max share of missing GT per group at site, 0.0-1.0
--P, --nopi          do not output pi
--q, --quiet         do not output progress and warning messages
--r, --rho           output Ronfort's rho
--t, --tajimalike    output TajimaD-like stat (manages missing data but untested)
--T, --tajima        output classic TajimaD instead (affected by missing data)
--v, --vcf <arg>     gzipped and tabixed VCF file
--w, --watterson     output Watterson's theta
+$ cd piawka/examples
+$ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz -b genes.bed -g groups.tsv -s pi,dxy
+#chr        start     end       locus      pop1              pop2              metric  value        numerator  denominator
+scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n      LE_2n             dxy     0.0071137    460        64664
+scaffold_1  10035093  10035276  AL5G20950  PUWS_4n           .                 pi      0.00588993   640        108660
+scaffold_1  10035093  10035276  AL5G20950  LE_2n             PUWS_4n           dxy     0.00881262   1102       125048
+scaffold_1  10035093  10035276  AL5G20950  LE_2n             .                 pi      0.00772461   1078       139554
+...
 ```
 
-See the [wiki](https://github.com/novikovalab/piawka/wiki) for further details.
+## Subcommands
 
-# Cite it!
+- `piawka calc`: calculate various population statistics from a VCF file
+- `piawka dist`: convert calc output to PHYLIP or NEXUS distance matrix
+- `piawka filt`: filter piawka output using AWK expressions
+- `piawka list`: show all statistics available for calculation
+- `piawka sum`: summarize stats from calc output across regions
+- `piawka win`: prepare genomic windows from various sources
 
-If you want to express your gratitude for having `piawka`, please cite our [Siberian *Arabidopsis* paper](https://doi.org/10.1093/molbev/msaf153) where we have introduced and first used it.
+## Statistics
 
+Within groups:
+
+- `lines`: number of lines used in calculation
+- `miss`: share of missing genotype calls
+- `pi`: expected heterozygosity = nucleotide diversity
+- `maf`: minor allele frequency
+- `daf`: alternative ("derived") allele frequency
+- `tajima`: Tajima's D
+- `tajimalike`: Tajima's D interpolated for missing genotypes (experimental)
+- `theta_w`: Watterson's theta
+- `theta_low`: Theta estimator based on sites with 0<allele_freq<0.33
+- `theta_mid`: Theta estimator based on sites with 0.33<=allele_freq<0.66
+- `theta_high`: Theta estimator based on sites with 0.33<=allele_freq<0.66
+
+Between groups (pairwise): 
+
+- `afd`: average allele frequency difference
+- `dxy`: absolute nucleotide divergence
+- `fst`: fixation index, Hudson's estimator
+- `fstwc`: fixation index, Weir & Cockerham's estimator
+- `rho`: Ronfort's rho
+- `nei`: Nei's D standard genetic distance
+
+# Citation
+
+First mention of `piawka` as well as the test data are coming from <https://doi.org/10.1093/molbev/msaf153>.

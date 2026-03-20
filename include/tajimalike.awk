@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("tajimalike", "Tajima's D-like statistic", 0, "a1,a2,segrcorr,pi,lines")
+  stats::add_stat("tajimalike", "Tajima's D interpolated for missing SNPs (experimental)", 0, "a1,a2,segrcorr,pi,lines")
 }
 
 function initiate_tajimalike(){
