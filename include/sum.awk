@@ -4,14 +4,17 @@ function run() {
   help="\
     Summarize `piawka calc` results counted over several loci. \n\
     If dependencies are not given (see `piawka list`), defaults to sum(numerator)/sum(denominator). \n\
-    It only takes the output file(-s) of `piawka calc` passed over stdin (pipe as `piawka sum -`). \n\
+    It only takes the output file(-s) of `piawka calc` passed over stdin. \n\
     EXAMPLE: \n\tpiawka sum [OPTIONS] file.bed > file_sum.bed"
   arg::add_argument("g", "groups", 0, "group file to average stats across individuals/subgroups")
   arg::add_argument("i", "ignore-chrs", 1, "summarize statistics across all chromosomes using only locus field to match")
   arg::add_argument("s", "stats", 0, "stats to be summarized, defaults to all stats found (see `piawka list`)")
-  arg::parse_args(2, help)
+  arg::parse_args(2, help, "no help if empty")
   narg=arg::parse_nonargs()
-
+  if ( narg==0 ) {
+    arg::nonargs[++narg]="/dev/stdin"
+    calc::say("Warning: no input files given, reading from stdin!")
+  }
   if ( "stats" in arg::args ) {
     stats::parse_stats(arg::args["stats"])
   }

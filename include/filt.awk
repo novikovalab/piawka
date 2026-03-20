@@ -6,12 +6,18 @@ function run() {
     BED entries for groups that satisfy the expression fully are kept. \n\
     Expressions can include arithmetic, comparison and logical operators, \n\
     numbers, statistics names and some field names (chr,start,end,locus,pop1,pop2). \n\
-    Takes piawka output file(-s) on stdin (pipe as `| piawka filt -e expr -`) \n\
-    and an AWK-compatibe expression (e.g. 'pi >= 0.1 && lines > 100'). \n\
-    EXAMPLE: \n\tpiawka filt [OPTIONS] file.bed > file_filt.bed"
+    Takes piawka output file(-s) on stdin and an AWK-compatibe expression. \n\
+    EXAMPLE: \n\tpiawka filt -e 'pi > 0.01 && dxy > 0.01' file.bed > file_filt.bed"
   arg::add_argument("e", "expr", 0, "expression to be evaluated")
-  arg::parse_args(2, help)
+  arg::parse_args(2, help, "no help if empty")
   narg=arg::parse_nonargs()
+  if ( !("expr" in arg::args) ) {
+    arg::args["expr"]=1
+  }
+  if ( narg==0 ) {
+    arg::nonargs[++narg]="/dev/stdin"
+    calc::say("Warning: no input files given, reading from stdin!")
+  }
 
   parse_expr()
   prepare_awkscript()

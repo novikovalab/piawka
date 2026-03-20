@@ -44,7 +44,7 @@ function format_help(   help, help_col1, total_width) {
   return help
 }
 
-function parse_args(firstopt, helpmsg, helpltr) {
+function parse_args(firstopt, helpmsg, no_help_if_empty, helpltr,    c, i) {
   if (firstopt=="") { firstopt=1 }
   getopt::Optind = firstopt # start with 1st opt
   getopt::Opterr = 1 # print getopt errs
@@ -60,16 +60,20 @@ function parse_args(firstopt, helpmsg, helpltr) {
     for (i=1;i<=narg;i++) {
       if (getopt::Optopt == args_short[i] || getopt::Optopt == args_long[i]) {
         args[args_long[i]]=(args_isflag[i] ? 1 : getopt::Optarg)
+        n++
         break
       }
     }
   }
   help = helpmsg "\n" format_help()
-  if ( args["help"] || ARGC <= firstopt ) { 
+  if ( no_help_if_empty && n==0 ) {
+    return 0
+  }
+  if ( args["help"] || n==0 ) { 
     print help
     exit 0 
   }
-  return 0
+  return n
 }
 
 function parse_nonargs(    counter) {
