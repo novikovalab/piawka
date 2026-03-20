@@ -38,7 +38,7 @@
 @include "theta_high.awk"
 
 #metrics: between
-@include "diff.awk"
+@include "afd.awk"
 @include "dxy.awk"
 @include "fst.awk"
 @include "fstwc.awk"
