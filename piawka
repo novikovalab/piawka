@@ -56,7 +56,11 @@ help="\
     \tpiawka sum  -- summarize stats from calc output across regions \n\
     \tpiawka dist -- convert calc output to PHYLIP or NEXUS distance matrix \n\
     \tpiawka filt -- filter piawka output using AWK expressions \n\
-    \tpiawka list -- show all statistics available for calculation"
+    \tpiawka list -- show all statistics available for calculation \n\
+    Source code: \n\
+    \thttps://github.com/novikovalab/piawka \n\
+    Citation: \n\
+    \thttps://doi.org/10.1093/molbev/msaf153"
 
   # Parse subcommand
   subcmd=ARGV[1]
