@@ -36,11 +36,9 @@ function print_header() {
   print "#chr\tstart\tend\tlocus\tpop1\tpop2\tmetric\tvalue\tnumerator\tdenominator"
 }
 
-function check_htslib(    bgzip_status, tabix_status) {
-  bgzip_status = system("bgzip --version > /dev/null")
-  tabix_status = system("tabix --version > /dev/null")
-  if ( bgzip_status || tabix_status ) {
-    say("Error: could not access dependencies: " ( bgzip_status ? "bgzip" : "" ) " " ( tabix_status ? "tabix" : "" ) )
+function check_htslib() {
+  if ( system("tabix --version > /dev/null") ) {
+    say("Error: could not run tabix" )
     exit 1
   }
 }
@@ -66,7 +64,9 @@ function check_arguments() {
   }
   # Some arg checks
   piawka::assert( arg::args["vcf"] != "", "required argument: -v <file.vcf.gz>" )
-  piawka::assert( arg::args["groups"] != "", "required argument: -g <groups.tsv>" )
+  if (!( "groups" in arg::args ) ) {
+    arg::args["groups"]="unite"
+  }
   piawka::check_file( arg::args["vcf"] )
   if ( system("tabix -l "arg::args["vcf"]" > /dev/null") != 0 ) {
     say("Error: "arg::args["vcf"]" cannot be queried by index, is the index file there?")
