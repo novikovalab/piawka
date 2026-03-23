@@ -38,7 +38,7 @@ function parse_expr() {
     if (i == "" i ~ /[0-9]+(\.[0-9]+)?/) {
       continue
     }
-    if (ex[i] in stats::statslist || ex[i] in fields || ex[i] in FUNCTAB) {
+    if (ex[i] in stats::list || ex[i] in fields || ex[i] in FUNCTAB) {
       seenstat[ex[i]]=1
       stats=stats","ex[i]
     } else {
@@ -50,7 +50,8 @@ function parse_expr() {
 
 function prepare_awkscript(    vars, s) {
   vars=""
-  for ( s in stats::statslist ) {
+  for ( si in stats::used ) {
+    s = stats::used[si]
     vars = vars" -v "s"="
   }
   awkscript=" gawk -v chr= -v start= -v end= -v locus= -v pop1= -v pop2= " vars " 'NR==1{split($0,s)} \n\
@@ -92,18 +93,18 @@ function filter_regions(f,    firstline) {
 
 function print_wide() {
   header="chr\tstart\tend\tlocus\tpop1\tpop2"
-  for ( sl in stats::stat_used ) {
-    header = header "\t" sl
+  for ( si in stats::used ) {
+    header = header "\t" stats::used[si]
   }
   print header | awkscript
   for (pop in stat) {
     split(pop, p1p2, SUBSEP)
     out = locus "\t" p1p2[1] "\t" p1p2[2]
-    for ( sl in stats::stat_used ) {
-      if (p1p2[2]!="." && sl in stats::stats["within"]) {
-        out = out"\t"stat[p1p2[1] SUBSEP "."][sl] SUBSEP SUBSEP SUBSEP stat[p1p2[2] SUBSEP "."][sl]
+    for ( si in stats::used ) {
+      if (p1p2[2]!="." && stats::used[si] in stats::within ) {
+        out = out"\t"stat[p1p2[1] SUBSEP "."][si] SUBSEP SUBSEP SUBSEP stat[p1p2[2] SUBSEP "."][si]
       } else {
-        out = out"\t"stat[pop][sl]
+        out = out"\t"stat[pop][si]
       }
     }
     print out | awkscript

@@ -54,14 +54,14 @@ function check_arguments() {
   if ( !( "stats" in arg::args ) ) { arg::args["stats"]="pi,dxy" }
   if ( !( "miss" in arg::args ) ) { arg::args["miss"]=1 }
   if ( arg::args["jobs"]==0 ) { arg::args["jobs"]=1 }
-  stats::parse_stats(arg::args["stats"])
-  any_within="within" in stats::stats
-  any_between="between" in stats::stats
   piping_to_sum=( !( "bed" in arg::args ) && arg::args["persite"] != 1  )
   # if piping to sum, dependencies should be also passed over
-  if ( piping_to_sum || "dependencies" in arg::args ) {
-    piawka::copy_array(stats::stats, stats::stats_print)
+  if ( piping_to_sum ) {
+    arg::args["dependencies"]=1
   }
+  stats::parse_stats(arg::args["stats"])
+  any_within=stats::n_within > 0
+  any_between=stats::n_between > 0
   # Some arg checks
   piawka::assert( "vcf" in arg::args, "required argument: -v <file.vcf.gz>" )
   if (!( "groups" in arg::args ) ) {
@@ -80,8 +80,8 @@ function check_arguments() {
     get_groups()
   }
   get_header()
-  for (i in stats::statargs) {
-    s=stats::statargs[i]
+  for (si=1; si<=stats::n_used; si++) {
+    s=stats::used[si]
     init="calc::initiate_"s
     if ( init in FUNCTAB ) {
       @init()
@@ -320,9 +320,10 @@ function process_sites() {
   close(cmd)
 }
 
-function calculate_within(i) {
+function calculate_within(i,    si, s) {
   if (!any_within) { return 0 }
-  for ( s in stats::stats["within"] ) {
+  for ( si=1; si<=stats::n_within; si++ ) {
+    s = stats::within[si]
     incr="calc::increment_"s
     if ( incr in FUNCTAB ) {
       @incr(i)
@@ -353,7 +354,8 @@ function calculate_between(i) {
       }
       # If not arg::args["mult"] == 1, proceed only if common allele pool has <=2 alleles
       if ( arg::args["mult"] != 1 && length(a_ij) > 2 ) { return 0 }
-      for ( s in stats::stats["between"] ) {
+      for ( si=1; si<=stats::n_between; si++ ) {
+        s = stats::between[si]
         incr="calc::increment_"s
         if ( incr in FUNCTAB ) {
           @incr(i,j)
@@ -370,22 +372,24 @@ function yield_output() {
   for (_ij in den) {
     if ( split(_ij, ij, SUBSEP) == 1 ) {
       i=ij[1]
-      for ( s in stats::stats["within"] ) {
+      for ( si=1; si<=stats::n_within; si++ ) {
+        s = stats::within[si]
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(i)
         }
-        if (s in stats::stats_print["within"]) {
+        if (s in stats::printed) {
           printOutput( i, "", s ) 
         }
       }
     } else {
-      for ( s in stats::stats["between"] ) {
+      for ( si=1; si<=stats::n_between; si++ ) {
+        s = stats::between[si]
         fin="calc::finalize_"s
         if ( fin in FUNCTAB ) {
           @fin(ij[1],ij[2])
         }
-        if (s in stats::stats_print["between"]) {
+        if (s in stats::printed) {
           printOutput( ij[1], ij[2], s )
         }
       }

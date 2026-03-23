@@ -1,59 +1,65 @@
 @namespace "stats"
 
-function parse_stats(s) {
-  split( tolower(s), statargs, "," )
-  for (i in statargs) { 
-    piawka::assert( statargs[i] in statslist, "statistic not found: "statargs[i]" (check options with piawka -l)" )
-    stat_used[statargs[i]]=i
-    nr=statslist[statargs[i]]
-    is_between=( stat_isbetween[nr] ? "between" : "within" )
-    stats_print[is_between][statargs[i]]=1 
-    stats[is_between][statargs[i]]=1 
-    if (stat_dep[nr] != "") {
-      ndeps=split(stat_dep[nr], stat_deps, ",")
-      for (j=1;j<=ndeps;j++) {
-        piawka::assert( stat_deps[j] in statslist, "dependent statistic not found: "statargs[i]"-"stat_deps[j]" (check options with `piawka list`)" )
-        nr=statslist[stat_deps[j]]
-        is_between=( stat_isbetween[nr] ? "between" : "within" )
-        stats[is_between][stat_deps[j]]=1
-      }
+function parse_stats(commalist, dependency,    nstats,args,idx,i,j,s) {
+  nstats=split( tolower(commalist), args, "," )
+  for (i=1;i<=nstats;i++) { 
+    s=args[i]
+    piawka::assert( s in list, (dependency ? "dependency" : "statistic" ) " not found: "s" (check options with `piawka list`)" )
+    idx=list[s]
+    used[s]=idx
+    if (!dependency || "dependencies" in arg::args) { 
+      printed[s]=idx
     }
+    if ( isbetween[idx] == "within" ) {
+      within[s]=idx
+    } else if ( isbetween[idx] == "between" ) {
+      between[s]=idx
+    }
+    parse_stats(dep[idx], "dependency")
+  }
+  if ( !dependency ) {
+    n_between = awk::asort(between)
+    n_within  = awk::asort(within)
+    n_used = awk::asort(used)
+    for (j in between) { between[j]=name[between[j]] }
+    for (j in within) { within[j]=name[within[j]] }
+    for (j in used) { used[j]=name[used[j]] }
   }
 }
 
-function add_stat(name, desc, is_between, dep) {
+function add_stat(thisname, thisdesc, is_between, thisdep) {
   nstat++
-  statslist[name]=nstat
-  stat_name[nstat] = name
-  stat_desc[nstat] = desc "\n\t(" (is_between ? "between" : "within") " pops, dependencies: " (dep==""?"none":dep) ")"
-  stat_isbetween[nstat] = is_between
-  stat_dep[nstat] = dep
+  list[thisname]=nstat
+  name[nstat] = thisname
+  isbetween[nstat] = ( is_between!=0 ? "between" : "within" )
+  dep[nstat] = thisdep
+  desc[nstat] = thisdesc "\n\t(" isbetween[nstat] " pops, dependencies: " ( thisdep == "" ? "none" : thisdep ) ")"
 }
 
 function format_stats(   help, help_col1, total_width) {
   total_width=80
   for (i=1;i<=nstat;i++) {
-    if (stat_desc[i] ~ /^helper:/ && !("dependencies" in arg::args) ) { continue }
-    help_col1[i] = stat_name[i] 
+    if (desc[i] ~ /^helper:/ && !("dependencies" in arg::args) ) { continue }
+    help_col1[i] = name[i] 
     if ( (l=length(help_col1[i])) > help_col1_width ) { help_col1_width=l }
   }
   help_col1_width++
   remain_width = total_width - help_col1_width
   help="Available statistics:"
   for (i=1;i<=nstat;i++) {
-    if (stat_desc[i] ~ /^helper:/ && !("dependencies" in arg::args)) { continue }
+    if (desc[i] ~ /^helper:/ && !("dependencies" in arg::args)) { continue }
     nlines=1
-    if (length(stat_desc[i]) > remain_width || stat_desc[i]~/\n/) {
-      for (j=remain_width+index(stat_desc[i], "\n"); j<length(stat_desc[i]); j+=remain_width+1) {
+    if (length(desc[i]) > remain_width || desc[i]~/\n/) {
+      for (j=remain_width+index(desc[i], "\n"); j<length(desc[i]); j+=remain_width+1) {
         for (k=0; k<remain_width/2; k++) {
-          if (substr(stat_desc[i], j-k, 1) ~ /[ ,)]/) { break }
+          if (substr(desc[i], j-k, 1) ~ /[ ,)]/) { break }
         }
         if (k < remain_width/2-1) { j-=k }
-        stat_desc[i] = substr(stat_desc[i], 1, j) "\n" substr(stat_desc[i],j+1)
+        desc[i] = substr(desc[i], 1, j) "\n" substr(desc[i],j+1)
       }
-      nlines=split(stat_desc[i], desclines, "\n")
+      nlines=split(desc[i], desclines, "\n")
     }
-    help = help "\n" sprintf("%-"help_col1_width"s", help_col1[i]) ( nlines > 1 ? desclines[1] : stat_desc[i] )
+    help = help "\n" sprintf("%-"help_col1_width"s", help_col1[i]) ( nlines > 1 ? desclines[1] : desc[i] )
     for (j=2;j<=nlines;j++) {
       help = help "\n" sprintf("%-"help_col1_width"s", " ") desclines[j] 
     }

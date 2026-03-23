@@ -20,14 +20,15 @@
 @include "filt.awk"
 @include "list.awk"
 
+# Order matters: make sure metrics are included after their dependencies if any!
+# As naturally follows, within-group metrics cannot depend on between-group metrics.
+
 # metrics: within
 @include "lines.awk"
 @include "miss.awk"
 @include "pi.awk"
 @include "maf.awk"
 @include "daf.awk"
-@include "tajima.awk"
-@include "tajimalike.awk"
 @include "a1.awk"
 @include "a2.awk"
 @include "segr.awk"
@@ -36,6 +37,8 @@
 @include "theta_low.awk"
 @include "theta_mid.awk"
 @include "theta_high.awk"
+@include "tajima.awk"
+@include "tajimalike.awk"
 
 #metrics: between
 @include "afd.awk"
