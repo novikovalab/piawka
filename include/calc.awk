@@ -33,7 +33,7 @@ function run(){
 
 function print_header() {
   # has to be before make_tmpdir otherwise children print own headers
-  print "#chr\tstart\tend\tlocus\tpop1\tpop2\tmetric\tvalue\tnumerator\tdenominator"
+  print "#chr\tstart\tend\tlocus\tpop1\tpop2\tstat\tvalue\tnumerator\tdenominator"
 }
 
 function check_htslib() {
@@ -400,7 +400,7 @@ function yield_output() {
   delete den
 }
 
-function printOutput( i, j, metric,    idx, ij, locusprint ) {
+function printOutput( i, j, stat,    idx, ij, locusprint ) {
   # reverse pop1 and pop2 to keep pop1 alphabetically smaller
   if (j=="") {
     idx=i
@@ -413,9 +413,9 @@ function printOutput( i, j, metric,    idx, ij, locusprint ) {
       ij=i"\t"j
     }
   }
-  if ( den[idx][metric]==0 ) { return 0 }
+  if ( den[idx][stat]==0 ) { return 0 }
   locusprint = ( arg::args["persite"]==1 && locus=="." ) ? $1":"$2 : locus
-  out=chr"\t"start"\t"end"\t"locusprint"\t"ij"\t"metric"\t"num[idx][metric]/den[idx][metric]"\t"num[idx][metric]"\t"den[idx][metric]
+  out=chr"\t"start"\t"end"\t"locusprint"\t"ij"\t"stat"\t"num[idx][stat]/den[idx][stat]"\t"num[idx][stat]"\t"den[idx][stat]
   print out > tmpf
 }
 

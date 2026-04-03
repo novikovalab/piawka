@@ -4,29 +4,29 @@ function run(){
   help="\
     Convert `piawka calc` pairwise distance values as a PHYLIP/NEXUS matrix.\n\
     Input is piawka output with some pairwise statistics in.\n\
-    By default, dxy is used. Can be changed to other metric (fst, rho etc.)\n\
+    By default, dxy is used. Can be changed to other statistic (fst, rho etc.)\n\
     If many values per sample pair are present, weighted average is taken.\n\
     EXAMPLE: \n\tpiawka dist [OPTIONS] file.bed > distmat.phy"
-  arg::add_argument("m", "metric", 0, "piawka pairwise metric to use as distance")
+  arg::add_argument("s", "stat", 0, "piawka pairwise stat to use as distance")
   arg::add_argument("n", "nexus", 1, "write matrix in NEXUS format instead of PHYLIP")
   arg::parse_args(2, help)
 
-  if (!( "metric" in arg::args )) {
-    arg::args["metric"]="dxy"
+  if (!( "stat" in arg::args )) {
+    arg::args["stat"]="dxy"
   }
   exit calc2dist(ARGV[ARGC-1])
 }
 
 function calc2dist(f) {
   while (getline < f > 0) {
-    if ( $7 == arg::args["metric"] ) {
+    if ( $7 == arg::args["stat"] ) {
       samples[$5]++
       samples[$6]++
       dist[$5,$6]+=$9
       scal[$5,$6]+=$10
     }
   }
-  piawka::assert( awk::isarray(samples), "lines with metric "arg::args["metric"]" not found in file "f)
+  piawka::assert( awk::isarray(samples), "lines with stat "arg::args["stat"]" not found in file "f)
     # Nexus output is compatible with:
     #   R function phangorn::write.nexus.dist()
     #   SplitsTree

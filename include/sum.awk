@@ -98,7 +98,7 @@ function summarize_regions(f,    firstline, locschr, i2, i3) {
       }
       locuschr=$1 SUBSEP $4                # locus-chr
       i2=$5 ( $6 == "." ? "" : SUBSEP $6 ) # pops
-      i3= $7                               # metric
+      i3= $7                               # statistic
       if ($2 < calc::start || calc::start=="") { calc::start=$2 }
       if ($3 > calc::end) { calc::end=$3 }
       calc::den[ i2 ][ i3 ]+=$10
