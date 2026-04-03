@@ -25,6 +25,7 @@ function run() {
   for (n=1; n<=narg; n++) {
     filter_regions(arg::nonargs[n])
   }
+  close(awkscript)
   exit 0
 }
 
@@ -49,10 +50,13 @@ function parse_expr() {
 }
 
 function prepare_awkscript(    vars, s) {
+  close(awkscript)
   vars=""
+  header="chr\tstart\tend\tlocus\tpop1\tpop2"
   for ( si in stats::used ) {
     s = stats::used[si]
     vars = vars" -v "s"="
+    header = header "\t" s
   }
   awkscript=" gawk -v chr= -v start= -v end= -v locus= -v pop1= -v pop2= " vars " 'NR==1{split($0,s)} \n\
               NR>1{for(i=1;i<=NF;i++){split($i,f,SUBSEP);SYMTAB[s[i]]=f[1]} \n\
@@ -61,6 +65,7 @@ function prepare_awkscript(    vars, s) {
                   if(!(" arg::args["expr"] ")){next}} \n\
                 for(i=7;i<=NF;i++){if($i==\"\"){continue};if($i!~SUBSEP SUBSEP SUBSEP){gsub(SUBSEP,\"\\t\",$i);print $1,$2,$3,$4,$5,$6,s[i],$i}} \n\
               }' FS=\\\\t OFS=\\\\t -"
+  print header | awkscript
 }
 
 function filter_regions(f,    firstline) {
@@ -93,24 +98,19 @@ function filter_regions(f,    firstline) {
 }
 
 function print_wide() {
-  header="chr\tstart\tend\tlocus\tpop1\tpop2"
-  for ( si in stats::used ) {
-    header = header "\t" stats::used[si]
-  }
-  print header | awkscript
   for (pop in stat) {
     split(pop, p1p2, SUBSEP)
     out = locus "\t" p1p2[1] "\t" p1p2[2]
     for ( si in stats::used ) {
-      if (p1p2[2]!="." && stats::used[si] in stats::within ) {
-        out = out"\t"stat[p1p2[1] SUBSEP "."][si] SUBSEP SUBSEP SUBSEP stat[p1p2[2] SUBSEP "."][si]
+      s = stats::used[si]
+      if (p1p2[2]!="." && si in stats::within ) {
+        out = out"\t"stat[p1p2[1] SUBSEP "."][s] SUBSEP SUBSEP SUBSEP stat[p1p2[2] SUBSEP "."][s]
       } else {
-        out = out"\t"stat[pop][si]
+        out = out"\t"stat[pop][s]
       }
     }
     print out | awkscript
   }
-  close(awkscript)
   delete stat
   locus=""
 }
