@@ -1,0 +1,38 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+// Slightly wider content area
+.main-content {
+  max-width: 900px;
+}
+
+// Console / shell code blocks – subtle dark background
+.language-console .highlight {
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 4px;
+}
+
+// Stat tables
+table {
+  font-size: 0.9rem;
+}
+
+// Logo in sidebar
+.site-logo {
+  max-height: 60px;
+  padding: 4px 0;
+}
+
+// Section heading spacing
+h2 {
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+h3 {
+  margin-top: 1.5rem;
+}

@@ -1,0 +1,37 @@
+title: piawka
+description: Calculate pi & other population statistics in VCF files
+baseurl: "/piawka"
+url: "https://novikovalab.github.io"
+
+remote_theme: just-the-docs/just-the-docs@v0.10.0
+
+# Colour scheme
+color_scheme: light
+
+# Auxiliary links in the top bar
+aux_links:
+  "GitHub":
+    - "https://github.com/novikovalab/piawka"
+
+aux_links_new_tab: true
+
+# Footer
+footer_content: "piawka &mdash; GNU AWK population genomics. <a href='https://doi.org/10.1093/molbev/msaf153'>Cite us</a>."
+
+# Enable search
+search_enabled: true
+
+# Navigation
+nav_sort: order
+
+# Kramdown settings
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+# Plugins (GitHub Pages safe list)
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
