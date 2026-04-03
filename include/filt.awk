@@ -81,6 +81,7 @@ function filter_regions(f,    firstline) {
         seenstat[$7]=1
         stats=stats","$7
         stats::parse_stats(substr(stats,2))
+        prepare_awkscript()
       }
 
       locus=$1 "\t" $2 "\t" $3 "\t" $4  # locus-chr

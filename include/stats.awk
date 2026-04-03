@@ -1,6 +1,10 @@
 @namespace "stats"
 
 function parse_stats(commalist, dependency,    nstats,args,idx,i,j,s) {
+  delete between
+  delete within
+  delete used
+  delete printed
   nstats=split( tolower(commalist), args, "," )
   for (i=1;i<=nstats;i++) { 
     s=args[i]
