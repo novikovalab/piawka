@@ -14,7 +14,7 @@ nav_order: 3
 {:toc}
 </details>
 
-This page describes every statistic that `piawka calc` can compute. Run `piawka list` to see the current list; run `piawka list -d` to include helper statistics.
+This page describes every statistic that `piawka calc` can compute. Run `piawka list` to see the current list; run `piawka list -d` to include dependencies = helper statistics.
 
 Statistics marked **within** are computed per group; those marked **between** are computed per pair of groups.
 
@@ -32,15 +32,13 @@ $$\text{daf} = \frac{\sum_\text{sites} (\text{total alleles} - \text{REF allele 
 
 The interpretation as "derived" frequency assumes the VCF is **polarized**: that is, the REF allele corresponds to the ancestral state. Check polarization carefully before interpreting `daf`; see also `theta_low`, `theta_mid`, `theta_high`.
 
-**Literature**: The allele frequency spectrum is central to population genetics; for a comprehensive review see [Eyre-Walker & Keightley (2007) *Nature Reviews Genetics* 8:610](https://doi.org/10.1038/nrg2146).
-
 ---
 
 ### lines — site count
 
 **Scope**: within &emsp; **Dependencies**: none
 
-The number of VCF lines (sites) that were used in the calculation for a given region and group. A site is used if at least one allele was observed in the group. `lines` is primarily a helper statistic used by `tajima` and `theta_w`, but it can be useful on its own as a measure of site availability.
+The number of VCF lines (sites) that were used in the calculation for a given region and group. A site is used if at least one allele was observed in the group. `lines` is primarily a helper statistic used by `tajima` and `theta_w`, but it can be useful on its own as a measure of site availability in the dataset.
 
 ---
 
@@ -72,7 +70,7 @@ $$\text{miss} = \frac{\sum_\text{sites} \text{missing allele calls}}{\sum_\text{
 
 **Scope**: within &emsp; **Dependencies**: none
 
-Expected heterozygosity per site (Tajima's π): the probability that two randomly drawn alleles differ at a given site, averaged across all sites.
+Expected heterozygosity per site (or absolute nucleotide diversity, or $\hat{\theta}_{\pi}$, or Tajima's π): the probability that two randomly drawn alleles differ at a given site, averaged across all sites.
 
 $$\pi = \frac{\sum_\text{sites} \left(n^2 - \sum_\text{alleles} c_a^2\right)}{\sum_\text{sites} n(n-1)}$$
 
@@ -113,8 +111,6 @@ Cannot be computed with `--persite`.
 **Scope**: within &emsp; **Dependencies**: `a1`, `a2`, `segrcorr`, `pi`, `lines`
 
 An experimental variant of Tajima's D that uses `segrcorr` (the expected number of segregating sites given the observed missingness) instead of the raw count. This corrects the numerator for the downward bias introduced by missing data, at the cost of additional approximation. Treat results with caution and compare with `tajima`.
-
-**Literature**: same as `tajima`.
 
 ---
 
@@ -166,8 +162,6 @@ A theta estimator based only on sites with intermediate derived allele frequency
 
 A theta estimator based only on sites where the derived allele is at high frequency (DAF ≥ 2/3, i.e. REF count ≤ n/3). Same weight formula as `theta_low`. Requires a polarized VCF.
 
-Note: the description shown by `piawka list` for `theta_high` currently contains a copy-paste artefact from `theta_mid`; the actual frequency range computed by the code is DAF ≥ 2/3.
-
 **Literature**: [Achaz (2009) *Genetics* 183:249](https://doi.org/10.1534/genetics.109.104075).
 
 ---
@@ -186,7 +180,7 @@ where *f* is allele frequency and *n* is the number of called alleles. `afd` ran
 
 Not reliable in multiallelic comparisons.
 
-**Literature**: [Bhatia et al. (2013) *Genome Research* 23:1514](https://doi.org/10.1101/gr.154831.113).
+**Literature**: [Berner (2019) *Genes* 10(4):308](https://doi.org/10.3390/genes10040308).
 
 ---
 
