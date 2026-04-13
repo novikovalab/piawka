@@ -23,7 +23,7 @@ permalink: /
 
 ```console
 $ cd piawka/examples
-$ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz -b genes.bed -g groups.tsv -s pi,dxy \
+$ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz -b genes.bed -g groups.tsv -s pi,dxy -q \
   | head -5 | column -t
 #chr        start     end       locus      pop1          pop2      stat  value       numerator  denominator
 scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n  LE_2n     dxy   0.0071137   460        64664

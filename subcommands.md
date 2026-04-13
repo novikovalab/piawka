@@ -7,6 +7,9 @@ nav_order: 2
 # Subcommands reference
 {: .no_toc }
 
+> [!WARNING]
+> Code examples here are often piped to `head` to avoid terminal cluttering. Because of that, VCF processing ends abruptly and some error messages may pop up in addition to the outputs shown here. This is not to be worried about.
+
 <details open markdown="block">
   <summary>Contents</summary>
   {: .text-delta }
@@ -23,25 +26,28 @@ Calculate within- and between-group population statistics from a VCF file.
 ```
 Usage: piawka calc [OPTIONS] -v file.vcf.gz [-g groups.tsv] [-b regions.bed]
 
-    Calculate statistics within & between groups of samples in a VCF file.
-    Mandatory arguments are VCF file (--vcf) and grouping (--groups). --bed is recommended.
-    Default --stats are pi,dxy; other can be provided as a spaceless comma-separated list.
-    EXAMPLE:
-        piawka calc [OPTIONS] -v file.vcf.gz -g ( groups.tsv | unite | divide ) > file.bed
-
-Options:
-  -1, --persite          output values for each site
-  -b, --bed <file>       BED file with regions to be analysed
-  -d, --dependencies     output dependency stats as well (best for piping to piawka sum)
-  -g, --groups <file>    2-column sample/group table, or keywords "unite" / "divide"
-  -j, --jobs <n>         number of parallel jobs to run
-  -m, --mult             use populations with multiple alleles at a site
-  -q, --quiet            do not output progress and warning messages
-  -R, --rand <frac>      randomly use this share of sites, 0.0–1.0
-  -s, --stats <list>     comma-separated list of stats to calculate (see piawka list)
-  -T, --targets <file>   BED file with targets (faster for many small regions)
-  -v, --vcf <file>       bgzipped and tabix-indexed VCF file
-  -h, --help             show this help message and exit
+      Calculate statistics within & between groups of samples in a VCF file.
+      The only mandatory argument is the VCF file (--vcf). Regions (--bed) and sample grouping (--groups) are recommended.
+      Default --stats are pi,dxy; other can be provided as a spaceless comma-seprarted list (check `piawka list` for an overview).
+      EXAMPLE:
+          piawka calc [OPTIONS] -v file.tsv -b windows.bed -g ( groups.tsv | unite | divide ) > file.bed
+  Options:
+  -1, --persite       output values for each site
+  -b, --bed <arg>     BED file with regions to be analyzed
+  -d, --dependencies  output dependencies stats as well (best for piping to
+                      `piawka sum`)
+  -g, --groups <arg>  either 2-columns sample / group table or
+                      keywords "unite" (all samples in one group) or "divide"
+                      (each sample is a separate group); defaults to "unite"
+  -j, --jobs <arg>    number of parallel jobs to run
+  -m, --mult          use populations with multiple alleles at a site
+  -q, --quiet         do not output progress and warning messages
+  -R, --rand <arg>    randomly use this share of sites, 0.0-1.0
+  -s, --stats <arg>   stats to calculate, comma-separated with no spaces as in
+                      "pi,dxy,fst"; see `piawka list`
+  -T, --targets <arg> BED file with targets (faster for numerous small regions)
+  -v, --vcf <arg>     gzipped and tabixed VCF file
+  -h, --help          show this help message and exit
 ```
 
 ### Description
@@ -61,7 +67,7 @@ When `--groups` is omitted, `unite` is assumed.
 **Regions** can be provided via:
 - `-b / --bed`: a BED file with one row per region; column 4 sets the locus name in the output.
 - `-T / --targets`: a BED file with small targets (e.g., CDS coordinates). `piawka` merges nearby targets into larger tabix queries automatically.
-- Neither: the whole VCF is processed as a single window per chromosome.
+- Neither: the VCF is processed as a single window per chromosome.
 
 **Parallelism**: with `-j N`, `piawka calc` forks `N` child processes. Each child reads from a shared FIFO buffer of region lines; results are written to temporary files and assembled in order by the parent before printing. See [Technical details](technical.html#parallelism).
 
@@ -80,36 +86,36 @@ When `--groups` is omitted, `unite` is assumed.
 ```console
 $ cd piawka/examples
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -b genes.bed -g groups.tsv -s pi,dxy \
+              -b genes.bed -g groups.tsv -s pi,dxy -q \
   | head -6 | column -t
-#chr        start     end       locus      pop1          pop2      stat  value       numerator  denominator
-scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n  LE_2n     dxy   0.0071137   460        64664
-scaffold_1  10035093  10035276  AL5G20950  PUWS_4n       .         pi    0.00588993  640        108660
-scaffold_1  10035093  10035276  AL5G20950  LE_2n         PUWS_4n   dxy   0.00881262  1102       125048
-scaffold_1  10035093  10035276  AL5G20950  LE_2n         .         pi    0.00772461  1078       139554
-scaffold_1  10035093  10035276  AL5G20950  CESiberia_4n  LE_2n     dxy   0.00721949  548        75888
+#chr        start     end       locus      pop1          pop2              stat  value       numerator  denominator
+scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n  LE_2n             dxy   0.0071137   460        64664
+scaffold_1  10035093  10035276  AL5G20950  PUWS_4n       .                 pi    0.00588993  640        108660
+scaffold_1  10035093  10035276  AL5G20950  LE_2n         PUWS_4n           dxy   0.00881262  1102       125048
+scaffold_1  10035093  10035276  AL5G20950  LE_2n         .                 pi    0.00772461  1078       139554
+scaffold_1  10035093  10035276  AL5G20950  CESiberia_4n  UKScandinavia_2n  dxy   0.00722154  236        32680
 ```
 
-**Per-site output for a single region:**
+**Per-site output:**
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -g groups.tsv -s pi --persite \
-              -b minitest.bed | head -4 | column -t
-#chr        start     end       locus  pop1          pop2  stat  value    numerator  denominator
-scaffold_1  10000112  10000113  sas    CESiberia_2n  .     pi    0.28571  8          28
-scaffold_1  10000130  10000131  sas    LE_2n         .     pi    0.13333  2          15
-scaffold_1  10000130  10000131  sas    PUWS_4n       .     pi    0.05882  2          34
+              -g groups.tsv -s pi --persite -q \
+              -b genes.bed | head -4 | column -t
+#chr        start     end       locus      pop1              pop2  stat  value  numerator  denominator
+scaffold_1  10035093  10035094  AL5G20950  PUWS_4n           .     pi    0      0          756
+scaffold_1  10035093  10035094  AL5G20950  LE_2n             .     pi    0      0          992
+scaffold_1  10035093  10035094  AL5G20950  UKScandinavia_2n  .     pi    0      0          90
 ```
 
-**All samples as one group (no groups file):**
+**All samples as one group (default or with `-g unite`):**
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -b genes.bed -s pi | head -3 | column -t
+              -b genes.bed -s pi -q | head -3 | column -t
 #chr        start     end       locus      pop1         pop2  stat  value       numerator  denominator
-scaffold_1  10035093  10035276  AL5G20950  all_samples  .     pi    0.00735569  5088        691588
-scaffold_1  10035511  10036000  AL2G11890  all_samples  .     pi    0.00831956  21240       2552940
+scaffold_1  10035093  10035276  AL5G20950  all_samples  .     pi    0.00607559  5592       920404
+scaffold_1  10035511  10036000  AL2G11890  all_samples  .     pi    0.0167103   36136      2162494
 ```
 
 **Parallel jobs with Fst and multiple stats:**
@@ -117,7 +123,11 @@ scaffold_1  10035511  10036000  AL2G11890  all_samples  .     pi    0.00831956  
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
               -b genes.bed -g groups.tsv -s pi,dxy,fst -j 4 -q \
-  | wc -l
+  | head -4 | column -t
+#chr        start     end       locus      pop1          pop2   stat  value       numerator  denominator
+scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n  LE_2n  dxy   0.0071137   460        64664
+scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n  LE_2n  fst   0.130414    0.137013   1.0506
+scaffold_1  10035093  10035276  AL5G20950  PUWS_4n       .      pi    0.00588993  640        108660
 ```
 
 ---
@@ -144,10 +154,7 @@ Options:
 
 ### Description
 
-`piawka dist` reads the output of `piawka calc` and builds a pairwise distance matrix. If multiple rows exist for the same population pair (e.g., multiple windows), a weighted average is computed using the denominators. The matrix can be output in:
-
-- **PHYLIP** format (default): compatible with PHYLIP, RAxML, FastTree, and R's `ape` package.
-- **NEXUS** format (`--nexus`): compatible with SplitsTree, SpecTRE `netmake`, and R's `phangorn`.
+`piawka dist` reads the output of `piawka calc` and builds a pairwise distance matrix. If multiple rows exist for the same population pair (e.g., multiple windows), a weighted average is computed using the denominators. The matrix can be output in PHYLIP or Nexus format.
 
 Only the pairwise statistic specified with `-s` is used; within-group rows are ignored. Diagonal entries are set to 0.
 
@@ -155,29 +162,40 @@ Only the pairwise statistic specified with `-s` is used; within-group rows are i
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -b genes.bed -g groups.tsv -s dxy \
-  | piawka dist -
-5
-CESiberia_2n  0.000000  0.009476  0.010348  0.009248  0.015265
-CESiberia_4n  0.009476  0.000000  0.009521  0.006877  0.014528
-LE_2n         0.010348  0.009521  0.000000  0.009551  0.015448
-PUWS_4n       0.009248  0.006877  0.009551  0.000000  0.014237
-SibA_2n       0.015265  0.014528  0.015448  0.014237  0.000000
+              groups.tsv -s dxy -q \
+  | piawka dist - | column -t
+4
+PUWS_4n           0.000000  0.010746  0.014952  0.010989
+LE_2n             0.010746  0.000000  0.015055  0.010225
+UKScandinavia_2n  0.014952  0.015055  0.000000  0.015170
+CESiberia_2n      0.010989  0.010225  0.015170  0.000000
 ```
 
-NEXUS output (compatible with SplitsTree):
+NEXUS output:
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -b genes.bed -g groups.tsv -s dxy \
+              groups.tsv -s dxy -q \
   | piawka dist --nexus -
 #NEXUS
 
 BEGIN TAXA;
-    DIMENSIONS ntax=5;
-    TAXLABELS CESiberia_2n CESiberia_4n LE_2n PUWS_4n SibA_2n ;
+        DIMENSIONS ntax=4;
+        TAXLABELS
+ PUWS_4n LE_2n UKScandinavia_2n CESiberia_2n ;
 END;
-...
+
+BEGIN DISTANCES;
+        DIMENSIONS ntax=4;
+        FORMAT TRIANGLE = BOTH LABELS = LEFT;
+        Matrix
+        PUWS_4n 0.000000 0.010746 0.014952 0.010989
+        LE_2n 0.010746 0.000000 0.015055 0.010225
+        UKScandinavia_2n 0.014952 0.015055 0.000000 0.015170
+        CESiberia_2n 0.010989 0.010225 0.015170 0.000000
+
+        ;
+END;
 ```
 
 ---
@@ -204,7 +222,7 @@ Options:
 
 ### Description
 
-`piawka filt` pivots the long-format `piawka calc` output to a wide row per (region, group pair) and evaluates the expression. Rows where the expression is true are emitted back in long format. Available variables in the expression:
+`piawka filt` pivots the long-format `piawka calc` output to a wide row per (region, group pair) where all available statistics are present as columns and evaluates the expression. Rows where the expression is true are emitted back in long format. Available variables in the expression:
 
 - **Field names**: `chr`, `start`, `end`, `locus`, `pop1`, `pop2`
 - **Statistic names**: any stat name present in the input (e.g., `pi`, `dxy`, `fst`, `miss`)
@@ -214,33 +232,48 @@ When a statistic is not present for a particular row, its value is empty (evalua
 
 ### Examples
 
-**Keep only regions where pi > 0.005 in both groups of a pair:**
+**Keep only regions where pi > 0.01 in both groups of a pair:**
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -b genes.bed -g groups.tsv -s pi,dxy \
-  | piawka filt -e 'pi > 0.005' \
-  | head -4 | column -t
-#chr        start     end       locus      pop1          pop2  stat  value       numerator  denominator
-scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n  .     pi    0.00717748  652        90837
-scaffold_1  10035093  10035276  AL5G20950  LE_2n         .     pi    0.00772461  1078       139554
-scaffold_1  10035093  10035276  AL5G20950  PUWS_4n       .     pi    0.00588993  640        108660
+              -b genes.bed -g groups.tsv -s pi,dxy -q \
+  | piawka filt -e 'pi > 0.01' \
+  | head -6 | column -t
+#chr        start     end       locus      pop1          pop2     stat  value      numerator  denominator
+scaffold_1  10035511  10036000  AL2G11890  CESiberia_2n  LE_2n    dxy   0.0218687  3508       160412
+scaffold_1  10035511  10036000  AL2G11890  LE_2n         .        pi    0.0150035  4716       314326
+scaffold_1  10035511  10036000  AL2G11890  CESiberia_2n  .        pi    0.0253604  1988       78390
+scaffold_1  10037631  10039653  AL1G31870  CESiberia_2n  LE_2n    dxy   0.0173026  9260       535180
+scaffold_1  10037631  10039653  AL1G31870  LE_2n         PUWS_4n  dxy   0.014988   13788      919936
 ```
 
 **Keep sites with no missing data:**
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -g groups.tsv -s pi,miss --persite \
+              -g groups.tsv -s pi,miss --persite -q \
   | piawka filt -e 'miss == 0' \
-  | head -4 | column -t
+  | head -6 | column -t
+#chr        start     end       locus                pop1          pop2  stat  value  numerator  denominator
+scaffold_1  10000000  10000001  scaffold_1:10000001  LE_2n         .     miss  0      0          34
+scaffold_1  10000000  10000001  scaffold_1:10000001  LE_2n         .     pi    0      0          1122
+scaffold_1  10000000  10000001  scaffold_1:10000001  CESiberia_2n  .     miss  0      0          16
+scaffold_1  10000000  10000001  scaffold_1:10000001  CESiberia_2n  .     pi    0      0          240
+scaffold_1  10000000  10000001  scaffold_1:10000001  PUWS_4n       .     miss  0      0          28
 ```
 
 **Keep sites that are fixed differences between two populations (privately differentially fixed):**
 
 ```console
-$ piawka calc ... -s pi,dxy --persite \
-  | piawka filt -e 'pi == 0 && dxy > 0' | head -4 | column -t
+$ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
+              -g groups.tsv -s pi,dxy --persite -q \
+  | piawka filt -e 'pi == 0 && dxy > 0' | head -6 | column -t
+#chr        start     end       locus                pop1          pop2              stat  value  numerator  denominator
+scaffold_1  10000444  10000445  scaffold_1:10000445  LE_2n         UKScandinavia_2n  dxy   1      340        340
+scaffold_1  10000444  10000445  scaffold_1:10000445  CESiberia_2n  UKScandinavia_2n  dxy   1      160        160
+scaffold_1  10000513  10000514  scaffold_1:10000514  LE_2n         UKScandinavia_2n  dxy   1      340        340
+scaffold_1  10000513  10000514  scaffold_1:10000514  CESiberia_2n  UKScandinavia_2n  dxy   1      160        160
+scaffold_1  10000950  10000951  scaffold_1:10000951  LE_2n         PUWS_4n           dxy   1      8          8
 ```
 
 ---
@@ -266,49 +299,6 @@ Options:
 
 `piawka list` prints all available statistics with their descriptions, scope (within/between groups), and any dependencies on other statistics. By default, helper statistics (prefixed with `helper:`) are hidden; use `-d` to show them.
 
-### Example
-
-```console
-$ piawka list
-Available statistics:
-lines      number of lines used in calculation
-           	(within pops, dependencies: none)
-miss       share of missing genotype calls
-           	(within pops, dependencies: none)
-pi         expected heterozygosity = nucleotide diversity
-           	(within pops, dependencies: none)
-maf        minor allele frequency
-           	(within pops, dependencies: none)
-daf        derived allele frequency
-           	(within pops, dependencies: none)
-theta_w    Watterson's theta
-           	(within pops, dependencies: a1,segr,lines)
-theta_low  Theta estimator based on sites with 0<allele_freq<0.33
-           	(within pops, dependencies: lines)
-theta_mid  Theta estimator based on sites with 0.33<=allele_freq<0.66
-           	(within pops, dependencies: lines)
-theta_high Theta estimator based on sites with allele_freq>=0.66
-           	(within pops, dependencies: lines)
-tajima     Tajima's D
-           	(within pops, dependencies: a1,a2,segr,pi,lines,miss)
-tajimalike Tajima's D interpolated for missing SNPs (experimental)
-           	(within pops, dependencies: a1,a2,segrcorr,pi,lines)
-afd        average allele frequency difference
-           	(between pops, dependencies: none)
-dxy        absolute nucleotide divergence
-           	(between pops, dependencies: none)
-fst        fixation index, Hudson's estimator
-           	(between pops, dependencies: none)
-fstwc      fixation index, Weir & Cockerham's estimator
-           	(between pops, dependencies: none)
-rho        Ronfort's rho
-           	(between pops, dependencies: pi)
-nei        Nei's D standard genetic distance
-           	(between pops, dependencies: pi,dxy)
-```
-
-With `-d`, helper statistics (`a1`, `a2`, `segr`, `segrcorr`) are also shown.
-
 ---
 
 ## sum
@@ -327,7 +317,7 @@ Usage: piawka sum [OPTIONS] [file.bed ...]
 Options:
   -b, --bed <file>      summarize stats by regions in a BED file
   -g, --groups <file>   group file to average stats across individuals/subgroups
-  -i, --ignore-chrs     summarize across all chromosomes using only the locus field to match
+  -i, --ignore-chr      summarize across all chromosomes using only the locus field to match
   -I, --ignore-locus    ignore locus name (merge rows from all loci)
   -s, --stats <list>    stats to summarize (default: all stats found in input)
   -h, --help            show this help message and exit
@@ -339,43 +329,41 @@ Options:
 
 **Use cases**:
 
-- **Piping from `piawka calc`**: when `-b` is not given to `calc`, it outputs per-chromosome windows which are automatically piped to `sum` for genome-wide gene-level results.
+- **Piping from `piawka calc`**: when `-b` is not given to `calc`, it outputs results in small arbitrary windows which are automatically piped to `sum` for chromosome-wide results.
 - **Merging per-window results** across sliding windows or chromosomes.
 - **Re-grouping individuals** into higher-level groups with `-g`.
 - **Summarizing by custom regions** with `-b`.
 
 ### Examples
 
-**Summarize gene-level stats from a previously computed file:**
+**Average per-region stats across the entire scaffolds:**
 
-```console
-$ piawka sum results.bed | head -4 | column -t
-#chr        start     end       locus      pop1          pop2      stat  value       numerator  denominator
-scaffold_1  10035093  10035276  AL5G20950  CESiberia_2n  LE_2n     dxy   0.0071137   460        64664
-scaffold_1  10035093  10035276  AL5G20950  PUWS_4n       .         pi    0.00588993  640        108660
-scaffold_1  10035511  10036000  AL2G11890  CESiberia_2n  LE_2n     dxy   0.00630281  3520       558536
-```
-
-**Average per-gene stats across all genes (whole scaffold):**
+Here we summarize cluster-wise pi values along the entire VCF file.
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -g groups.tsv -s pi,dxy \
-  | piawka sum --ignore-locus | head -4 | column -t
+              -g groups.tsv -s pi -b genes.bed -q \
+  | piawka sum --ignore-locus | column -t
+#chr        start     end       locus  pop1              pop2  stat  value       numerator  denominator
+scaffold_1  10035093  10496929  .      PUWS_4n           .     pi    0.00988641  1217900    123189256
+scaffold_1  10035093  10496929  .      LE_2n             .     pi    0.00796761  1464568    183815248
+scaffold_1  10035093  10496929  .      UKScandinavia_2n  .     pi    0.0077786   115084     14794952
+scaffold_1  10035093  10496929  .      CESiberia_2n      .     pi    0.00711766  282906     39747074
 ```
 
 **Re-group individuals into higher-level groups:**
 
-```console
-$ piawka sum -g subpop_to_region.tsv results.bed | head -4 | column -t
-```
-
-**Summarize calc output by custom windows:**
+The following is a way to get _average genic heterozygosity_ across the same groups.
 
 ```console
 $ piawka calc -v alyrata_scaff_1_10000k-10500k.vcf.gz \
-              -g groups.tsv -s pi,dxy -b genes.bed \
-  | piawka sum -b mRNA.bed | head -4 | column -t
+              -g divide -s pi -b genes.bed -q \
+  | piawka sum --ignore-locus -g groups.tsv | column -t
+#chr        start     end       locus  pop1              pop2  stat  value       numerator  denominator
+scaffold_1  10035093  10496929  .      PUWS_4n           .     pi    0.00796982  112704     14141352
+scaffold_1  10035093  10496929  .      LE_2n             .     pi    0.00734821  42128      5733096
+scaffold_1  10035093  10496929  .      UKScandinavia_2n  .     pi    0.00581118  9748       1677456
+scaffold_1  10035093  10496929  .      CESiberia_2n      .     pi    0.00695219  18812      2705910
 ```
 
 ---
@@ -420,7 +408,7 @@ Options:
 
 **Fixed-bp mode** with `--window-size` produces equal-length windows, useful for population-genetic scans where physical scale matters. Requires either `##contig` lines in the VCF header or a FAI file.
 
-**Target aggregation** with `--targets` is used internally by `piawka calc -T` to reduce the number of `tabix` queries when many small regions (e.g., exons) are provided.
+**Target aggregation** with `--targets` is used internally by `piawka calc -T` to reduce the number of `tabix` queries when many small regions (e.g., single sites) are provided.
 
 ### Examples
 
@@ -429,10 +417,10 @@ Options:
 ```console
 $ piawka win -v alyrata_scaff_1_10000k-10500k.vcf.gz \
              -w 100000 | head -4
-scaffold_1	10000000	10100000
-scaffold_1	10100000	10200000
-scaffold_1	10200000	10300000
-scaffold_1	10300000	10400000
+scaffold_1	0      	100000
+scaffold_1	100000	200000
+scaffold_1	200000	300000
+scaffold_1	300000	400000
 ```
 
 **Sliding 50 kb windows with 25 kb step:**
@@ -440,18 +428,18 @@ scaffold_1	10300000	10400000
 ```console
 $ piawka win -v alyrata_scaff_1_10000k-10500k.vcf.gz \
              -w 50000 -s 25000 | head -4
-scaffold_1	10000000	10050000
-scaffold_1	10025000	10075000
-scaffold_1	10050000	10100000
-scaffold_1	10075000	10125000
+scaffold_1      0       50000
+scaffold_1      25000   75000
+scaffold_1      50000   100000
+scaffold_1      75000   125000
 ```
 
 **Aggregate exon targets for faster queries:**
 
 ```console
-$ piawka win -T examples/cds.bed | head -4
-scaffold_1	10035093	10035377
-scaffold_1	10035511	10038165
-scaffold_1	10038154	10039653
-scaffold_1	10040878	10041907
+$ piawka win -T degenotate/fourfolds.bed | head -4
+scaffold_1      10035268        10035948
+scaffold_1      10037748        10039496
+scaffold_1      10040888        10041816
+scaffold_1      10048561        10054581
 ```
