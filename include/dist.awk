@@ -9,12 +9,17 @@ function run(){
     EXAMPLE: \n\tpiawka dist [OPTIONS] file.bed > distmat.phy"
   arg::add_argument("s", "stat", 0, "piawka pairwise stat to use as distance")
   arg::add_argument("n", "nexus", 1, "write matrix in NEXUS format instead of PHYLIP")
-  arg::parse_args(2, help)
+  arg::parse_args(2, help, "no help if empty")
+  narg=arg::parse_nonargs()
+  if ( narg==0 ) {
+    arg::nonargs[++narg]="/dev/stdin"
+    calc::say("Warning: no input files given, reading from stdin!")
+  }
 
   if (!( "stat" in arg::args )) {
     arg::args["stat"]="dxy"
   }
-  exit calc2dist(ARGV[ARGC-1])
+  exit calc2dist(arg::nonargs[1])
 }
 
 function calc2dist(f) {
