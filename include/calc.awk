@@ -3,19 +3,18 @@
 function run(){ 
   time_start=awk::systime()
   check_gawk_version()
-  check_htslib()
   help="\
     Calculate statistics within & between groups of samples in a VCF file.\n\
-    Mandatory arguments are VCF file (--vcf) and grouping (--groups). --bed is recommended.\n\
-    Default --stats are pi,dxy; other can be provided as a spaceless comma-seprarted list.\n\
-    EXAMPLE: \n\tpiawka calc [OPTIONS] -v file.tsv -g ( groups.tsv | unite | divide ) > file.bed"
+    The only mandatory argument is the VCF file (--vcf). Regions (--bed) and sample grouping (--groups) are recommended.\n\
+    Default --stats are pi,dxy; other can be provided as a spaceless comma-seprarted list (check `piawka list` for an overview).\n\
+    EXAMPLE: \n\tpiawka calc [OPTIONS] -v file.tsv -b windows.bed -g ( groups.tsv | unite | divide ) > file.bed"
   # add_argument args: shortopt, longopt, is_flag, description
   arg::add_argument("1", "persite", 1, "output values for each site")
   arg::add_argument("b", "bed", 0, "BED file with regions to be analyzed")
   arg::add_argument("d", "dependencies", 1, "output dependencies stats as well (best for piping to `piawka sum`)")
-  arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group)")
+  arg::add_argument("g", "groups", 0, "either 2-columns sample / group table or \nkeywords \"unite\" (all samples in one group) or \"divide\" (each sample is a separate group); defaults to \"unite\"")
   arg::add_argument("j", "jobs", 0, "number of parallel jobs to run")
-  arg::add_argument("m", "mult", 1, "use populations with multiple a at a site")
+  arg::add_argument("m", "mult", 1, "use populations with multiple alleles at a site")
   arg::add_argument("q", "quiet", 1, "do not output progress and warning messages")
   arg::add_argument("R", "rand", 0, "randomly use this share of sites, 0.0-1.0")
   arg::add_argument("s", "stats", 0, "stats to calculate, comma-separated with no spaces as in \"pi,dxy,fst\"; see `piawka list`")
@@ -26,6 +25,7 @@ function run(){
   SIGNAL_END_OF_BUFFER=SUBSEP SUBSEP SUBSEP
   piawka=ENVIRON["AWKPATH"]
   sub(/include:.*$/,"piawka",piawka)
+  check_htslib()
   check_arguments()
   make_tmpdir()
   exit main()
@@ -64,17 +64,23 @@ function check_arguments() {
   any_between=stats::n_between > 0
   # Some arg checks
   piawka::assert( "vcf" in arg::args, "required argument: -v <file.vcf.gz>" )
-  if (!( "groups" in arg::args ) ) {
-    arg::args["groups"]="unite"
-  }
   piawka::check_file( arg::args["vcf"] )
   if ( system("tabix -l "arg::args["vcf"]" > /dev/null") != 0 ) {
     say("Error: "arg::args["vcf"]" cannot be queried by index, is the index file there?")
     exit 1
   }
-  if ( "bed" in arg::args ) { piawka::check_file( arg::args["bed"] ) }
-  if ( "targets" in arg::args ) { piawka::check_file( arg::args["targets"] ) }
+  if ( "bed" in arg::args ) { 
+    piawka::check_file( arg::args["bed"] ) 
+  } else if ( "targets" in arg::args ) { 
+    piawka::check_file( arg::args["targets"] ) 
+  } else { 
+    say("Warning: no --bed or --targets supplied, making windows on the fly with piawka win (may be slower!)")
+  }
 
+  if (!( "groups" in arg::args ) ) {
+    say("Warning: no --groups argument detected, setting --groups unite")
+    arg::args["groups"]="unite"
+  }
   divide=arg::args["groups"]=="divide"
   if ( ( arg::args["groups"] != "unite" ) && !divide ) {
     get_groups()
