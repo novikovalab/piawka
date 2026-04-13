@@ -19,9 +19,9 @@ function run() {
     calc::say("Warning: no input files given, reading from stdin!")
   }
 
+  calc::print_header()
   parse_expr()
   prepare_awkscript()
-  calc::print_header()
   for (n=1; n<=narg; n++) {
     filter_regions(arg::nonargs[n])
   }
@@ -34,16 +34,17 @@ function parse_expr() {
   for (i in fieldsi) {
     fields[fields[i]]=1
   }
-  split(arg::args["expr"], ex, / +|\^|\*\*|\*|\/|%|\+|-|\(|\)|!|&&|\|\|/)
+  split(arg::args["expr"], ex, / +|\^|\*\*|\*|\/|%|\+|-|\(|\)|!=|!|&&|\|\||>=|<=|>|<|==|=/)
   for (i in ex) {
-    if (i == "" i ~ /[0-9]+(\.[0-9]+)?/) {
-      continue
-    }
-    if (ex[i] in stats::list || ex[i] in fields || ex[i] in FUNCTAB) {
+    if ( ex[i] ~ /[0-9]+(\.[0-9]+)?/ ) {
+      if ( ex[i] == 0 && !made_zero_warning++ ) {
+        calc::say("Warning: checks against zero should be quoted (e.g. pi==\"0\" and not pi==0)! Otherwise empty string matches the criterion as well") 
+      }
+    } else if (ex[i] in stats::list) {
       seenstat[ex[i]]=1
       stats=stats","ex[i]
-    } else {
-      calc::say("Warning: not a recognized statistic/field name or value:" i)
+    } else if ( !(ex[i] == "" || ex[i] in fields || ex[i] in FUNCTAB) ) {
+      calc::say("Warning: not a recognized statistic/field name or value:" ex[i])
     }
   }
   stats::parse_stats(substr(stats,2))
