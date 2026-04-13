@@ -106,7 +106,7 @@ Cannot be computed with `--persite`.
 
 ---
 
-### tajimalike — Tajima's D with missing-data correction (experimental)
+### tajimalike — Tajima's D with SFS imputation assuming neutrality (experimental)
 
 **Scope**: within &emsp; **Dependencies**: `a1`, `a2`, `segrcorr`, `pi`, `lines`
 
@@ -190,9 +190,9 @@ Not reliable in multiallelic comparisons.
 
 The probability that two alleles drawn one from each group differ, averaged over all sites:
 
-$$d_{xy} = \frac{\sum_\text{sites} \left( n_i n_j - \sum_\text{alleles} c_{i,a} \cdot c_{j,a} \right)}{\sum_\text{sites} n_i n_j}$$
+$$d_{XY} = \frac{\sum_\text{sites} \left( n_i n_j - \sum_\text{alleles} c_{i,a} \cdot c_{j,a} \right)}{\sum_\text{sites} n_i n_j}$$
 
-where *c_{i,a}* is the count of allele *a* in group *i*. `dxy` is an absolute divergence measure: it does not depend on within-group diversity, so it can increase even when `fst` is constant (e.g., when both groups simultaneously become more diverse).
+where $c_{i,a}$ is the count of allele *a* in group *i*. `dxy` is an absolute divergence measure: it does not depend on within-group diversity, so it can increase even when `fst` is constant (e.g., when both groups simultaneously become more diverse).
 
 **Literature**: [Nei & Li (1979) *PNAS* 76:5269](https://doi.org/10.1073/pnas.76.10.5269); the estimator formula follows [Korunes & Samuk (2021)](https://doi.org/10.1111/1755-0998.13326).
 
@@ -206,7 +206,7 @@ The proportion of genetic variation that is explained by group membership, using
 
 $$F_{ST} = \frac{\sum_\text{sites} (H_B - H_W)}{\sum_\text{sites} H_B}$$
 
-where H_W = average within-group heterozygosity (average of the two groups' per-site pi) and H_B = between-group heterozygosity (equivalent to dxy at a single site). Averaging numerators and denominators separately across sites gives the correct "ratio of averages" estimator that is robust to differences in sample size.
+where $H_W$ = average within-group heterozygosity (average of the two groups' per-site pi) and $H_B$ = between-group heterozygosity (equivalent to dxy at a single site). Averaging numerators and denominators separately across sites gives the correct "ratio of averages" estimator that is robust to differences in sample size.
 
 Ranges from 0 (panmixia) to 1 (complete reproductive isolation).
 
@@ -236,7 +236,7 @@ Nei's standard genetic distance, computed from the identity measures J_X (= 1 �
 
 $$D = -\ln \frac{J_{XY}}{\sqrt{J_X \cdot J_Y}}$$
 
-This distance ranges from 0 (identical populations) and increases without bound. It is proportional to divergence time under an infinite-allele neutral model.
+This distance ranges from 0 (identical populations) and increases without bound. It is proportional to divergence time under an infinite-allele neutral model. The statistic can attain negative values at low sample sizes, they should be regarded as near-zero distances.
 
 **Literature**: [Nei (1972) *Am. Nat.* 106:283](https://doi.org/10.1086/282771).
 
@@ -246,11 +246,11 @@ This distance ranges from 0 (identical populations) and increases without bound.
 
 **Scope**: between &emsp; **Dependencies**: `pi`
 
-An analog of Fst for polyploid populations that corrects for the ploidy-induced inflation of within-group heterozygosity (H_sp):
+An analog of Fst for polyploid populations that corrects for the ploidy-induced inflation of within-group heterozygosity ($H_sp$):
 
 $$\rho = \frac{H_{pt} - H_s}{H_{pt} - H_{sp}}$$
 
-where H_s is the average within-group heterozygosity, H_t is the between-group heterozygosity, and H_sp is H_s corrected for ploidy. For diploids, ρ ≈ Fst. For autotetraploids, `rho` is lower than naive `fst` because it removes the upward bias caused by within-individual fixed heterozygosity.
+where $H_s$ is the average within-group heterozygosity, $H_t$ is the between-group heterozygosity, and $H_sp$ is $H_s$ corrected for ploidy. For diploids, ρ ≈ Fst. For autotetraploids, `rho` is lower than naive `fst` because it removes the upward bias caused by within-individual fixed heterozygosity.
 
 Requires that all samples in a group have the same ploidy. Not reliable in multiallelic comparisons.
 
@@ -266,7 +266,7 @@ Helper statistics are internal building blocks used by other statistics. They ar
 
 **Scope**: within &emsp; **Dependencies**: none
 
-At each segregating site, increments the accumulated a₁ by the (n−1)-th harmonic number H_{n-1} = Σ (1/k) for k = 1…n-1, where *n* is the per-site allele count. Used by `theta_w` and `tajima` to normalize the number of segregating sites.
+At each segregating site, increments the accumulated a₁ by the (n−1)-th harmonic number $H_{n-1} = \sum_\text{k = 1…n-1} 1/k$, where *n* is the per-site allele count. Used by `theta_w` and `tajima` to normalize the number of segregating sites.
 
 ---
 

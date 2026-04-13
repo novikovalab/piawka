@@ -54,6 +54,10 @@ All statistics are computed as sums of per-site numerators and denominators, wit
 
 Many tools check if a site's REF and ALT alleles are both single nucleotides to identify it as a biallelic SNP. When analysing a subset of samples from a large VCF, many sites biallelic in the subset may be multi-allelic in the full dataset. `piawka` checks only that the REF allele is a single nucleotide; it then counts only the alleles actually present in each group. This recovers substantially more SNPs for small subsets of large VCF files. See [Technical details](technical.html#snp-retrieval) for a worked example.
 
+### Optional support for multiallelic sites 
+
+The flexible retrieval of genotypes allows `piawka` to process sites with more than one alternative allele. Many statistics in `piawka` are defined in a way that naturally extends to multiallelic sites; this allows to explore genetic patters less accessible to classic tools.
+
 ### Extensible statistics
 
 `piawka` ships with {{ site.data.stats_count | default: "18" }} statistics covering nucleotide diversity, divergence, differentiation, allele frequency spectra and standard neutrality tests. Any user-defined statistic can be added as a plain AWK file following a simple interface. See [Technical details](technical.html#adding-modules) and `include/example.awk` for further details.
@@ -90,7 +94,7 @@ export PATH="$( realpath ./piawka ):${PATH}"
 
 | Input | Description |
 |-------|-------------|
-| Groups file | 2-column TSV: sample ID → group ID |
+| Groups file | 2-column TSV: sample ID → group ID OR keywords "unite" (all samples in one group) or "divide" (each sample is a separate group) |
 | BED file (`-b`) | Regions to analyse; optionally with locus name in column 4 |
 | Targets BED (`-T`) | Small regions for targeted extraction (faster than `-b` for many small regions); optionally with locus name in column 4 |
 

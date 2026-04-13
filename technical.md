@@ -26,7 +26,7 @@ For each VCF line, `piawka calc` applies the following minimal filter:
 2. **At least one non-missing, non-star allele per group** — a site is used for a group only if that group has at least one called, non-`*` allele.
 3. **Multiallelic handling** — by default, a site is skipped for a pair of groups if more than two distinct alleles are observed in their combined allele pool. This can be relaxed with `--mult`.
 
-Crucially, piawka does **not** require that `$5` (the ALT field) contains a single-character non-star allele. Most tools that rely on REF/ALT checks mark a site as unusable if the whole-cohort ALT is multi-allelic (e.g., `A,T`). piawka instead checks the alleles *actually observed* in the target groups at runtime.
+Crucially, piawka does **not** require that the ALT field contains a single-character non-star allele. Often tools that rely on REF/ALT checks mark a site as unusable if the whole-cohort ALT is multi-allelic (e.g., `A,T`). piawka instead checks the alleles *actually observed* in the target groups at runtime.
 
 ### The per-group ALT-agnostic advantage
 
@@ -38,9 +38,7 @@ Pop A + B    →  A,T    (biallelic, used by piawka)
 Pop C + D    →  A,G    (biallelic, used by piawka)
 ```
 
-This effect is strongest when analysing small subsets of a large population panel. In practice, the number of usable sites can increase by 10–40% over strict REF/ALT filtering when working with multi-population VCFs.
-
-> **Illustration idea**: a diagram showing a multi-allelic site in a full VCF and how different per-group allele subsets yield biallelic comparisons. This would suit a hand-drawn schematic with three population ovals and allele counts inside each.
+This approach also allows to make use of sites where ALT alleles contain some indel variants (e.g. if the full cohort had ALT alleles of A,T,G,CCC the two populations above would still be processed).
 
 ---
 
@@ -56,7 +54,7 @@ Every statistic in piawka is defined by up to three AWK functions:
 | `increment_<stat>(i)` or `increment_<stat>(i,j)` | Once per usable VCF line, per group (pair) | Compute per-site numerator and denominator |
 | `finalize_<stat>(i)` or `finalize_<stat>(i,j)` | Once per print call | Transform accumulated sums into the final value |
 
-These functions are called indirectly by name via `@increment` / `@finalize` function-pointer dispatch in gawk. If a function is not defined, the default behaviour applies (see below).
+These functions are called indirectly by name via `@init` / `@incr` / `@fin` function-pointer dispatch in gawk. If a function is not defined, the default behaviour applies (see below).
 
 ### Numerators, denominators, and missing-data-aware averaging
 
@@ -80,7 +78,7 @@ At print time, the value is `num[i][s] / den[i][s]`. If no `finalize_*` function
 pi = (num_site1 + num_site2 + ...) / (56 + 12 + ...)
 ```
 
-Sites with fewer called alleles naturally receive less weight — without any explicit imputation or site dropping. This is identical in spirit to the "ratio of averages" approach used in vcftools pixy.
+Sites with fewer called alleles naturally receive less weight — without any explicit imputation or site dropping. This is identical in spirit to the "ratio of averages" approach used in [pixy](https://github.com/ksamuk/pixy).
 
 ### The finalize_* function
 
@@ -90,11 +88,9 @@ Some statistics cannot be computed simply as `sum(num)/sum(den)`. For example, W
 theta_w = (S / lines) / a1
 ```
 
-where `a1` (the harmonic number) was accumulated across segregating sites. The `finalize_theta_w` function reads `num[i]["segr"]` and `num[i]["a1"]` (both accumulated by their own `increment_*` functions) and assembles the final value by overwriting `num[i]["theta_w"]` and `den[i]["theta_w"]` before the ratio is printed.
+where `a1` (the harmonic number) was accumulated across segregating sites. The `finalize_theta_w()` function reads `num[i]["segr"]` and `num[i]["a1"]` (both accumulated by their own `increment_*` functions) and assembles the final value by overwriting `num[i]["theta_w"]` and `den[i]["theta_w"]` before the ratio is printed.
 
 This late-binding design means that `theta_w` is always correct even when `piawka sum` re-runs it on pre-accumulated numerators/denominators — as long as the dependency statistics (`a1`, `segr`, `lines`) are also present.
-
-> **Illustration idea**: a diagram showing VCF sites flowing into increment functions for pi and segr, with arrows pointing to finalize_theta_w that combines their accumulated values.
 
 ---
 
@@ -112,17 +108,17 @@ BEGIN {
 
 The `stats::parse_stats()` function recursively parses the dependency list, marks all dependency statistics as "used", and sorts the full list so that each statistic is computed after its dependencies. `--dependencies` also marks them as "printed" so they appear in the output.
 
-The `increment_*` and `finalize_*` functions of dependency statistics are guaranteed to run before those of the dependent statistic because the ordering of `@include` statements in the `piawka` file follows the dependency order.
+The `increment_*` and `finalize_*` functions of dependency statistics are guaranteed to run before those of the dependent statistic because the ordering of `@include` statements in the `piawka` file follows the dependency order. This order has to be taken care of when adding new statistics!
 
 ### Why this matters for piawka sum
 
-When `piawka calc` is called without `-b`, it pipes its output directly to `piawka sum`. `sum` re-reads the pre-accumulated numerators and denominators and re-runs the `finalize_*` functions. For this to work correctly, all dependency statistics must be present in the piped stream — which is why `calc` automatically enables `--dependencies` in this mode.
+When `piawka calc` is called without `-b`, it calculates statistics in windows made on-the-fly and pipes its output directly to `piawka sum`. `sum` re-reads the pre-accumulated numerators and denominators and re-runs the `finalize_*` functions. For this to work correctly, all dependency statistics must be present in the piped stream — which is why `calc` automatically enables `--dependencies` in this mode.
 
 ---
 
 ## Adding statistics modules
 
-New statistics can be added without modifying any existing file. Follow the template in `include/example.awk`:
+New statistics can be added without modifying any existing file except `piawka` itself. Follow the template in `include/example.awk`:
 
 1. **Create** a new file, e.g., `include/mystat.awk`.
 2. **Register** the statistic in the `BEGIN` block:
@@ -143,7 +139,7 @@ New statistics can be added without modifying any existing file. Follow the temp
    - `finalize_mystat(i)` (or `finalize_mystat(i,j)`) — run before printing
 4. **Add** `@include "mystat.awk"` to the `piawka` script, **after** all its dependencies.
 
-Inside `increment_*`, access the following per-site variables:
+Inside `increment_*`, feel free to access the following per-site variables:
 
 | Variable | Type | Description |
 |----------|------|-------------|
@@ -169,11 +165,11 @@ If a `finalize_*` function is defined, it should assign to `num[i]["mystat"]` an
 
 ### Architecture
 
-`piawka calc -j N` uses `gawk`'s `@load "fork"` extension to create N child processes:
+`piawka calc -j N` uses `gawk`'s standard `fork` extension to create N child processes:
 
 ```
 Parent process
-├── Reads BED file, writes region lines to per-job FIFO buffers
+├── Reads BED file (made on the fly if not supplied), writes region lines to per-job FIFO buffers
 ├── Waits for all N children to finish
 └── Assembles output in order from per-job temporary files
 
@@ -185,7 +181,7 @@ Child process 0          Child process 1          ...
 
 ### Buffer and checkpoint files
 
-All inter-process communication goes through the temporary directory (`/tmp/piawkatmpXXXXXXXX`):
+All inter-process communication goes through the temporary directory (`$TMPDIR/piawkatmpXXXXXXXX`):
 
 | File | Purpose |
 |------|---------|
@@ -203,4 +199,3 @@ Each unit of work sent to a child process is **one BED region** from the `-b` fi
 
 The output order is preserved: results are always printed in the same order as the input BED regardless of which child finished first.
 
-> **Illustration idea**: a simple pipeline diagram showing parent distributing regions to child boxes, each child writing a tmp file, and the parent reading them back in order.
