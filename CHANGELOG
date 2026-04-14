@@ -1,3 +1,10 @@
+(2026-04-14) 0.9.0  : switch to subcommands (calc/dist/filt/list/sum/win), 
+                      add/extend sum and win options,
+                      add maf, daf, nei, and theta_* stats, 
+                      rename diff to afd,
+                      improve help/arg handling, 
+                      harden file/index/tmp handling and multiprocessing reliability
+
 (2025-03-04) 0.8.11 : report Watterson's theta per site,
                       improve piawka2dist (former piawka2nexus),
                       improve output handling by multiple processes through tempfiles,
