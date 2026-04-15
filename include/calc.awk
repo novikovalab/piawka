@@ -157,12 +157,13 @@ function get_header() {
 }
 
 function make_tmpdir(){
-  tmpcmd="mktemp -t -d piawkatmp.XXXXXXXX"
+  tmpcmd="mktemp -d"
   if ( tmpcmd | getline tmpdir <= 0 ) {
     say("Error: failed to create temporary directory!")
     exit 1
   }
   close(tmpcmd)
+  say("Temp directory: "tmpdir)
   # We can't trap an exec'ed script but we can employ a process to clean the tmpdir after it's done:
   system( "{ while kill -0 "PROCINFO["pid"]" 2>/dev/null; do sleep 1; done; rm -rf "tmpdir"; } &" )
 }
