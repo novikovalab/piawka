@@ -52,7 +52,6 @@ function check_gawk_version(    gawk_version) {
 
 function check_arguments() {
   if ( !( "stats" in arg::args ) ) { arg::args["stats"]="pi,dxy" }
-  if ( !( "miss" in arg::args ) ) { arg::args["miss"]=1 }
   if ( arg::args["jobs"]==0 ) { arg::args["jobs"]=1 }
   piping_to_sum=( !( "bed" in arg::args ) && arg::args["persite"] != 1  )
   # if piping to sum, dependencies should be also passed over
@@ -308,7 +307,7 @@ function process_sites() {
 
     if ( divide ) { continue }
     for ( i in a ) {
-      if ( exclude[i] || ( arg::args["miss"] < 1 && miss[i]/(miss[i]+n[i]) > arg::args["miss"] ) || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
+      if ( exclude[i] || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
         delete a[i]
         continue
       }
