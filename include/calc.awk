@@ -249,22 +249,19 @@ function process_sites() {
 
     if ( "rand" in arg::args && ( rand() > arg::args["rand"] ) ) { continue }
 
-    # Process only SNPs (possibly monomorphic or multiallelic)
+    # REF-ALT-agnostic site filtering
     # To obtain results identical to ksamuk/pixy, set $4 !~ /^[ACGT]$/ && $5 !~ /\*|,|[ACGT][ACGT]/
-    if (length($4)>1) { continue } # if REF is multi-nucleotide, skip
     delete ALT
-    ALT[nalt=0]=1
+    nalt=0
 
-    # only consider single-char ALT that are not *
-    while (x=index($5,",")) {
-      nalt++
-      if (x == 2 && substr($5,1,1)!="*") {
+    # only consider single-char REF/ALT that are not *
+    REFALT=$4","$5","
+    while (x=index(REFALT,",")) {
+      if (x == 2 && substr(REFALT,1,1)!="*") {
         ALT[nalt]=1
       }
-      $5=substr($5,x+1)
-    }
-    if ( length($5) == 1 && $5 != "*" ) {
-      ALT[++nalt]=1
+      nalt++
+      REFALT=substr(REFALT,x+1)
     }
 
     if ( arg::args["persite"] == 1 ) { 
