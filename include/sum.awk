@@ -90,9 +90,20 @@ function summarize_regions(f,    firstline, locschr, i2, i3) {
         stats::parse_stats(substr(stats,2))
       }
       if ( "groups" in arg::args ) {
-        if ( $5 in calc::groupmem && ($6=="." || $6 in calc::groupmem) ) {
-          $5=calc::groupmem[$5]
-          $6=( $6=="." ? "." : calc::groupmem[$6] )
+        if ( $5 in calc::groupmem ) {
+          i = calc::groupmem[$5]
+          if ($6 == ".") {
+            $5=i
+          } else if ( $6 in calc::groupmem ) {
+            j = calc::groupmem[$6]
+            if ( j > i ) {
+              $5=i
+              $6=j
+            } else {
+              $6=i
+              $5=j
+            }
+          }
         } else { 
           continue 
         }
