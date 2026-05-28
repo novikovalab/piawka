@@ -7,7 +7,7 @@ BEGIN{
 function initiate_tajima(){
   piawka::assert( arg::args["persite"]!=1, "-s tajima cannot be calculated for a single site" )
   if ( arg::args["mult"]==1 ) {
-    piawka::say("Warning: -s tajima is unreliable when calculated for multiallelic sites")
+    say("Warning: -s tajima is unreliable when calculated for multiallelic sites")
   }
   for (i in groups) {
     if ( ploidy[i] % 1 != 0 ) {
