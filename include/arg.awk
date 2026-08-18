@@ -12,7 +12,7 @@ function add_argument(short, long, is_flag, desc) {
   args_isflag[narg] = is_flag
   args_desc[narg] = desc
   shortopts = shortopts short (is_flag ? "" : ":")
-  longopts = longopts long (is_flag ? "" : ":") ","
+  longopts = longopts "," long (is_flag ? "" : ":")
 }
 
 function format_help(   help, help_col1, total_width) {

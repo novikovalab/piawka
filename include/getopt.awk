@@ -72,7 +72,7 @@ function getopt(argc, argv, options, longopts,    thisopt, i, j)
         else
             thisopt = substr(argv[Optind], 3)
         Optopt = thisopt
-        i = match(longopts, "(^|,)" thisopt "($|[,:])")
+        i = match(longopts, "," thisopt "($|[,:])")
         if (i == 0) {
             if (Opterr)
                  printf("%s -- invalid option\n", thisopt) > "/dev/stderr"
