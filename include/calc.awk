@@ -273,29 +273,44 @@ function process_sites() {
     delete a
     delete thisnum
     delete thisden
+    delete gts
 
     # Pool GT values for groups, count each state and missing data
     for (col in groupindex) {
       i=groupindex[col]
-      if ( exclude[i] ) { continue }
       gtend=index( $col, ":" )
       if ( gtend==0 ) { gtend=length($col)+1 }
-      for (c=1; c<gtend; c+=2) {
-        al=substr($col,c,1)
-        if ( al == "." ) {
-          miss[i]+=gtend/2
-          break
-        } else {
-          if ( !(al in ALT) ) { 
+      g=substr($col, 1, gtend-1)
+      gts[i][g]++
+    }
+    for (i in gts) {
+      for (g in gts[i]) {
+        if (!(g in gtseen)) {
+          for (c=1; al=substr(g,c,1); c+=2) {
+            gtseen[g][al]++
+          }
+        }
+        for (al in gtseen[g]) {
+          if (al == ".") {
+            incr=gtseen[g][al]*gts[i][g]
+            miss[i]+=incr  
+          } else if ( !(al in ALT) ) { 
             exclude[i]=1
             break
+          } else {
+            incr=gtseen[g][al]*gts[i][g]
+            a[i][al]+=incr
+            n[i]+=incr
           }
-          a[i][al]++
-          n[i]++
         }
+        if (exclude[i]) break
+      }
+      if (exclude[i]) {
+        delete a[i]
+        continue
       }
       if ( divide && i in a ) {
-        if ( exclude[i] || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
+        if ( arg::args["mult"] != 1 && length(a[i]) > 2 ) { 
           delete a[i]
           continue
         }
@@ -307,7 +322,7 @@ function process_sites() {
 
     if ( divide ) { continue }
     for ( i in a ) {
-      if ( exclude[i] || ( arg::args["mult"] != 1 && length(a[i]) > 2 ) ) { 
+      if ( arg::args["mult"] != 1 && length(a[i]) > 2 ) { 
         delete a[i]
         continue
       }
