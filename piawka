@@ -41,6 +41,8 @@
 @include "tajimalike.awk"
 
 #metrics: between
+@include "lines2.awk"
+@include "segr2.awk"
 @include "afd.awk"
 @include "dxy.awk"
 @include "fst.awk"
