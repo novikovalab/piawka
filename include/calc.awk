@@ -241,7 +241,7 @@ function get_bedcmd() {
 }
 
 # Process VCF lines
-function process_sites() {
+function process_sites(    bad) {
   if ( locus == "" ) { locus="." } # empty locus breaks piawka sum
   cmd = "tabix " arg::args["vcf"] ( "targets" in arg::args ? " -T " arg::args["targets"]:"" ) " "chr":"start+1"-"end  
   while ( cmd | getline > 0 ) {
@@ -269,7 +269,7 @@ function process_sites() {
     }
   
     # Reset site-specific parameters
-    for (i in groups) { miss[i]=0; misind[i]=0; n[i]=0; exclude[i]=0 }
+    for (i in groups) { miss[i]=0; n[i]=0 }
     delete a
     delete thisnum
     delete thisden
@@ -281,51 +281,34 @@ function process_sites() {
       gtend=index( $col, ":" )
       if ( gtend==0 ) { gtend=length($col)+1 }
       g=substr($col, 1, gtend-1)
-      gts[i][g]++
-    }
-    for (i in gts) {
-      for (g in gts[i]) {
-        if (!(g in gtseen)) {
-          for (c=1; al=substr(g,c,1); c+=2) {
-            gtseen[g][al]++
-          }
-        }
-        for (al in gtseen[g]) {
-          if (al == ".") {
-            incr=gtseen[g][al]*gts[i][g]
-            miss[i]+=incr  
-          } else if ( !(al in ALT) ) { 
-            exclude[i]=1
-            break
-          } else {
-            incr=gtseen[g][al]*gts[i][g]
-            a[i][al]+=incr
-            n[i]+=incr
-          }
-        }
-        if (exclude[i]) break
-      }
-      if (exclude[i]) {
-        delete a[i]
-        continue
-      }
-      if ( divide && i in a ) {
-        if ( arg::args["mult"] != 1 && length(a[i]) > 2 ) { 
+      if (divide) {
+        if (parse_genotype(g, i, 1) > 0 ||
+            arg::args["mult"] != 1 && i in a && length(a[i]) > 2 ) {
           delete a[i]
           continue
         }
         calculate_within(i)
         calculate_between(i)
         if ( arg::args["persite"] ) { yield_output() }
+      } else {
+        gts[i][g]++
+      }
+    }
+    for (i in gts) {
+      bad=0
+      for (g in gts[i]) {
+        bad = parse_genotype(g, i, gts[i][g]) > 0
+        if (bad) {
+          break
+        }
+      }
+      if ( bad || arg::args["mult"] != 1 && i in a && length(a[i]) > 2 ) {
+        delete a[i]
       }
     }
 
     if ( divide ) { continue }
     for ( i in a ) {
-      if ( arg::args["mult"] != 1 && length(a[i]) > 2 ) { 
-        delete a[i]
-        continue
-      }
       calculate_within( i )
     }
     # Between is in second pass to make sure dependencies are there
@@ -336,6 +319,22 @@ function process_sites() {
   }
   if ( !arg::args["persite"] ) { yield_output() }
   close(cmd)
+}
+
+# fill miss[i], a[i], n[i] from gt string repeated count times
+# returns 1 on non-SNP and 0 on success
+function parse_genotype(gt, i, count,    c, al) {
+  for (c=1; al=substr(gt,c,1); c+=2) {
+    if (al == ".") {
+      miss[i]+=count  
+    } else if ( !(al in ALT) ) { 
+      return 1
+    } else {
+      a[i][al]+=count
+      n[i]+=count
+    }
+  }
+  return 0
 }
 
 function calculate_within(i,    si, s) {
