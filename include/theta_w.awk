@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("theta_w", "Watterson's theta", 0, "a1,segr,lines")
+  stats::add_stat("theta_w", "Watterson's theta", 0, "segr,a1all")
 }
 
 function initiate_theta_w(){
@@ -10,6 +10,6 @@ function initiate_theta_w(){
 
 function finalize_theta_w(i){
   if ( num[i]["segr"]==0 ) { return 0 }
-  num[i]["theta_w"]=num[i]["segr"]/num[i]["lines"]
-  den[i]["theta_w"]=num[i]["a1"]/num[i]["segr"]
+  num[i]["theta_w"]=num[i]["segr"]
+  den[i]["theta_w"]=num[i]["a1all"]
 }

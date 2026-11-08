@@ -30,6 +30,7 @@
 @include "maf.awk"
 @include "daf.awk"
 @include "a1.awk"
+@include "a1all.awk"
 @include "a2.awk"
 @include "segr.awk"
 @include "segrcorr.awk"

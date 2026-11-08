@@ -1,7 +1,7 @@
 @namespace "calc"
 
 BEGIN{
-  stats::add_stat("tajima", "Tajima's D", 0, "a1,a2,segr,pi,lines,miss")
+  stats::add_stat("tajima", "Tajima's D", 0, "segr,a1all,pi,lines,miss")
 }
 
 function initiate_tajima(){
@@ -19,10 +19,11 @@ function initiate_tajima(){
 function finalize_tajima(i,     tP, a1, a2, N){
   if ( num[i]["segr"]==0 ) { return 0 }
   tP=num[i]["pi"]/den[i]["pi"]*num[i]["lines"]
-  a1=num[i]["a1"]/num[i]["segr"]
-  a2=num[i]["a2"]/num[i]["segr"]
-  N=den[i]["miss"]/num[i]["lines"]
-  num[i]["tajima"]= tP - num[i]["segr"]/a1
+  # variance term: Tajima's coefficients at the mean number of genotyped lines per site, rounded
+  N=int((den[i]["miss"]-num[i]["miss"])/num[i]["lines"]+0.5)
+  a1=harm(N-1)
+  a2=harm2(N-1)
+  num[i]["tajima"]= tP - num[i]["segr"]*num[i]["lines"]/num[i]["a1all"]
   den[i]["tajima"]= calcTajimaVar( num[i]["segr"], a1, a2, N )
 }
 
