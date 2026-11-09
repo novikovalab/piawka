@@ -1,3 +1,5 @@
+@namespace "calc"
+
 # helper: sum of the harmonic number a1(n) over all sites with a genotype count n>1, variable or not.
 # E[segregating sites at a site] = theta * a1(n), so S / sum(a1) is the unbiased, minimum-variance estimate of theta per site
 # when the sample size n differs between sites (missing data).
